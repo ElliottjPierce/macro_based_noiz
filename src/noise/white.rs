@@ -23,7 +23,7 @@ use super::Noise;
 macro_rules! impl_white {
     ($dt:ty, $name:ident, $key:expr, $(($input:ty, $conv:ty)),* $(,),*) => {
         /// A seeded RNG inspired by [FxHash](https://crates.io/crates/fxhash)
-        pub struct $name($dt);
+        pub struct $name(pub $dt);
 
         $(
             impl Noise< $input > for $name {
@@ -44,8 +44,6 @@ macro_rules! impl_white {
         )*
     };
 }
-
-// const fn array_of_one<T: Copy>(x: &T)
 
 // uses some very large primes I found on the internet
 impl_white!(
@@ -135,7 +133,7 @@ mod tests {
         let _tmp = rng.sample([8, 2]);
         let _tmp = rng.sample([8, 2, 4]);
         let _tmp = rng.sample([8, 2, 9, 3]);
-        let _tmp = rng.sample(vec![1, 2, 3, 4 ,5]);
+        let _tmp = rng.sample(vec![1, 2, 3, 4, 5]);
         let _tmp = rng.sample(UVec2::new(1, 2));
         let _tmp = rng.sample(UVec3::new(1, 2, 3));
         let _tmp = rng.sample(UVec4::new(1, 2, 3, 4));
