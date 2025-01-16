@@ -25,27 +25,32 @@ pub struct SNorm(f32);
 pub struct UNorm(f32);
 
 impl SNorm {
-    /// constructs an arbetrary but valid value using these bits
-    pub fn from_bits(bits: u32) -> Self {
-        // the following is inspired by rand's Open01 implementation:
+    /// constructs an arbetrary but valid value using these bits. Retruns an additional byte of
+    /// leftover bits not used in the calculation.
+    #[inline]
+    pub fn from_bits(bits: u32) -> (Self, u8) {
+        let entropy = bits as u8; // takes the least significant 8 bits
 
+        // the following is inspired by rand's Open01 implementation:
         use rand::distributions::hidden_export::IntoFloat;
         // Transmute-based method; 23/52 random bits; (0, 1) interval.
         // We use the most significant bits because for simple RNGs
         // those are usually more random.
 
-        /// These are reserved bits for [`IntoFloat`] to do its magic.
-        const RESERVED: u32 = 0b_11111111_10000000_00000000_00000000;
-        let mut raw = (bits & !RESERVED).into_float_with_exponent(0) - (1.0 - f32::EPSILON / 2.0);
-        raw = f32::from_bits(raw.to_bits() | (bits & 1 << 31));
-        Self(raw)
+        let mut raw = (bits >> 9).into_float_with_exponent(0) - (1.0 - f32::EPSILON / 2.0); // loose the 8 least significant
+        raw = f32::from_bits(raw.to_bits() | ((bits & (1 << 8)) << 23)); // should lower to just moving the bit over.
+        // to summarize, the 8 least bits went to entropy. The next least became the sign. The most
+        // significant 23 bits became the float.
+        (Self(raw), entropy)
     }
 }
 
 impl UNorm {
-    /// constructs an arbetrary but valid value using these bits
-    pub fn from_bits(mut bits: u32) -> Self {
-        bits &= !(1 << 31); // ensures float's sign bit isn't on
-        Self(SNorm::from_bits(bits).0)
+    /// constructs an arbetrary but valid value using these bits. Retruns an additional byte of
+    /// leftover bits not used in the calculation.
+    #[inline]
+    pub fn from_bits(bits: u32) -> (Self, u8) {
+        let (signed, entropy) = SNorm::from_bits(bits);
+        (Self(signed.0.abs()), entropy)
     }
 }

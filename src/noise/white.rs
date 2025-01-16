@@ -1,7 +1,5 @@
 //! This module implements white noise inspiered by the [FxHash](https://crates.io/crates/fxhash)
 
-use std::ops::BitXor;
-
 use bevy_math::{
     U8Vec2,
     U8Vec3,
