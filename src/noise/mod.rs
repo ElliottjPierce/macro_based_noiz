@@ -33,7 +33,11 @@ impl SNorm {
         // Transmute-based method; 23/52 random bits; (0, 1) interval.
         // We use the most significant bits because for simple RNGs
         // those are usually more random.
-        let raw = bits.into_float_with_exponent(0) - (1.0 - f32::EPSILON / 2.0);
+
+        /// These are reserved bits for [`IntoFloat`] to do its magic.
+        const RESERVED: u32 = 0b_11111111_10000000_00000000_00000000;
+        let mut raw = (bits & !RESERVED).into_float_with_exponent(0) - (1.0 - f32::EPSILON / 2.0);
+        raw = f32::from_bits(raw.to_bits() | (bits & 1 << 31));
         Self(raw)
     }
 }
