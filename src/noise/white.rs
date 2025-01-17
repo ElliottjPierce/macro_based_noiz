@@ -96,6 +96,17 @@ impl_white!(
     (Vec<u64>, Vec<u64>),
 );
 
+impl_white!(
+    u128,
+    White128,
+    982_451_653_011,
+    (u128, Option<u128>),
+    ([u128; 2], [u128; 2]),
+    ([u128; 3], [u128; 3]),
+    ([u128; 4], [u128; 4]),
+    (Vec<u128>, Vec<u128>),
+);
+
 #[cfg(target_pointer_width = "32")]
 impl_white!(
     usize,
