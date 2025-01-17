@@ -18,6 +18,36 @@ pub trait Noise<Input> {
     }
 }
 
+impl<I, N1: Noise<I>, N2: Noise<N1::Output>> Noise<I> for (N1, N2) {
+    type Output = N2::Output;
+
+    #[inline]
+    fn sample(&self, input: I) -> Self::Output {
+        self.1.sample(self.0.sample(input))
+    }
+}
+
+impl<I, N1: Noise<I>, N2: Noise<N1::Output>, N3: Noise<N2::Output>> Noise<I> for (N1, N2, N3) {
+    type Output = N3::Output;
+
+    #[inline]
+    fn sample(&self, input: I) -> Self::Output {
+        self.2.sample(self.1.sample(self.0.sample(input)))
+    }
+}
+
+impl<I, N1: Noise<I>, N2: Noise<N1::Output>, N3: Noise<N2::Output>, N4: Noise<N3::Output>> Noise<I>
+    for (N1, N2, N3, N4)
+{
+    type Output = N4::Output;
+
+    #[inline]
+    fn sample(&self, input: I) -> Self::Output {
+        self.3
+            .sample(self.2.sample(self.1.sample(self.0.sample(input))))
+    }
+}
+
 /// A value that stores an f32 in range (-1, 0)∪(0, 1).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SNorm(f32);
@@ -258,4 +288,13 @@ impl UNorm {
         // SAFETY: this may be 1 if value was u16 max, so we need to clamp it
         unsafe { Self::new_positive((value as f32 + 1.0) / u16::MAX as f32) }
     }
+}
+
+/// Allows the chaining of multiple noise types
+#[macro_export]
+macro_rules! chain {
+    ($base:expr) => {$base};
+    ($base:expr, $($noise:expr),+) => {
+        ($base, chain!($($noise),+))
+    };
 }

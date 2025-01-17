@@ -1,8 +1,11 @@
-use noiz::noise::{
-    Noise,
-    SNorm,
-    UNorm,
-    white::White32,
+use noiz::{
+    chain,
+    noise::{
+        Noise,
+        SNorm,
+        UNorm,
+        white::White32,
+    },
 };
 
 fn main() {
@@ -22,5 +25,12 @@ fn main() {
     for i in 200..300u32 {
         let val = UNorm::from_bits_with_entropy(White32(i).sample(i));
         println!("\tUnorm: {val:?}");
+    }
+
+    println!("Chaining white");
+    let noise = chain!(White32(0), White32(1), White32(1), White32(1), White32(1));
+    for i in 200..300u32 {
+        let val = noise.sample(i);
+        println!("\tChained white: {val:?}");
     }
 }
