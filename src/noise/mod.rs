@@ -7,6 +7,7 @@ use rand_core::{
     impls,
 };
 
+pub mod grid;
 pub mod mapping;
 pub mod white;
 
