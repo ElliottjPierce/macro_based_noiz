@@ -1,5 +1,7 @@
 //! This module contains all the noise itself
 
+use bevy_math::Curve;
+
 pub mod white;
 
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.
@@ -28,7 +30,7 @@ impl SNorm {
     /// constructs an arbetrary but valid value using these bits. Retruns an additional byte of
     /// leftover bits not used in the calculation.
     #[inline]
-    pub fn from_bits(bits: u32) -> (Self, u8) {
+    pub fn from_bits_with_entropy(bits: u32) -> (Self, u8) {
         let entropy = bits as u8; // takes the least significant 8 bits
 
         // the following is inspired by rand's Open01 implementation:
@@ -43,14 +45,98 @@ impl SNorm {
         // significant 23 bits became the float.
         (Self(raw), entropy)
     }
+
+    /// conststructs an arbetrary but valid value from these bits.
+    #[inline]
+    pub fn from_bits(bits: u32) -> Self {
+        Self::from_bits_with_entropy(bits).0
+    }
+
+    /// clamps the value into a valid SNorm
+    #[inline]
+    pub fn new_clamped(value: f32) -> Self {
+        let unorm = value.abs().clamp(UNorm::MIN, UNorm::MAX);
+        Self(f32::from_bits(
+            unorm.to_bits() | (value.to_bits() & (1 << 31)),
+        ))
+    }
+
+    /// constructs a new SNorm assuming value is in bounds.
+    ///
+    /// # Safety
+    /// value MUST be garenteed to be in (-1, 1) and not be 0
+    #[inline]
+    pub unsafe fn new_unchecked(value: f32) -> Self {
+        Self(value)
+    }
+
+    /// inverts the value. Equivilent to -value
+    #[inline]
+    pub fn inverse(self) -> Self {
+        Self(-self.0)
+    }
+
+    /// constructs a new value after passing through the curve
+    pub fn remap(self, curve: &impl Curve<f32>) -> Self {
+        Self::new_clamped(curve.sample_clamped(self.0))
+    }
+
+    /// interprets this value an a new scale by multiplication
+    #[inline]
+    pub fn scale(self, scale: f32) -> f32 {
+        self.0 * scale
+    }
 }
 
 impl UNorm {
+    /// The smallest valid value
+    const MIN: f32 = f32::MIN_POSITIVE;
+    /// The greatest valid value
+    const MAX: f32 = 1.0 - f32::EPSILON;
+
     /// constructs an arbetrary but valid value using these bits. Retruns an additional byte of
     /// leftover bits not used in the calculation.
     #[inline]
-    pub fn from_bits(bits: u32) -> (Self, u8) {
-        let (signed, entropy) = SNorm::from_bits(bits);
+    pub fn from_bits_with_entropy(bits: u32) -> (Self, u8) {
+        let (signed, entropy) = SNorm::from_bits_with_entropy(bits);
         (Self(signed.0.abs()), entropy)
+    }
+
+    /// conststructs an arbetrary but valid value from these bits.
+    #[inline]
+    pub fn from_bits(bits: u32) -> Self {
+        Self::from_bits_with_entropy(bits).0
+    }
+
+    /// clamps the value into a valid UNorm
+    #[inline]
+    pub fn new_clamped(value: f32) -> Self {
+        Self(value.clamp(Self::MIN, Self::MAX))
+    }
+
+    /// constructs a new UNorm assuming value is in bounds.
+    ///
+    /// # Safety
+    /// value MUST be garenteed to be in (0, 1)
+    #[inline]
+    pub unsafe fn new_unchecked(value: f32) -> Self {
+        Self(value)
+    }
+
+    /// inverts the value. Equivilent to 1 - value
+    #[inline]
+    pub fn inverse(self) -> Self {
+        Self(1.0 - self.0)
+    }
+
+    /// constructs a new value after passing through the curve
+    pub fn remap(self, curve: &impl Curve<f32>) -> Self {
+        Self::new_clamped(curve.sample_clamped(self.0))
+    }
+
+    /// interprets this value an a new scale by multiplication
+    #[inline]
+    pub fn scale(self, scale: f32) -> f32 {
+        self.0 * scale
     }
 }
