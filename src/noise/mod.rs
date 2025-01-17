@@ -7,6 +7,7 @@ use rand_core::{
     impls,
 };
 
+pub mod mapping;
 pub mod white;
 
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.
@@ -306,6 +307,7 @@ macro_rules! chain {
 
 /// A 64-bit version of [`NoiseRng`]. Use this when you are working primarily with 64-bit numbers.
 /// You may use this to generate seeds, etc. In general, [`NoiseRng`] is a better pick.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct NoiseRng64<N: Noise<u64, Output = u64>>(N, u64);
 
 impl<N: Noise<u64, Output = u64>> RngCore for NoiseRng64<N> {
@@ -346,6 +348,7 @@ impl<N: Noise<u64, Output = u64> + Clone> NoiseRng64<N> {
 
 /// A rng that uses a noise function as its randomizer. This operates on 32 bit noise, so it is a
 /// good default RNG.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct NoiseRng<N: Noise<u32, Output = u32>>(N, u32);
 
 impl<N: Noise<u32, Output = u32>> RngCore for NoiseRng<N> {

@@ -21,6 +21,7 @@ use super::Noise;
 macro_rules! impl_white {
     ($dt:ty, $name:ident, $key:expr, $(($input:ty, $conv:ty)),* $(,),*) => {
         /// A seeded RNG inspired by [FxHash](https://crates.io/crates/fxhash)
+        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
         pub struct $name(pub $dt);
 
         $(
