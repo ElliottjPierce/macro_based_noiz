@@ -16,8 +16,9 @@ use bevy_math::{
 };
 
 use super::{
-    NoiseMapped,
+    NoiseConvert,
     NoiseOp,
+    NoiseResult,
 };
 
 /// a noise that converts a vector input to a point in a grid
@@ -60,14 +61,22 @@ macro_rules! make_grid_point {
             pub offset: $f,
         }
 
+        impl NoiseResult for $name {}
+
+        impl NoiseConvert<$uint> for $name {
+            fn convert(self) -> $uint {
+                self.base
+            }
+        }
+
         impl NoiseOp<$f> for $fnoise {
             type Output = $name;
 
             #[inline]
-            fn get_raw(&self, input: $f) -> Self::Output {
+            fn get(&self, input: $f) -> Self::Output {
                 let val = input * self.frequency;
                 $name {
-                    base: NoiseMapped::<$uint>::map(val.floor().$f2i()),
+                    base: NoiseConvert::<$uint>::convert(val.floor().$f2i()),
                     offset: val.fract_gl(),
                 }
             }
@@ -77,7 +86,7 @@ macro_rules! make_grid_point {
             type Output = $name;
 
             #[inline]
-            fn get_raw(&self, input: $uint) -> Self::Output {
+            fn get(&self, input: $uint) -> Self::Output {
                 let base = input >> self.period_power;
                 $name {
                     offset: (input - base).$ui2f() / 2u32.pow(self.period_power) as $s,
@@ -90,7 +99,7 @@ macro_rules! make_grid_point {
             type Output = $name;
 
             #[inline]
-            fn get_raw(&self, input: $uint) -> Self::Output {
+            fn get(&self, input: $uint) -> Self::Output {
                 let base: $uint = input / self.period as $i;
                 $name {
                     offset: (input - base).$ui2f() / self.period as $s,

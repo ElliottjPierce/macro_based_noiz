@@ -29,7 +29,7 @@ macro_rules! impl_white {
                 type Output = $dt;
 
                 #[inline(always)]
-                fn get_raw(&self, input: $input) -> Self::Output {
+                fn get(&self, input: $input) -> Self::Output {
                     let mut val: $dt = self.0;
                     let inner: $conv = input.into();
                     #[allow(for_loops_over_fallibles)] // this lets you use option to work on just one input
@@ -138,13 +138,13 @@ mod tests {
     #[test]
     fn check_u32() {
         let rng = White32(5);
-        let _tmp = rng.get_raw(8);
-        let _tmp = rng.get_raw([8, 2]);
-        let _tmp = rng.get_raw([8, 2, 4]);
-        let _tmp = rng.get_raw([8, 2, 9, 3]);
-        let _tmp = rng.get_raw(vec![1, 2, 3, 4, 5]);
-        let _tmp = rng.get_raw(UVec2::new(1, 2));
-        let _tmp = rng.get_raw(UVec3::new(1, 2, 3));
-        let _tmp = rng.get_raw(UVec4::new(1, 2, 3, 4));
+        let _tmp = rng.get(8);
+        let _tmp = rng.get([8, 2]);
+        let _tmp = rng.get([8, 2, 4]);
+        let _tmp = rng.get([8, 2, 9, 3]);
+        let _tmp = rng.get(vec![1, 2, 3, 4, 5]);
+        let _tmp = rng.get(UVec2::new(1, 2));
+        let _tmp = rng.get(UVec3::new(1, 2, 3));
+        let _tmp = rng.get(UVec4::new(1, 2, 3, 4));
     }
 }

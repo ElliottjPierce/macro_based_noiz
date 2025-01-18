@@ -28,14 +28,14 @@ use bevy_math::{
     UVec4,
 };
 
-use super::NoiseMapped;
+use super::NoiseConvert;
 
 /// easily implement mapping for integers
 macro_rules! impl_mapper {
     ($s:ty, $u:ty, $w:ty) => {
-        impl NoiseMapped<$u> for $s {
+        impl NoiseConvert<$u> for $s {
             #[inline]
-            fn map(self) -> $u {
+            fn convert(self) -> $u {
                 self as $u ^ (1 << (<$u>::BITS - 1))
             }
         }
@@ -51,10 +51,10 @@ impl_mapper!(i128, u128, White128);
 /// easily implement mapping for integer vecs
 macro_rules! impl_mapper_vec {
     ($s:ty, $u:ty, $w:ty) => {
-        impl NoiseMapped<$u> for $s {
+        impl NoiseConvert<$u> for $s {
             #[inline]
-            fn map(self) -> $u {
-                <$u>::from_array(self.to_array().map(|v| v.map()))
+            fn convert(self) -> $u {
+                <$u>::from_array(self.to_array().map(|v| v.convert()))
             }
         }
     };
@@ -79,8 +79,8 @@ mod tests {
 
     #[test]
     fn check_mapping() {
-        assert_eq!(u32::MIN, i32::MIN.map());
-        assert_eq!(u32::MAX / 2 + 1, 0i32.map());
-        assert_eq!(u32::MAX, i32::MAX.map());
+        assert_eq!(u32::MIN, i32::MIN.convert());
+        assert_eq!(u32::MAX / 2 + 1, 0i32.convert());
+        assert_eq!(u32::MAX, i32::MAX.convert());
     }
 }

@@ -2,6 +2,11 @@
 
 use bevy_math::Curve;
 
+use super::{
+    NoiseConvert,
+    NoiseResult,
+};
+
 /// A value that stores an f32 in range (-1, 0)∪(0, 1).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SNorm(f32);
@@ -243,3 +248,20 @@ impl UNorm {
         unsafe { Self::new_positive((value as f32 + 1.0) / u16::MAX as f32) }
     }
 }
+
+impl NoiseConvert<UNorm> for u32 {
+    #[inline]
+    fn convert(self) -> UNorm {
+        UNorm::from_bits(self)
+    }
+}
+
+impl NoiseConvert<SNorm> for u32 {
+    #[inline]
+    fn convert(self) -> SNorm {
+        SNorm::from_bits(self)
+    }
+}
+
+impl NoiseResult for SNorm {}
+impl NoiseResult for UNorm {}
