@@ -16,7 +16,7 @@ pub struct SNorm(f32);
 pub struct UNorm(f32);
 
 impl SNorm {
-    /// constructs an arbetrary but valid value using these bits. Retruns an additional byte of
+    /// constructs an arbetrary but valid value using these bits. Returns an additional byte of
     /// leftover bits not used in the calculation.
     #[inline]
     pub fn from_bits_with_entropy(bits: u32) -> (Self, u8) {
@@ -71,13 +71,13 @@ impl SNorm {
     /// constructs a new SNorm assuming value is in bounds.
     ///
     /// # Safety
-    /// value MUST be garenteed to be in (-1, 1) and not be 0
+    /// value MUST be guaranteed to be in (-1, 1) and not be 0
     #[inline]
     pub unsafe fn new_unchecked(value: f32) -> Self {
         Self(value)
     }
 
-    /// inverts the value. Equivilent to -value
+    /// inverts the value. Equivalent to -value
     #[inline]
     pub fn inverse(self) -> Self {
         Self(-self.0)
@@ -108,7 +108,7 @@ impl SNorm {
         unsafe { UNorm::new_unchecked(self.0.abs()) }
     }
 
-    /// creates a sharp, mirrord division at 0
+    /// creates a sharp, mirrored division at 0
     #[inline]
     pub fn split_even(self) -> Self {
         self.split_to_unorm().map_to_snorm()
@@ -127,7 +127,7 @@ impl UNorm {
     /// The greatest valid value
     const MAX: f32 = 1.0 - f32::EPSILON;
 
-    /// constructs an arbetrary but valid value using these bits. Retruns an additional byte of
+    /// constructs an arbetrary but valid value using these bits. Returns an additional byte of
     /// leftover bits not used in the calculation.
     #[inline]
     pub fn from_bits_with_entropy(bits: u32) -> (Self, u8) {
@@ -150,7 +150,7 @@ impl UNorm {
     /// constructs a new UNorm assuming value is in bounds.
     ///
     /// # Safety
-    /// value MUST be garenteed to be in (0, 1)
+    /// value MUST be guaranteed to be in (0, 1)
     #[inline]
     pub unsafe fn new_unchecked(value: f32) -> Self {
         Self(value)
@@ -183,7 +183,7 @@ impl UNorm {
         Self(f32::from_bits(value.to_bits() | 1)) // technically causes a minute change to the value, but saves an instruction
     }
 
-    /// inverts the value. Equivilent to 1 - value
+    /// inverts the value. Equivalent to 1 - value
     #[inline]
     pub fn inverse(self) -> Self {
         Self(1.0 - self.0)
@@ -207,7 +207,7 @@ impl UNorm {
         unsafe { SNorm::new_in_bounds(self.0 * 2.0 - 1.0) }
     }
 
-    /// creates a sharp, mirrord division at 0.5
+    /// creates a sharp, mirrored division at 0.5
     #[inline]
     pub fn split_even(self) -> Self {
         // SAFETY: the could produce a value of zero
