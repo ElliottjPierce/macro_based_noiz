@@ -1,14 +1,11 @@
-use noiz::{
-    chain,
-    noise::{
-        NoiseOp,
-        NoiseResult,
-        scalar::{
-            SNorm,
-            UNorm,
-        },
-        white::White32,
+use noiz::noise::{
+    NoiseOp,
+    NoiseResult,
+    scalar::{
+        SNorm,
+        UNorm,
     },
+    white::White32,
 };
 
 fn main() {

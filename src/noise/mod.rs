@@ -1,5 +1,7 @@
 //! This module contains all the noise itself
 
+use std::marker::PhantomData;
+
 pub mod grid;
 pub mod mapping;
 pub mod scalar;
@@ -49,9 +51,50 @@ impl NoiseResult for u32 {}
 impl NoiseResult for u64 {}
 impl NoiseResult for u128 {}
 
+/// Allows chaining noise functions together
+struct Chain<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>>(N1, N2, PhantomData<I>);
+
+/// A noise operation that converts one noise type to another
+struct Adapter<I, O>(PhantomData<(I, O)>)
+where
+    I: NoiseConvert<O>;
+
+/// allows a function to be used as a noise operation
+pub struct NoiseFn<I, O: NoiseResult, F: Fn(I) -> O>(F, PhantomData<(I, O)>);
+
+impl<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>> NoiseOp<I> for Chain<I, N1, N2> {
+    type Output = N2::Output;
+
+    #[inline]
+    fn get(&self, input: I) -> Self::Output {
+        self.1.get(self.0.get(input))
+    }
+}
+
+impl<I, O> NoiseOp<I> for Adapter<I, O>
+where
+    I: NoiseConvert<O>,
+{
+    type Output = O;
+
+    #[inline]
+    fn get(&self, input: I) -> Self::Output {
+        input.convert()
+    }
+}
+
+impl<I, O: NoiseResult, F: Fn(I) -> O> NoiseOp<I> for NoiseFn<I, O, F> {
+    type Output = O;
+
+    #[inline]
+    fn get(&self, input: I) -> Self::Output {
+        self.0(input)
+    }
+}
+
 /// Allows the chaining of multiple noise types
 #[macro_export]
-macro_rules! chain {
+macro_rules! noise_fn {
     ($base:expr) => {$base};
     ($base:expr, $($noise:expr),+) => {
         ($base, chain!($($noise),+))
