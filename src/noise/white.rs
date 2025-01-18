@@ -15,7 +15,7 @@ use bevy_math::{
     UVec4,
 };
 
-use super::Noise;
+use super::NoiseOp;
 
 /// This creates a white noise implementation
 macro_rules! impl_white {
@@ -25,11 +25,11 @@ macro_rules! impl_white {
         pub struct $name(pub $dt);
 
         $(
-            impl Noise< $input > for $name {
+            impl NoiseOp< $input > for $name {
                 type Output = $dt;
 
                 #[inline(always)]
-                fn sample(&self, input: $input) -> Self::Output {
+                fn get_raw(&self, input: $input) -> Self::Output {
                     let mut val: $dt = self.0;
                     let inner: $conv = input.into();
                     #[allow(for_loops_over_fallibles)] // this lets you use option to work on just one input
@@ -138,13 +138,13 @@ mod tests {
     #[test]
     fn check_u32() {
         let rng = White32(5);
-        let _tmp = rng.sample(8);
-        let _tmp = rng.sample([8, 2]);
-        let _tmp = rng.sample([8, 2, 4]);
-        let _tmp = rng.sample([8, 2, 9, 3]);
-        let _tmp = rng.sample(vec![1, 2, 3, 4, 5]);
-        let _tmp = rng.sample(UVec2::new(1, 2));
-        let _tmp = rng.sample(UVec3::new(1, 2, 3));
-        let _tmp = rng.sample(UVec4::new(1, 2, 3, 4));
+        let _tmp = rng.get_raw(8);
+        let _tmp = rng.get_raw([8, 2]);
+        let _tmp = rng.get_raw([8, 2, 4]);
+        let _tmp = rng.get_raw([8, 2, 9, 3]);
+        let _tmp = rng.get_raw(vec![1, 2, 3, 4, 5]);
+        let _tmp = rng.get_raw(UVec2::new(1, 2));
+        let _tmp = rng.get_raw(UVec3::new(1, 2, 3));
+        let _tmp = rng.get_raw(UVec4::new(1, 2, 3, 4));
     }
 }
