@@ -36,7 +36,7 @@ macro_rules! impl_white {
                     for v in inner {
                         val += v.wrapping_add($key).wrapping_mul($key) // this should be pipelined pretty well since the addition is only at the very end.
                     }
-                    val.rotate_left(5) // multiplying large numbers like this tends to put more entorpy on the more significant bits. This pushes that entropy to the least segnificant.
+                    val.rotate_left(5) // multiplying large numbers like this tends to put more entropy on the more significant bits. This pushes that entropy to the least segnificant.
                 }
             }
         )*
