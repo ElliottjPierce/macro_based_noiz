@@ -120,12 +120,12 @@ where
     I: NoiseConvert<O>;
 
 /// allows a function to be used as a noise operation
-pub struct NoiseFn<I, O: NoiseResult, F: Fn(I) -> O>(F, PhantomData<(I, O)>);
+pub struct Morph<I, O: NoiseResult, D>(fn(I, &D) -> O, D, PhantomData<(I, O)>);
 
 impl<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>> NoiseOp<I> for Chain<I, N1, N2> {
     type Output = N2::Output;
 
-    #[inline]
+    #[inline(always)]
     fn get(&self, input: I) -> Self::Output {
         self.1.get(self.0.get(input))
     }
@@ -143,12 +143,12 @@ where
     }
 }
 
-impl<I, O: NoiseResult, F: Fn(I) -> O> NoiseOp<I> for NoiseFn<I, O, F> {
+impl<I, O: NoiseResult, D> NoiseOp<I> for Morph<I, O, D> {
     type Output = O;
 
     #[inline]
     fn get(&self, input: I) -> Self::Output {
-        self.0(input)
+        self.0(input, &self.1)
     }
 }
 
