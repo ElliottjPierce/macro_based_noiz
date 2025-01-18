@@ -50,7 +50,7 @@ pub trait NoiseOp<I> {
 
 /// Signifies that these types are effectively the same as far as noise is concerned.
 pub trait NoiseConvert<T: NoiseResult>: NoiseResult {
-    /// maps this value to a noise
+    /// maps this value to a noise. Note that you should usually prefer [`NoiseResult::adapt`]
     fn convert(self) -> T;
 }
 
@@ -161,6 +161,11 @@ macro_rules! noise_type {
         $crate::noise_type!(input=$input, prev=$noise_type, $($next)*)
     };
 
+    // starts with morph
+    (input=$input:path, morph { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $_func:block, $($next:tt)*) => {
+        $crate::noise_type!(input=$input, prev=$crate::noise::Morph<$input, $out, ($($data_t),*)>, $($next)*)
+    };
+
     // starts with adapting
     (input=$input:path, into $converted:path, $($next:tt)*) => {
         $crate::noise_type!(input=$input, prev=$crate::noise::Adapter<$input, $converted>, $($next)*)
@@ -169,6 +174,14 @@ macro_rules! noise_type {
     // chains another noise
     (input=$input:path, prev=$prev_t:path, noise $noise_type:path = $_c:block, $($next:tt)*) => {
         $crate::noise_type!(input=$input, prev=$crate::noise::Chain<$input, $prev_t, $noise_type>, $($next)*)
+    };
+
+    // chains another morph
+    (input=$input:path, prev=$prev_t:path, morph { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $_func:block, $($next:tt)*) => {
+        $crate::noise_type!(
+            input=$input, prev=$crate::noise::Chain<$input, $prev_t, $crate::noise::Morph<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $out, ($($data_t),*,)>>,
+            $($next)*
+        )
     };
 
     // chains another adaption
@@ -191,6 +204,27 @@ macro_rules! noise_build {
         $crate::noise_build!(input=$input, prev=($noise_type, $creation), $($next)*)
     };
 
+    // starts with morph
+    (input=$input:path, morph { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $func:block, $($next:tt)*) => {
+        $crate::noise_build!(
+            input=$input,
+            prev=(
+                $crate::noise::Morph<$input, $out, ($($data_t),*)>,
+                {
+                    $crate::noise::Morph::<$input, $out, ($($data_t),*)>(
+                        |input, data| {
+                            let (($($data_n),*)) = data;
+                            $func
+                        },
+                        ($($data_b),*),
+                        std::marker::PhantomData
+                    )
+                }
+            ),
+            $($next)*
+        )
+    };
+
     // starts with adapting
     (input=$input:path, into $converted:path, $($next:tt)*) => {
         $crate::noise_build!(input=$input, prev=($crate::noise::Adapter<$input, $converted>, { $crate::noise::Adapter::<$input, $converted>(std::marker::PhantomData) }), $($next)*)
@@ -202,6 +236,31 @@ macro_rules! noise_build {
             input=$input, prev=(
                 $crate::noise::Chain<$input, $prev_t, $noise_type>,
                 { $crate::noise::Chain::<$input, $prev_t, $noise_type>($prev_c, $creation, PhantomData) }
+            ),
+            $($next)*
+        )
+    };
+
+    // chains another morph
+    (input=$input:path, prev=($prev_t:path, $prev_c:block), morph { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $func:block, $($next:tt)*) => {
+        $crate::noise_build!(
+            input=$input,
+            prev=(
+                $crate::noise::Chain<$input, $prev_t, $crate::noise::Morph<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $out, ($($data_t),*,)>>,
+                {
+                    $crate::noise::Chain::<$input, $prev_t, _>(
+                        $prev_c,
+                        $crate::noise::Morph::<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $out, ($($data_t),*,)>(
+                            |#[allow(unused_variables)] input, data| {
+                                let ($($data_n),*,) = data;
+                                $func
+                            },
+                            ($($data_b),*,),
+                            std::marker::PhantomData
+                        ),
+                        std::marker::PhantomData
+                    )
+                }
             ),
             $($next)*
         )
@@ -262,12 +321,18 @@ mod tests {
 
     noise_fn! {
         /// docs
-        pub struct Test for i32 = (x: u32, y: u32) {
+        pub struct Test for i32 = (x: u32, y: u32, z: u32) {
             into u32,
             noise White32 = {
                 White32(x)
             },
             into u32,
+            morph {
+                offset: u32 = z
+            } -> u32 {
+                let x = *offset;
+                input + x
+            },
             noise White32 = {
                 White32(y)
             },
@@ -276,7 +341,7 @@ mod tests {
 
     #[test]
     fn test_noise_fn() {
-        let noise = Test::new(57, 13);
+        let noise = Test::new(57, 13, 45);
         let _test_res = noise.get(40);
     }
 
@@ -286,7 +351,7 @@ mod tests {
         let noise = noise_build! {
             input = i32,
             noise Test = {
-                Test::new(4, 12)
+                Test::new(4, 12, 12)
             },
             noise White32 = {
                 White32(outer)

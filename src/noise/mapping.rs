@@ -75,12 +75,12 @@ impl_mapper_vec!(I64Vec4, U64Vec4, White64);
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::noise::NoiseResult;
 
     #[test]
     fn check_mapping() {
-        assert_eq!(u32::MIN, i32::MIN.convert());
-        assert_eq!(u32::MAX / 2 + 1, 0i32.convert());
-        assert_eq!(u32::MAX, i32::MAX.convert());
+        assert_eq!(u32::MIN, i32::MIN.adapt::<u32>());
+        assert_eq!(u32::MAX / 2 + 1, 0i32.adapt::<u32>());
+        assert_eq!(u32::MAX, i32::MAX.adapt::<u32>());
     }
 }
