@@ -2,8 +2,10 @@ use noiz::{
     chain,
     noise::{
         NoiseOp,
-        SNorm,
-        UNorm,
+        scalar::{
+            SNorm,
+            UNorm,
+        },
         white::White32,
     },
 };
