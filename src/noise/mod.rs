@@ -112,10 +112,10 @@ impl<T: NoiseResult> NoiseConvert<T> for T {
 }
 
 /// Allows chaining noise functions together
-struct Chain<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>>(N1, N2, PhantomData<I>);
+pub struct Chain<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>>(N1, N2, PhantomData<I>);
 
 /// A noise operation that converts one noise type to another
-struct Adapter<I: NoiseResult, O: NoiseResult>(PhantomData<(I, O)>)
+pub struct Adapter<I: NoiseResult, O: NoiseResult>(PhantomData<(I, O)>)
 where
     I: NoiseConvert<O>;
 
@@ -152,11 +152,104 @@ impl<I, O: NoiseResult, F: Fn(I) -> O> NoiseOp<I> for NoiseFn<I, O, F> {
     }
 }
 
-/// Allows the chaining of multiple noise types
+/// Allows a user to construct a new noise type by stringing together noise operations. This simply
+/// converts to a type and is intended to be used within [`noise_fn`]
+#[macro_export]
+macro_rules! noise_type {
+    // starts with noise
+    (input=$input:path, noise $noise_type:path = $_c:block, $($next:tt)*) => {
+        $crate::noise_type!(input=$input, prev=$noise_type, $($next)*)
+    };
+
+    // chains another noise
+    (input=$input:path, prev=$prev_t:path, noise $noise_type:path = $_c:block, $($next:tt)*) => {
+        $crate::noise_type!(input=$input, prev=$crate::noise::Chain<$input, $prev_t, $noise_type>, $($next)*)
+    };
+
+    // finishes when there are no more tokens
+    (input=$_input:path, prev=$prev_t:path,) => {
+        $prev_t
+    };
+}
+
+/// Allows a user to construct a new noise type by stringing together noise operations. This simply
+/// converts to a constructor body and is intended to be used within [`noise_fn`]
+#[macro_export]
+macro_rules! noise_build {
+    // starts with noise
+    (input=$input:path, noise $noise_type:path = $creation:block, $($next:tt)*) => {
+        $crate::noise_build!(input=$input, prev=($noise_type, $creation), $($next)*)
+    };
+
+    // chains another noise
+    (input=$input:path, prev=($prev_t:path, $prev_c:block), noise $noise_type:path = $creation:block, $($next:tt)*) => {
+        $crate::noise_build!(input=$input, prev=($crate::noise::Chain<$input, $prev_t, $noise_type>, {$crate::noise::Chain::<$input, $prev_t, $noise_type>($prev_c, $creation, PhantomData)}), $($next)*)
+    };
+
+    // finish when there are no more tokens
+    (input=$_input:path, prev=($_prev_t:path, $prev_c:block),) => {
+        $prev_c
+    };
+}
+
+/// Allows a user to construct a new noise type by stringing together noise operations.
 #[macro_export]
 macro_rules! noise_fn {
-    ($base:expr) => {$base};
-    ($base:expr, $($noise:expr),+) => {
-        ($base, chain!($($noise),+))
+    ($(#[$m:meta])* $v:vis struct $name:ident for $input:path = ($($(#[$pm:meta])* $n:ident: $t:path),*) { $($body:tt)* }) => {
+        $(#[$m])*
+        $v struct $name($crate::noise_type!(input=$input, $($body)*));
+
+        impl $name {
+            /// constructs a new instance of this noise
+            pub fn new($($(#[$pm])* $n: $t),*) -> Self {
+                Self($crate::noise_build!(input=$input, $($body)*))
+            }
+        }
+
+        impl $crate::noise::NoiseOp<$input> for $name {
+            type Output = <$crate::noise_type!(input=$input, $($body)*) as $crate::noise::NoiseOp<$input>>::Output;
+
+            #[inline]
+            fn get(&self, input: $input) -> Self::Output {
+                self.0.get(input)
+            }
+        }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use white::White32;
+
+    use super::*;
+
+    noise_fn! {
+        /// docs
+        pub struct Test for u32 = (x: u32, y: u32) {
+            noise White32 = {
+                White32(x)
+            },
+            noise White32 = {
+                White32(y)
+            },
+        }
+    }
+
+    #[test]
+    fn test_noise_fn() {
+        let noise = Test::new(57, 13);
+        let _test_res = noise.get(40);
+    }
+
+    #[test]
+    fn test_noise_build() {
+        let outer = 34u32;
+        let noise = noise_build! {
+            input = u32,
+            noise White32 = {
+                White32(outer)
+            },
+        };
+        let _test_res = noise.get(40);
+    }
 }
