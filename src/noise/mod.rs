@@ -161,9 +161,19 @@ macro_rules! noise_type {
         $crate::noise_type!(input=$input, prev=$noise_type, $($next)*)
     };
 
+    // starts with adapting
+    (input=$input:path, into $converted:path, $($next:tt)*) => {
+        $crate::noise_type!(input=$input, prev=$crate::noise::Adapter<$input, $converted>, $($next)*)
+    };
+
     // chains another noise
     (input=$input:path, prev=$prev_t:path, noise $noise_type:path = $_c:block, $($next:tt)*) => {
         $crate::noise_type!(input=$input, prev=$crate::noise::Chain<$input, $prev_t, $noise_type>, $($next)*)
+    };
+
+    // chains another adaption
+    (input=$input:path, prev=$prev_t:path, into $converted:path, $($next:tt)*) => {
+        $crate::noise_type!(input=$input, prev=$crate::noise::Chain<$input, $prev_t, $crate::noise::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>, $($next)*)
     };
 
     // finishes when there are no more tokens
@@ -181,9 +191,32 @@ macro_rules! noise_build {
         $crate::noise_build!(input=$input, prev=($noise_type, $creation), $($next)*)
     };
 
+    // starts with adapting
+    (input=$input:path, into $converted:path, $($next:tt)*) => {
+        $crate::noise_build!(input=$input, prev=($crate::noise::Adapter<$input, $converted>, { $crate::noise::Adapter::<$input, $converted>(PhantomData) }), $($next)*)
+    };
+
     // chains another noise
     (input=$input:path, prev=($prev_t:path, $prev_c:block), noise $noise_type:path = $creation:block, $($next:tt)*) => {
-        $crate::noise_build!(input=$input, prev=($crate::noise::Chain<$input, $prev_t, $noise_type>, {$crate::noise::Chain::<$input, $prev_t, $noise_type>($prev_c, $creation, PhantomData)}), $($next)*)
+        $crate::noise_build!(
+            input=$input, prev=(
+                $crate::noise::Chain<$input, $prev_t, $noise_type>,
+                { $crate::noise::Chain::<$input, $prev_t, $noise_type>($prev_c, $creation, PhantomData) }
+            ),
+            $($next)*
+        )
+    };
+
+    // chains another adaption
+    (input=$input:path, prev=($prev_t:path, $prev_c:block), into $converted:path, $($next:tt)*) => {
+        $crate::noise_build!(
+            input=$input,
+            prev=(
+                $crate::noise::Chain<$input, $prev_t, $crate::noise::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>,
+                { $crate::noise::Chain::<$input, $prev_t, $crate::noise::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>($prev_c, $crate::noise::Adapter(PhantomData), PhantomData) }
+            ),
+            $($next)*
+        )
     };
 
     // finish when there are no more tokens
@@ -225,10 +258,12 @@ mod tests {
 
     noise_fn! {
         /// docs
-        pub struct Test for u32 = (x: u32, y: u32) {
+        pub struct Test for i32 = (x: u32, y: u32) {
+            into u32,
             noise White32 = {
                 White32(x)
             },
+            into u32,
             noise White32 = {
                 White32(y)
             },
@@ -245,7 +280,10 @@ mod tests {
     fn test_noise_build() {
         let outer = 34u32;
         let noise = noise_build! {
-            input = u32,
+            input = i32,
+            noise Test = {
+                Test::new(4, 12)
+            },
             noise White32 = {
                 White32(outer)
             },
