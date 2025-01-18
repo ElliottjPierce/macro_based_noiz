@@ -193,7 +193,7 @@ macro_rules! noise_build {
 
     // starts with adapting
     (input=$input:path, into $converted:path, $($next:tt)*) => {
-        $crate::noise_build!(input=$input, prev=($crate::noise::Adapter<$input, $converted>, { $crate::noise::Adapter::<$input, $converted>(PhantomData) }), $($next)*)
+        $crate::noise_build!(input=$input, prev=($crate::noise::Adapter<$input, $converted>, { $crate::noise::Adapter::<$input, $converted>(std::marker::PhantomData) }), $($next)*)
     };
 
     // chains another noise
@@ -213,7 +213,11 @@ macro_rules! noise_build {
             input=$input,
             prev=(
                 $crate::noise::Chain<$input, $prev_t, $crate::noise::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>,
-                { $crate::noise::Chain::<$input, $prev_t, $crate::noise::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>($prev_c, $crate::noise::Adapter(PhantomData), PhantomData) }
+                {
+                    $crate::noise::Chain::<$input, $prev_t, $crate::noise::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>(
+                        $prev_c, $crate::noise::Adapter(std::marker::PhantomData), std::marker::PhantomData
+                    )
+                }
             ),
             $($next)*
         )
