@@ -372,13 +372,13 @@ macro_rules! noise_build {
 /// Allows a user to construct a new noise type by stringing together noise operations.
 #[macro_export]
 macro_rules! noise_fn {
-    ($(#[$m:meta])* $v:vis struct $name:ident for $input:path = ($($(#[$pm:meta])* $n:ident: $t:path),*) { $($body:tt)* }) => {
+    ($(#[$m:meta])* $v:vis struct $name:ident for $input:path = ($($params:tt)*) { $($body:tt)* }) => {
         $(#[$m])*
         $v struct $name($crate::noise_type!(input=$input, $($body)*));
 
         impl $name {
             /// constructs a new instance of this noise
-            pub fn new($($(#[$pm])* $n: $t),*) -> Self {
+            pub fn new($($params)*) -> Self {
                 Self($crate::noise_build!(input=$input, $($body)*))
             }
         }

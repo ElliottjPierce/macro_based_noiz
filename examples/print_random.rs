@@ -1,36 +1,65 @@
-use noiz::noise::{
-    NoiseOp,
-    NoiseType,
-    scalar::{
-        SNorm,
-        UNorm,
+use noiz::{
+    noise::{
+        Noise,
+        scalar::{
+            SNorm,
+            UNorm,
+        },
+        white::White32,
     },
-    white::White32,
+    noise_fn,
+    rng::NoiseRng,
 };
+use rand::prelude::*;
+
+noise_fn! {
+    /// white noise expressed as SNorms
+    pub struct WhiteSNorm for u32 = (gen: &mut impl Rng) {
+        noise White32 = White32(gen.next_u32()),
+        into SNorm
+    }
+}
+
+noise_fn! {
+    /// white noise expressed as UNorms
+    pub struct WhiteUNorm for u32 = (gen: &mut impl Rng) {
+        noise White32 = White32(gen.next_u32()),
+        into UNorm
+    }
+}
+
+noise_fn! {
+    /// white noise expressed as UNorms
+    pub struct CrazyWhite for u32 = (gen: &mut impl Rng, key: u32) {
+        noise White32 = White32(gen.next_u32()),
+        noise White32 = White32(gen.next_u32()),
+        morph |input| -> u32 {input.wrapping_mul(234085)},
+        morph |input| {key: u32 = key} -> u32 {input.wrapping_mul(*key)},
+        noise White32 = White32(gen.next_u32())
+    }
+}
 
 fn main() {
-    println!("SNorms");
-    for i in 0..100u32 {
-        let val = White32(i).get(i).adapt::<UNorm>();
-        println!("\tSnorm: {val:?}");
-    }
+    let mut seeds = NoiseRng::new_with(White32(9823475), 1024375);
 
     println!("SNorms");
-    for i in 100..200u32 {
-        let val = White32(i).get(i).adapt::<SNorm>();
+    let noise = WhiteSNorm::new(&mut seeds);
+    for i in 0..100 {
+        let val = noise.sample(i);
         println!("\tSnorm: {val:?}");
     }
 
     println!("UNorms");
-    for i in 200..300u32 {
-        let val = White32(i).get(i);
+    let noise = WhiteUNorm::new(&mut seeds);
+    for i in 0..100 {
+        let val = noise.sample(i);
         println!("\tUnorm: {val:?}");
     }
 
     println!("Chaining white");
-    // let noise = chain!(White32(0), White32(1), White32(1), White32(1), White32(1));
-    // for i in 200..300u32 {
-    //     let val = noise.sample(i);
-    //     println!("\tChained white: {val:?}");
-    // }
+    let noise = CrazyWhite::new(&mut seeds, 389576);
+    for i in 0..100 {
+        let val = noise.sample(i);
+        println!("\tChained white: {val:?}");
+    }
 }
