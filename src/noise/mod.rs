@@ -162,7 +162,7 @@ macro_rules! noise_type {
     };
 
     // starts with morph
-    (input=$input:path, morph $_morph_i:ident { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $_func:block, $($next:tt)*) => {
+    (input=$input:path, morph |$_morph_i:ident| { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $_func:block, $($next:tt)*) => {
         $crate::noise_type!(input=$input, prev=$crate::noise::Morph<$input, $out, ($($data_t),*)>, $($next)*)
     };
 
@@ -177,7 +177,7 @@ macro_rules! noise_type {
     };
 
     // chains another morph
-    (input=$input:path, prev=$prev_t:path, morph $_morph_i:ident { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $_func:block, $($next:tt)*) => {
+    (input=$input:path, prev=$prev_t:path, morph |$_morph_i:ident| { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $_func:block, $($next:tt)*) => {
         $crate::noise_type!(
             input=$input, prev=$crate::noise::Chain<$input, $prev_t, $crate::noise::Morph<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $out, ($($data_t),*,)>>,
             $($next)*
@@ -205,7 +205,7 @@ macro_rules! noise_build {
     };
 
     // starts with morph
-    (input=$input:path, morph $morph_i:ident { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $func:block, $($next:tt)*) => {
+    (input=$input:path, morph |$morph_i:ident| { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $func:block, $($next:tt)*) => {
         $crate::noise_build!(
             input=$input,
             prev=(
@@ -243,7 +243,7 @@ macro_rules! noise_build {
     };
 
     // chains another morph
-    (input=$input:path, prev=($prev_t:path, $prev_c:expr), morph $morph_i:ident { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $func:block, $($next:tt)*) => {
+    (input=$input:path, prev=($prev_t:path, $prev_c:expr), morph |$morph_i:ident| { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $func:block, $($next:tt)*) => {
         $crate::noise_build!(
             input=$input,
             prev=(
@@ -329,7 +329,7 @@ mod tests {
                 White32(x)
             },
             into u32,
-            morph input {
+            morph |input| {
                 offset: u32 = z,
             } -> u32 {
                 let x = *offset;
