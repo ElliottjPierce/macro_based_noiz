@@ -158,22 +158,22 @@ impl<I, O: NoiseResult, D> NoiseOp<I> for Morph<I, O, D> {
 macro_rules! noise_type {
     // starts with noise
     (input=$input:path, noise $noise_type:path = $_c:expr, $($next:tt)*) => {
-        $crate::noise_type!(input=$input, prev=$noise_type, $($next)*)
+        $crate::noise_type!(input=$input, prev=$noise_type, $($next)*,)
     };
 
     // starts with empty morph
     (input=$input:path, morph |$_morph_i:ident| -> $out:path $_func:block, $($next:tt)*) => {
-        $crate::noise_type!(input=$input, prev=$crate::noise::Morph<$input, $out, ()>, $($next)*)
+        $crate::noise_type!(input=$input, prev=$crate::noise::Morph<$input, $out, ()>, $($next)*,)
     };
 
     // starts with morph
     (input=$input:path, morph |$_morph_i:ident| { $($data_n:ident: $data_t:path = $data_b:expr),* $(,)? } -> $out:path $_func:block, $($next:tt)*) => {
-        $crate::noise_type!(input=$input, prev=$crate::noise::Morph<$input, $out, ($($data_t),*)>, $($next)*)
+        $crate::noise_type!(input=$input, prev=$crate::noise::Morph<$input, $out, ($($data_t),*)>, $($next)*,)
     };
 
     // starts with adapting
     (input=$input:path, into $converted:path, $($next:tt)*) => {
-        $crate::noise_type!(input=$input, prev=$crate::noise::Adapter<$input, $converted>, $($next)*)
+        $crate::noise_type!(input=$input, prev=$crate::noise::Adapter<$input, $converted>, $($next)*,)
     };
 
     // chains another noise
@@ -203,7 +203,7 @@ macro_rules! noise_type {
     };
 
     // finishes when there are no more tokens
-    (input=$_input:path, prev=$prev_t:path,) => {
+    (input=$_input:path, prev=$prev_t:path  $(,)*) => {
         $prev_t
     };
 }
@@ -214,7 +214,7 @@ macro_rules! noise_type {
 macro_rules! noise_build {
     // starts with noise
     (input=$input:path, noise $noise_type:path = $creation:expr, $($next:tt)*) => {
-        $crate::noise_build!(input=$input, prev=($noise_type, $creation), $($next)*)
+        $crate::noise_build!(input=$input, prev=($noise_type, $creation), $($next)*,)
     };
 
     // starts with empty morph
@@ -234,7 +234,7 @@ macro_rules! noise_build {
                     )
                 }
             ),
-            $($next)*
+            $($next)*,
         )
     };
 
@@ -256,13 +256,13 @@ macro_rules! noise_build {
                     )
                 }
             ),
-            $($next)*
+            $($next)*,
         )
     };
 
     // starts with adapting
     (input=$input:path, into $converted:path, $($next:tt)*) => {
-        $crate::noise_build!(input=$input, prev=($crate::noise::Adapter<$input, $converted>, { $crate::noise::Adapter::<$input, $converted>(std::marker::PhantomData) }), $($next)*)
+        $crate::noise_build!(input=$input, prev=($crate::noise::Adapter<$input, $converted>, { $crate::noise::Adapter::<$input, $converted>(std::marker::PhantomData) }), $($next)*,)
     };
 
     // chains another noise
@@ -344,7 +344,7 @@ macro_rules! noise_build {
     };
 
     // finish when there are no more tokens
-    (input=$_input:path, prev=($_prev_t:path, $prev_c:block),) => {
+    (input=$_input:path, prev=($_prev_t:path, $prev_c:block) $(,)*) => {
         $prev_c
     };
 }
@@ -397,7 +397,7 @@ mod tests {
             noise White32 = White32(y),
             morph |input| -> u32 {
                 input + 2
-            },
+            }
         }
     }
 
@@ -417,7 +417,7 @@ mod tests {
             },
             noise White32 = {
                 White32(outer)
-            },
+            }
         };
         let _test_res = noise.get(40);
     }
