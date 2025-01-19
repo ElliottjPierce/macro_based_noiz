@@ -31,7 +31,7 @@ use bevy_math::{
 
 pub mod grid;
 pub mod mapping;
-pub mod scalar;
+pub mod norm;
 pub mod white;
 
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.

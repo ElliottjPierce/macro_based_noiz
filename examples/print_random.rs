@@ -1,7 +1,7 @@
 use noiz::{
     noise::{
         Noise,
-        scalar::{
+        norm::{
             SNorm,
             UNorm,
         },
