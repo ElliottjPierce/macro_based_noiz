@@ -132,15 +132,15 @@ impl<T: NoiseType> NoiseConvert<T> for T {
 }
 
 /// Allows chaining noise functions together
-pub struct Chain<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>>(N1, N2, PhantomData<I>);
+pub struct Chain<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>>(pub N1, pub N2, pub PhantomData<I>);
 
 /// A noise operation that converts one noise type to another
-pub struct Adapter<I: NoiseType, O: NoiseType>(PhantomData<(I, O)>)
+pub struct Adapter<I: NoiseType, O: NoiseType>(pub PhantomData<(I, O)>)
 where
     I: NoiseConvert<O>;
 
 /// allows a function to be used as a noise operation
-pub struct Morph<I, O: NoiseType, D>(fn(I, &D) -> O, D, PhantomData<(I, O)>);
+pub struct Morph<I, O: NoiseType, D>(pub fn(I, &D) -> O, pub D, pub PhantomData<(I, O)>);
 
 impl<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>> NoiseOp<I> for Chain<I, N1, N2> {
     type Output = N2::Output;
@@ -290,7 +290,7 @@ macro_rules! noise_build {
         $crate::noise_build!(
             input=$input, prev=(
                 $crate::noise::Chain<$input, $prev_t, $noise_type>,
-                { $crate::noise::Chain::<$input, $prev_t, $noise_type>($prev_c, $creation, PhantomData) }
+                { $crate::noise::Chain::<$input, $prev_t, $noise_type>($prev_c, $creation, std::marker::PhantomData) }
             ),
             $($next)*
         )
@@ -364,7 +364,7 @@ macro_rules! noise_build {
     };
 
     // finish when there are no more tokens
-    (input=$_input:path, prev=($_prev_t:path, $prev_c:block) $(,)*) => {
+    (input=$_input:path, prev=($_prev_t:path, $prev_c:expr) $(,)*) => {
         $prev_c
     };
 }
