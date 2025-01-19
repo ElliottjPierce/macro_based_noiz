@@ -29,7 +29,7 @@ noise_fn! {
 }
 
 noise_fn! {
-    /// white noise expressed as UNorms
+    /// white noise chained like crazy
     pub struct CrazyWhite for u32 = (gen: &mut impl Rng, key: u32) {
         noise White32 = White32(gen.next_u32()),
         noise White32 = White32(gen.next_u32()),
