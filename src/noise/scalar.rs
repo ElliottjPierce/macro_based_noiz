@@ -44,10 +44,7 @@ impl SNorm {
     /// clamps the value into a valid SNorm
     #[inline]
     pub fn new_clamped(value: f32) -> Self {
-        let unorm = value.abs().clamp(UNorm::MIN, UNorm::MAX);
-        Self(f32::from_bits(
-            unorm.to_bits() | (value.to_bits() & (1 << 31)),
-        ))
+        Self(take_sign(value.abs().clamp(UNorm::MIN, UNorm::MAX), value))
     }
 
     /// creates a new [`SNorm`] by rolling the input by fractions. Values an integer apart will be
@@ -56,6 +53,14 @@ impl SNorm {
     pub fn new_rolling(value: f32) -> Self {
         // SAFETY: could be zero if its an integer number
         unsafe { Self::new_in_bounds(value.fract()) }
+    }
+
+    /// the higher the value is, the closer to zero this gets. At `value == half_life` this will be
+    /// 0.5.
+    #[inline]
+    pub fn new_decay(value: f32, half_life: f32) -> Self {
+        // SAFETY: bounds satisfied by UNorm
+        unsafe { Self::new_unchecked(take_sign(UNorm::new_decay(value, half_life).0, value)) }
     }
 
     /// constructs a new SNorm assuming the value is not zero.
@@ -161,6 +166,14 @@ impl UNorm {
     pub fn new_rolling(value: f32) -> Self {
         // SAFETY: could be zero but x - floor(x) is always positive
         unsafe { Self::new_positive(value - value.floor()) }
+    }
+
+    /// the higher the value is, the closer to zero this gets. At `value == half_life` this will be
+    /// 0.5
+    #[inline]
+    pub fn new_decay(value: f32, half_life: f32) -> Self {
+        let decay = half_life.abs();
+        Self::new_clamped(decay / (value.abs() + decay))
     }
 
     /// constructs a new UNorm assuming value is in bounds.
@@ -296,9 +309,30 @@ impl NoiseConvert<SNorm> for f32 {
 impl NoiseType for SNorm {}
 impl NoiseType for UNorm {}
 
+impl NoiseConvert<f32> for SNorm {
+    #[inline]
+    fn convert(self) -> f32 {
+        self.0
+    }
+}
+
+impl NoiseConvert<f32> for UNorm {
+    #[inline]
+    fn convert(self) -> f32 {
+        self.0
+    }
+}
+
 /// forces the f32 to be nonzero by forcing on the least significant bit.
+#[inline]
 pub const fn make_nonzero_f32(v: f32) -> f32 {
     f32::from_bits(v.to_bits() | 1)
+}
+
+/// forces the value to take on the sign of another
+#[inline]
+pub const fn take_sign(v: f32, sign: f32) -> f32 {
+    f32::from_bits(v.to_bits() | (sign.to_bits() & (1 << 31)))
 }
 
 #[cfg(test)]
