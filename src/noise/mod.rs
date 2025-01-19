@@ -3,6 +3,9 @@
 use std::marker::PhantomData;
 
 use bevy_math::{
+    DVec2,
+    DVec3,
+    DVec4,
     I8Vec2,
     I8Vec3,
     I8Vec4,
@@ -27,6 +30,9 @@ use bevy_math::{
     UVec2,
     UVec3,
     UVec4,
+    Vec2,
+    Vec3,
+    Vec4,
 };
 
 pub mod grid;
@@ -101,6 +107,12 @@ impl NoiseType for i64 {}
 impl NoiseType for i128 {}
 impl NoiseType for isize {}
 // bevy
+impl NoiseType for Vec2 {}
+impl NoiseType for DVec2 {}
+impl NoiseType for Vec3 {}
+impl NoiseType for DVec3 {}
+impl NoiseType for Vec4 {}
+impl NoiseType for DVec4 {}
 impl NoiseType for I8Vec2 {}
 impl NoiseType for I8Vec3 {}
 impl NoiseType for I8Vec4 {}

@@ -69,6 +69,12 @@ macro_rules! make_grid_point {
             }
         }
 
+        impl NoiseConvert<$f> for $name {
+            fn convert(self) -> $f {
+                self.offset
+            }
+        }
+
         impl NoiseOp<$f> for $fnoise {
             type Output = $name;
 
@@ -149,3 +155,57 @@ make_grid_point!(
     f64,
     u64
 );
+
+impl NoiseConvert<GridPoint2> for GridPointD2 {
+    fn convert(self) -> GridPoint2 {
+        GridPoint2 {
+            offset: self.offset.as_vec2(),
+            base: self.base.as_uvec2(),
+        }
+    }
+}
+
+impl NoiseConvert<GridPointD2> for GridPoint2 {
+    fn convert(self) -> GridPointD2 {
+        GridPointD2 {
+            offset: self.offset.as_dvec2(),
+            base: self.base.as_u64vec2(),
+        }
+    }
+}
+
+impl NoiseConvert<GridPoint3> for GridPointD3 {
+    fn convert(self) -> GridPoint3 {
+        GridPoint3 {
+            offset: self.offset.as_vec3(),
+            base: self.base.as_uvec3(),
+        }
+    }
+}
+
+impl NoiseConvert<GridPointD3> for GridPoint3 {
+    fn convert(self) -> GridPointD3 {
+        GridPointD3 {
+            offset: self.offset.as_dvec3(),
+            base: self.base.as_u64vec3(),
+        }
+    }
+}
+
+impl NoiseConvert<GridPoint4> for GridPointD4 {
+    fn convert(self) -> GridPoint4 {
+        GridPoint4 {
+            offset: self.offset.as_vec4(),
+            base: self.base.as_uvec4(),
+        }
+    }
+}
+
+impl NoiseConvert<GridPointD4> for GridPoint4 {
+    fn convert(self) -> GridPointD4 {
+        GridPointD4 {
+            offset: self.offset.as_dvec4(),
+            base: self.base.as_u64vec4(),
+        }
+    }
+}
