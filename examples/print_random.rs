@@ -1,6 +1,6 @@
 use noiz::noise::{
     NoiseOp,
-    NoiseResult,
+    NoiseType,
     scalar::{
         SNorm,
         UNorm,

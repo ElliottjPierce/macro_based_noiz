@@ -75,7 +75,7 @@ impl_mapper_vec!(I64Vec4, U64Vec4, White64);
 
 #[cfg(test)]
 mod tests {
-    use crate::noise::NoiseResult;
+    use crate::noise::NoiseType;
 
     #[test]
     fn check_mapping() {

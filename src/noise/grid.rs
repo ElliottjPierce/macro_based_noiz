@@ -18,7 +18,7 @@ use bevy_math::{
 use super::{
     NoiseConvert,
     NoiseOp,
-    NoiseResult,
+    NoiseType,
 };
 
 /// a noise that converts a vector input to a point in a grid
@@ -61,7 +61,7 @@ macro_rules! make_grid_point {
             pub offset: $f,
         }
 
-        impl NoiseResult for $name {}
+        impl NoiseType for $name {}
 
         impl NoiseConvert<$uint> for $name {
             fn convert(self) -> $uint {

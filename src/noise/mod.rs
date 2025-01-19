@@ -37,7 +37,7 @@ pub mod white;
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.
 pub trait NoiseOp<I> {
     /// represents the output of a noise function
-    type Output: NoiseResult;
+    type Output: NoiseType;
 
     /// Samples the noise at the specific input. This is generally inlined.
     fn get(&self, input: I) -> Self::Output;
@@ -49,15 +49,15 @@ pub trait NoiseOp<I> {
 }
 
 /// Signifies that these types are effectively the same as far as noise is concerned.
-pub trait NoiseConvert<T: NoiseResult>: NoiseResult {
+pub trait NoiseConvert<T: NoiseType>: NoiseType {
     /// maps this value to a noise. Note that you should usually prefer [`NoiseResult::adapt`]
     fn convert(self) -> T;
 }
 
-/// marks this type as the potential result of some noise function.
-pub trait NoiseResult {
+/// Marks the type as involved in noise functions as either an input, output or both.
+pub trait NoiseType {
     /// converts this value into a different type with a common noise goal.
-    fn adapt<T: NoiseResult>(self) -> T
+    fn adapt<T: NoiseType>(self) -> T
     where
         Self: NoiseConvert<T> + Sized,
     {
@@ -65,46 +65,66 @@ pub trait NoiseResult {
     }
 }
 
-// built in
-impl NoiseResult for u8 {}
-impl NoiseResult for u16 {}
-impl NoiseResult for u32 {}
-impl NoiseResult for u64 {}
-impl NoiseResult for u128 {}
-impl NoiseResult for usize {}
-impl NoiseResult for i8 {}
-impl NoiseResult for i16 {}
-impl NoiseResult for i32 {}
-impl NoiseResult for i64 {}
-impl NoiseResult for i128 {}
-impl NoiseResult for isize {}
-// bevy
-impl NoiseResult for I8Vec2 {}
-impl NoiseResult for I8Vec3 {}
-impl NoiseResult for I8Vec4 {}
-impl NoiseResult for I16Vec2 {}
-impl NoiseResult for I16Vec3 {}
-impl NoiseResult for I16Vec4 {}
-impl NoiseResult for I64Vec2 {}
-impl NoiseResult for I64Vec3 {}
-impl NoiseResult for I64Vec4 {}
-impl NoiseResult for IVec2 {}
-impl NoiseResult for IVec3 {}
-impl NoiseResult for IVec4 {}
-impl NoiseResult for U8Vec2 {}
-impl NoiseResult for U8Vec3 {}
-impl NoiseResult for U8Vec4 {}
-impl NoiseResult for U16Vec2 {}
-impl NoiseResult for U16Vec3 {}
-impl NoiseResult for U16Vec4 {}
-impl NoiseResult for U64Vec2 {}
-impl NoiseResult for U64Vec3 {}
-impl NoiseResult for U64Vec4 {}
-impl NoiseResult for UVec2 {}
-impl NoiseResult for UVec3 {}
-impl NoiseResult for UVec4 {}
+/// Signifies that this type is a noise endpoint.
+pub trait Noise
+where
+    Self: NoiseOp<Self::Input>,
+{
+    /// the primary input type used for this noise
+    type Input: NoiseType;
 
-impl<T: NoiseResult> NoiseConvert<T> for T {
+    /// samples the noise at this input
+    #[inline]
+    fn sample<T: NoiseConvert<Self::Input>>(&self, input: T) -> Self::Output {
+        self.get(input.convert())
+    }
+
+    /// samples the noise at this input
+    fn sample_cold<T: NoiseConvert<Self::Input>>(&self, input: T) -> Self::Output {
+        self.sample(input)
+    }
+}
+
+// built in
+impl NoiseType for u8 {}
+impl NoiseType for u16 {}
+impl NoiseType for u32 {}
+impl NoiseType for u64 {}
+impl NoiseType for u128 {}
+impl NoiseType for usize {}
+impl NoiseType for i8 {}
+impl NoiseType for i16 {}
+impl NoiseType for i32 {}
+impl NoiseType for i64 {}
+impl NoiseType for i128 {}
+impl NoiseType for isize {}
+// bevy
+impl NoiseType for I8Vec2 {}
+impl NoiseType for I8Vec3 {}
+impl NoiseType for I8Vec4 {}
+impl NoiseType for I16Vec2 {}
+impl NoiseType for I16Vec3 {}
+impl NoiseType for I16Vec4 {}
+impl NoiseType for I64Vec2 {}
+impl NoiseType for I64Vec3 {}
+impl NoiseType for I64Vec4 {}
+impl NoiseType for IVec2 {}
+impl NoiseType for IVec3 {}
+impl NoiseType for IVec4 {}
+impl NoiseType for U8Vec2 {}
+impl NoiseType for U8Vec3 {}
+impl NoiseType for U8Vec4 {}
+impl NoiseType for U16Vec2 {}
+impl NoiseType for U16Vec3 {}
+impl NoiseType for U16Vec4 {}
+impl NoiseType for U64Vec2 {}
+impl NoiseType for U64Vec3 {}
+impl NoiseType for U64Vec4 {}
+impl NoiseType for UVec2 {}
+impl NoiseType for UVec3 {}
+impl NoiseType for UVec4 {}
+
+impl<T: NoiseType> NoiseConvert<T> for T {
     #[inline]
     fn convert(self) -> T {
         self
@@ -115,12 +135,12 @@ impl<T: NoiseResult> NoiseConvert<T> for T {
 pub struct Chain<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>>(N1, N2, PhantomData<I>);
 
 /// A noise operation that converts one noise type to another
-pub struct Adapter<I: NoiseResult, O: NoiseResult>(PhantomData<(I, O)>)
+pub struct Adapter<I: NoiseType, O: NoiseType>(PhantomData<(I, O)>)
 where
     I: NoiseConvert<O>;
 
 /// allows a function to be used as a noise operation
-pub struct Morph<I, O: NoiseResult, D>(fn(I, &D) -> O, D, PhantomData<(I, O)>);
+pub struct Morph<I, O: NoiseType, D>(fn(I, &D) -> O, D, PhantomData<(I, O)>);
 
 impl<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>> NoiseOp<I> for Chain<I, N1, N2> {
     type Output = N2::Output;
@@ -131,7 +151,7 @@ impl<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>> NoiseOp<I> for Chain<I, N1, N2>
     }
 }
 
-impl<I: NoiseResult, O: NoiseResult> NoiseOp<I> for Adapter<I, O>
+impl<I: NoiseType, O: NoiseType> NoiseOp<I> for Adapter<I, O>
 where
     I: NoiseConvert<O>,
 {
@@ -143,7 +163,7 @@ where
     }
 }
 
-impl<I, O: NoiseResult, D> NoiseOp<I> for Morph<I, O, D> {
+impl<I, O: NoiseType, D> NoiseOp<I> for Morph<I, O, D> {
     type Output = O;
 
     #[inline]
@@ -371,6 +391,10 @@ macro_rules! noise_fn {
                 self.0.get(input)
             }
         }
+
+        impl $crate::noise::Noise for $name {
+            type Input = $input;
+        }
     };
 }
 
@@ -404,7 +428,7 @@ mod tests {
     #[test]
     fn test_noise_fn() {
         let noise = Test::new(57, 13, 45);
-        let _test_res = noise.get(40);
+        let _test_res = noise.sample(40);
     }
 
     #[test]

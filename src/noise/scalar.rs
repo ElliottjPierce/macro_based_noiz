@@ -4,7 +4,7 @@ use bevy_math::Curve;
 
 use super::{
     NoiseConvert,
-    NoiseResult,
+    NoiseType,
 };
 
 /// A value that stores an f32 in range (-1, 0)∪(0, 1).
@@ -263,5 +263,5 @@ impl NoiseConvert<SNorm> for u32 {
     }
 }
 
-impl NoiseResult for SNorm {}
-impl NoiseResult for UNorm {}
+impl NoiseType for SNorm {}
+impl NoiseType for UNorm {}
