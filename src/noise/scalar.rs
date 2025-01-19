@@ -50,6 +50,14 @@ impl SNorm {
         ))
     }
 
+    /// creates a new [`SNorm`] by rolling the input by fractions. Values an integer apart will be
+    /// the same.
+    #[inline]
+    pub fn new_rolling(value: f32) -> Self {
+        // SAFETY: could be zero if its an integer number
+        unsafe { Self::new_in_bounds(value.fract()) }
+    }
+
     /// constructs a new SNorm assuming the value is not zero.
     ///
     /// # Safety
@@ -65,7 +73,7 @@ impl SNorm {
     /// value MUST be in (-1, 1)
     #[inline]
     pub unsafe fn new_in_bounds(value: f32) -> Self {
-        Self(f32::from_bits(value.to_bits() | 1)) // technically causes a minute change to the value, but saves an instruction
+        Self(make_nonzero_f32(value))
     }
 
     /// constructs a new SNorm assuming value is in bounds.
@@ -147,6 +155,14 @@ impl UNorm {
         Self(value.clamp(Self::MIN, Self::MAX))
     }
 
+    /// creates a new [`UNorm`] by rolling the input by fractions. Values an integer apart will be
+    /// the same.
+    #[inline]
+    pub fn new_rolling(value: f32) -> Self {
+        // SAFETY: could be zero but x - floor(x) is always positive
+        unsafe { Self::new_positive(value - value.floor()) }
+    }
+
     /// constructs a new UNorm assuming value is in bounds.
     ///
     /// # Safety
@@ -180,7 +196,7 @@ impl UNorm {
     /// value MUST be in [0, 1)
     #[inline]
     pub unsafe fn new_in_bounds(value: f32) -> Self {
-        Self(f32::from_bits(value.to_bits() | 1)) // technically causes a minute change to the value, but saves an instruction
+        Self(make_nonzero_f32(value))
     }
 
     /// inverts the value. Equivalent to 1 - value
@@ -263,5 +279,34 @@ impl NoiseConvert<SNorm> for u32 {
     }
 }
 
+impl NoiseConvert<UNorm> for f32 {
+    #[inline]
+    fn convert(self) -> UNorm {
+        UNorm::new_rolling(self)
+    }
+}
+
+impl NoiseConvert<SNorm> for f32 {
+    #[inline]
+    fn convert(self) -> SNorm {
+        SNorm::new_rolling(self)
+    }
+}
+
 impl NoiseType for SNorm {}
 impl NoiseType for UNorm {}
+
+/// forces the f32 to be nonzero by forcing on the least significant bit.
+pub const fn make_nonzero_f32(v: f32) -> f32 {
+    f32::from_bits(v.to_bits() | 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_non_zero() {
+        assert_ne!(0f32, make_nonzero_f32(0.0));
+    }
+}

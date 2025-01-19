@@ -86,6 +86,8 @@ where
 }
 
 // built in
+impl NoiseType for f32 {}
+impl NoiseType for f64 {}
 impl NoiseType for u8 {}
 impl NoiseType for u16 {}
 impl NoiseType for u32 {}
