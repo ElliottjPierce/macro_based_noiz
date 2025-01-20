@@ -43,6 +43,8 @@ fn main() -> AppExit {
                         ..Default::default()
                     },
                     Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
                         ..Default::default()
                     },
                 ));

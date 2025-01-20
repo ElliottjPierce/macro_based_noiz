@@ -34,7 +34,7 @@ macro_rules! impl_white {
                     let inner: $conv = input.into();
                     #[allow(for_loops_over_fallibles)] // this lets you use option to work on just one input
                     for v in inner {
-                        val = v.wrapping_add($key).wrapping_mul($key).wrapping_add(val) // this should be pipelined pretty well since the addition is only at the very end.
+                        val = v.wrapping_mul($key).rotate_left(5).wrapping_mul(v.wrapping_add(val)) // this should be pipelined pretty well since the addition is only at the very end.
                     }
                     val.rotate_left(5) // multiplying large numbers like this tends to put more entropy on the more significant bits. This pushes that entropy to the least segnificant.
                 }
