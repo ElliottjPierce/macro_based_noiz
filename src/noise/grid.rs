@@ -19,6 +19,7 @@ use super::{
     NoiseConvert,
     NoiseOp,
     NoiseType,
+    norm::make_nonzero_f32,
 };
 
 /// a noise that converts a vector input to a point in a grid
@@ -28,11 +29,35 @@ pub struct GridNoise {
     pub frequency: f32,
 }
 
+impl GridNoise {
+    /// constructs a new [`GridNoise`] of this frequency
+    pub fn new_frequency(frequency: f32) -> Self {
+        Self { frequency }
+    }
+
+    /// constructs a new [`GridNoise`] of this period
+    pub fn new_period(period: f32) -> Self {
+        Self::new_frequency(1.0 / make_nonzero_f32(period))
+    }
+}
+
 /// a noise that converts a vector input to a point in a grid
 #[derive(Debug, Clone, PartialEq)]
 pub struct GridNoise64 {
     /// the frequency of the gridlines
     pub frequency: f64,
+}
+
+impl GridNoise64 {
+    /// constructs a new [`GridNoise64`] of this frequency
+    pub fn new_frequency(frequency: f64) -> Self {
+        Self { frequency }
+    }
+
+    /// constructs a new [`GridNoise64`] of this period
+    pub fn new_period(period: f64) -> Self {
+        Self::new_frequency(1.0 / period)
+    }
 }
 
 /// a noise that converts an integer vector input to a point in a grid
