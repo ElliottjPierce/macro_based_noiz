@@ -34,9 +34,12 @@ macro_rules! impl_white {
                     let inner: $conv = input.into();
                     #[allow(for_loops_over_fallibles)] // this lets you use option to work on just one input
                     for v in inner {
-                        val = v.wrapping_mul(val) ^ $key
+                        val = v.wrapping_mul(val) ^ $key // need xor to make it non-commutative to remove diagonal lines and multiplication to put each dimension on separate roders
                     }
-                    val.wrapping_add(self.0).wrapping_mul(val).rotate_left(5) // multiplying large numbers like this tends to put more entropy on the more significant bits. This pushes that entropy to the least segnificant.
+                    val
+                        .wrapping_add(self.0) // salt with the seed
+                        .wrapping_mul(val) // multiply to remove any linear artifacts
+                        .rotate_left(5) // multiplying large numbers like this tends to put more entropy on the more significant bits. This pushes that entropy to the least segnificant.
                 }
             }
         )*
