@@ -306,6 +306,20 @@ impl NoiseConvert<SNorm> for f32 {
     }
 }
 
+impl NoiseConvert<SNorm> for UNorm {
+    #[inline]
+    fn convert(self) -> SNorm {
+        self.map_to_snorm()
+    }
+}
+
+impl NoiseConvert<UNorm> for SNorm {
+    #[inline]
+    fn convert(self) -> UNorm {
+        self.map_to_unorm()
+    }
+}
+
 impl NoiseType for SNorm {}
 impl NoiseType for UNorm {}
 
