@@ -35,6 +35,7 @@ use bevy_math::{
     Vec4,
 };
 
+pub mod combining;
 pub mod grid;
 pub mod interpolating;
 pub mod mapping;
@@ -59,6 +60,12 @@ pub trait NoiseOp<I> {
 pub trait NoiseConvert<T: NoiseType>: NoiseType {
     /// maps this value to a noise. Note that you should usually prefer [`NoiseResult::adapt`]
     fn convert(self) -> T;
+}
+
+/// A trait to perform conversions
+pub trait ConversionChain<I: NoiseType, O: NoiseType> {
+    /// performs static conversion between noise types
+    fn convert(x: I) -> O;
 }
 
 /// Marks the type as involved in noise functions as either an input, output or both.

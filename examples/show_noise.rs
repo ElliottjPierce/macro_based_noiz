@@ -11,7 +11,12 @@ use noiz::{
     noise::{
         Noise,
         NoiseType,
-        grid::GridNoise,
+        combining::Smooth,
+        grid::{
+            GridNoise,
+            GridPoint2,
+        },
+        interpolating::Cubic,
         norm::UNorm,
         white::White32,
     },
@@ -54,12 +59,12 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WhiteNoise;
+type NoiseUsed = ValueNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
     let height = image.height();
-    let noise = NoiseUsed::new(982465245, 2.0);
+    let noise = NoiseUsed::new(982465245, 20.0);
 
     for x in 0..width {
         for y in 0..height {
@@ -78,6 +83,23 @@ noise_fn! {
         noise GridNoise = GridNoise::new_period(period),
         into UVec2,
         noise White32 = White32(seed),
+        into UNorm
+    }
+}
+
+noise_fn! {
+    pub struct WhiteNoiseGrid2d for GridPoint2 = (seed: u32) {
+        into UVec2,
+        noise White32 = White32(seed),
+        into UNorm,
+        into f32
+    }
+}
+
+noise_fn! {
+    pub struct ValueNoise for Vec2 = (seed: u32, period: f32) {
+        noise GridNoise = GridNoise::new_period(period),
+        noise Smooth<Cubic, WhiteNoiseGrid2d> = Smooth::new_vec2(Cubic, WhiteNoiseGrid2d::new(seed)),
         into UNorm
     }
 }
