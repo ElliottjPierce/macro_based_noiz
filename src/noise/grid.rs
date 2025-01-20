@@ -88,6 +88,7 @@ macro_rules! make_grid_point {
 
         impl $name {
             /// pushes the grid point by this offset
+            #[inline]
             pub fn pushed(&self, push: $uint) -> Self {
                 Self {
                     base: self.base + push,
@@ -99,12 +100,14 @@ macro_rules! make_grid_point {
         impl NoiseType for $name {}
 
         impl NoiseConvert<$uint> for $name {
+            #[inline]
             fn convert(self) -> $uint {
                 self.base
             }
         }
 
         impl NoiseConvert<$f> for $name {
+            #[inline]
             fn convert(self) -> $f {
                 self.offset
             }
@@ -192,6 +195,7 @@ make_grid_point!(
 );
 
 impl NoiseConvert<GridPoint2> for GridPointD2 {
+    #[inline]
     fn convert(self) -> GridPoint2 {
         GridPoint2 {
             offset: self.offset.as_vec2(),
@@ -201,6 +205,7 @@ impl NoiseConvert<GridPoint2> for GridPointD2 {
 }
 
 impl NoiseConvert<GridPointD2> for GridPoint2 {
+    #[inline]
     fn convert(self) -> GridPointD2 {
         GridPointD2 {
             offset: self.offset.as_dvec2(),
@@ -210,6 +215,7 @@ impl NoiseConvert<GridPointD2> for GridPoint2 {
 }
 
 impl NoiseConvert<GridPoint3> for GridPointD3 {
+    #[inline]
     fn convert(self) -> GridPoint3 {
         GridPoint3 {
             offset: self.offset.as_vec3(),
@@ -219,6 +225,7 @@ impl NoiseConvert<GridPoint3> for GridPointD3 {
 }
 
 impl NoiseConvert<GridPointD3> for GridPoint3 {
+    #[inline]
     fn convert(self) -> GridPointD3 {
         GridPointD3 {
             offset: self.offset.as_dvec3(),
@@ -228,6 +235,7 @@ impl NoiseConvert<GridPointD3> for GridPoint3 {
 }
 
 impl NoiseConvert<GridPoint4> for GridPointD4 {
+    #[inline]
     fn convert(self) -> GridPoint4 {
         GridPoint4 {
             offset: self.offset.as_vec4(),
@@ -237,10 +245,121 @@ impl NoiseConvert<GridPoint4> for GridPointD4 {
 }
 
 impl NoiseConvert<GridPointD4> for GridPoint4 {
+    #[inline]
     fn convert(self) -> GridPointD4 {
         GridPointD4 {
             offset: self.offset.as_dvec4(),
             base: self.base.as_u64vec4(),
         }
+    }
+}
+
+impl GridPoint2 {
+    /// produces an array of all positive unit offset combinations from the current value.
+    #[inline]
+    pub fn corners(&self) -> [Self; 4] {
+        [
+            self.pushed(UVec2::new(0, 0)),
+            self.pushed(UVec2::new(0, 1)),
+            self.pushed(UVec2::new(1, 0)),
+            self.pushed(UVec2::new(1, 1)),
+        ]
+    }
+}
+
+impl GridPoint3 {
+    /// produces an array of all positive unit offset combinations from the current value.
+    #[inline]
+    pub fn corners(&self) -> [Self; 8] {
+        [
+            self.pushed(UVec3::new(0, 0, 0)),
+            self.pushed(UVec3::new(0, 0, 1)),
+            self.pushed(UVec3::new(0, 1, 0)),
+            self.pushed(UVec3::new(0, 1, 1)),
+            self.pushed(UVec3::new(1, 0, 0)),
+            self.pushed(UVec3::new(1, 0, 1)),
+            self.pushed(UVec3::new(1, 1, 0)),
+            self.pushed(UVec3::new(1, 1, 1)),
+        ]
+    }
+}
+
+impl GridPoint4 {
+    /// produces an array of all positive unit offset combinations from the current value.
+    #[inline]
+    pub fn corners(&self) -> [Self; 16] {
+        [
+            self.pushed(UVec4::new(0, 0, 0, 0)),
+            self.pushed(UVec4::new(0, 0, 0, 1)),
+            self.pushed(UVec4::new(0, 0, 1, 0)),
+            self.pushed(UVec4::new(0, 0, 1, 1)),
+            self.pushed(UVec4::new(0, 1, 0, 0)),
+            self.pushed(UVec4::new(0, 1, 0, 1)),
+            self.pushed(UVec4::new(0, 1, 1, 0)),
+            self.pushed(UVec4::new(0, 1, 1, 1)),
+            self.pushed(UVec4::new(1, 0, 0, 0)),
+            self.pushed(UVec4::new(1, 0, 0, 1)),
+            self.pushed(UVec4::new(1, 0, 1, 0)),
+            self.pushed(UVec4::new(1, 0, 1, 1)),
+            self.pushed(UVec4::new(1, 1, 0, 0)),
+            self.pushed(UVec4::new(1, 1, 0, 1)),
+            self.pushed(UVec4::new(1, 1, 1, 0)),
+            self.pushed(UVec4::new(1, 1, 1, 1)),
+        ]
+    }
+}
+
+impl GridPointD2 {
+    /// produces an array of all positive unit offset combinations from the current value.
+    #[inline]
+    pub fn corners(&self) -> [Self; 4] {
+        [
+            self.pushed(U64Vec2::new(0, 0)),
+            self.pushed(U64Vec2::new(0, 1)),
+            self.pushed(U64Vec2::new(1, 0)),
+            self.pushed(U64Vec2::new(1, 1)),
+        ]
+    }
+}
+
+impl GridPointD3 {
+    /// produces an array of all positive unit offset combinations from the current value.
+    #[inline]
+    pub fn corners(&self) -> [Self; 8] {
+        [
+            self.pushed(U64Vec3::new(0, 0, 0)),
+            self.pushed(U64Vec3::new(0, 0, 1)),
+            self.pushed(U64Vec3::new(0, 1, 0)),
+            self.pushed(U64Vec3::new(0, 1, 1)),
+            self.pushed(U64Vec3::new(1, 0, 0)),
+            self.pushed(U64Vec3::new(1, 0, 1)),
+            self.pushed(U64Vec3::new(1, 1, 0)),
+            self.pushed(U64Vec3::new(1, 1, 1)),
+        ]
+    }
+}
+
+impl GridPointD4 {
+    /// produces an array of all positive unit offset combinations from the current value.
+    #[inline]
+    pub fn corners(&self) -> [Self; 16] {
+        [
+            self.pushed(U64Vec4::new(0, 0, 0, 0)),
+            self.pushed(U64Vec4::new(0, 0, 0, 1)),
+            self.pushed(U64Vec4::new(0, 0, 1, 0)),
+            self.pushed(U64Vec4::new(0, 0, 1, 1)),
+            self.pushed(U64Vec4::new(0, 1, 0, 0)),
+            self.pushed(U64Vec4::new(0, 1, 0, 1)),
+            self.pushed(U64Vec4::new(0, 1, 1, 0)),
+            self.pushed(U64Vec4::new(0, 1, 1, 1)),
+            self.pushed(U64Vec4::new(1, 0, 0, 0)),
+            self.pushed(U64Vec4::new(1, 0, 0, 1)),
+            self.pushed(U64Vec4::new(1, 0, 1, 0)),
+            self.pushed(U64Vec4::new(1, 0, 1, 1)),
+            self.pushed(U64Vec4::new(1, 1, 0, 0)),
+            self.pushed(U64Vec4::new(1, 1, 0, 1)),
+            self.pushed(U64Vec4::new(1, 1, 1, 0)),
+            self.pushed(U64Vec4::new(1, 1, 1, 1)),
+        ]
     }
 }
