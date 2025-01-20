@@ -227,3 +227,172 @@ impl_curves!(Vec4, f32, splat);
 impl_curves!(DVec2, f64, splat);
 impl_curves!(DVec3, f64, splat);
 impl_curves!(DVec4, f64, splat);
+
+/// mixes across 2 dimensions
+#[inline]
+pub fn mix_2d<T: Lerpable, I: Copy>(
+    [ld, lu, rd, ru]: [T; 4],
+    [lr, du]: [I; 2],
+    curve: &impl MixerFxn<I, T>,
+) -> T {
+    let left = T::mix_dirty::<I>(ld, lu, du, curve);
+    let right = T::mix_dirty::<I>(rd, ru, du, curve);
+    T::mix_dirty::<I>(left, right, lr, curve)
+}
+
+/// mixes across 2 dimensions for the gradient of the mix
+#[inline]
+pub fn mix_gradient_2d<T: Lerpable + Copy, I: Copy>(
+    [ld, lu, rd, ru]: [T; 4],
+    [lr, du]: [I; 2],
+    curve: &impl MixerFxn<I, T>,
+) -> [T; 2] {
+    let d = T::lerp_gradient(ld, rd);
+    let u = T::lerp_gradient(lu, ru);
+    let l = T::lerp_gradient(ld, lu);
+    let r = T::lerp_gradient(rd, ru);
+    [
+        T::mix_dirty::<I>(d, u, du, curve) * curve.derivative(lr),
+        T::mix_dirty::<I>(l, r, lr, curve) * curve.derivative(du),
+    ]
+}
+
+/// mixes across 2 dimensions
+#[inline]
+pub fn mix_3d<T: Lerpable + Copy, I: Copy>(
+    v: [T; 8],
+    by: [I; 3],
+    curve: &impl MixerFxn<I, T>,
+) -> T {
+    let back = mix_2d([v[0], v[2], v[4], v[6]], [by[0], by[1]], curve);
+    let front = mix_2d([v[1], v[3], v[5], v[7]], [by[0], by[1]], curve);
+    T::mix_dirty(back, front, by[2], curve)
+}
+
+/// mixes across 3 dimensions for the gradient of the mix
+#[inline]
+pub fn mix_gradient_3d<T: Lerpable + Copy, I: Copy>(
+    v: [T; 8],
+    by: [I; 3],
+    curve: &impl MixerFxn<I, T>,
+) -> [T; 3] {
+    [
+        mix_2d::<T, I>(
+            [
+                T::lerp_gradient(v[0], v[4]),
+                T::lerp_gradient(v[1], v[5]),
+                T::lerp_gradient(v[2], v[6]),
+                T::lerp_gradient(v[3], v[7]),
+            ],
+            [by[1], by[2]],
+            curve,
+        ) * curve.derivative(by[0]),
+        mix_2d::<T, I>(
+            [
+                T::lerp_gradient(v[0], v[2]),
+                T::lerp_gradient(v[1], v[3]),
+                T::lerp_gradient(v[4], v[6]),
+                T::lerp_gradient(v[5], v[7]),
+            ],
+            [by[0], by[2]],
+            curve,
+        ) * curve.derivative(by[1]),
+        mix_2d::<T, I>(
+            [
+                T::lerp_gradient(v[0], v[1]),
+                T::lerp_gradient(v[2], v[3]),
+                T::lerp_gradient(v[4], v[5]),
+                T::lerp_gradient(v[6], v[7]),
+            ],
+            [by[0], by[1]],
+            curve,
+        ) * curve.derivative(by[2]),
+    ]
+}
+
+/// mixes across 4 dimensions
+#[inline]
+pub fn mix_4d<T: Lerpable + Copy, I: Copy>(
+    v: [T; 16],
+    by: [I; 4],
+    curve: &impl MixerFxn<I, T>,
+) -> T {
+    let u = mix_3d(
+        [v[0], v[2], v[4], v[6], v[8], v[10], v[12], v[14]],
+        [by[0], by[1], by[2]],
+        curve,
+    );
+    let v = mix_3d(
+        [v[1], v[3], v[5], v[7], v[9], v[11], v[13], v[15]],
+        [by[0], by[1], by[2]],
+        curve,
+    );
+    T::mix_dirty(u, v, by[3], curve)
+}
+
+/// mixes across 4 dimensions for the gradient of the mix
+#[inline]
+pub fn mix_gradient_4d<T: Lerpable + Copy, I: Copy>(
+    v: [T; 16],
+    by: [I; 4],
+    curve: &impl MixerFxn<I, T>,
+) -> [T; 4] {
+    [
+        mix_3d::<T, I>(
+            [
+                T::lerp_gradient(v[0], v[8]),
+                T::lerp_gradient(v[1], v[9]),
+                T::lerp_gradient(v[2], v[10]),
+                T::lerp_gradient(v[3], v[11]),
+                T::lerp_gradient(v[4], v[12]),
+                T::lerp_gradient(v[5], v[13]),
+                T::lerp_gradient(v[6], v[14]),
+                T::lerp_gradient(v[7], v[15]),
+            ],
+            [by[1], by[2], by[3]],
+            curve,
+        ) * curve.derivative(by[0]),
+        mix_3d::<T, I>(
+            [
+                T::lerp_gradient(v[0], v[4]),
+                T::lerp_gradient(v[1], v[5]),
+                T::lerp_gradient(v[2], v[6]),
+                T::lerp_gradient(v[3], v[7]),
+                T::lerp_gradient(v[8], v[12]),
+                T::lerp_gradient(v[9], v[13]),
+                T::lerp_gradient(v[10], v[14]),
+                T::lerp_gradient(v[11], v[15]),
+            ],
+            [by[0], by[2], by[3]],
+            curve,
+        ) * curve.derivative(by[1]),
+        mix_3d::<T, I>(
+            [
+                T::lerp_gradient(v[0], v[2]),
+                T::lerp_gradient(v[1], v[3]),
+                T::lerp_gradient(v[4], v[6]),
+                T::lerp_gradient(v[5], v[7]),
+                T::lerp_gradient(v[8], v[10]),
+                T::lerp_gradient(v[9], v[11]),
+                T::lerp_gradient(v[12], v[14]),
+                T::lerp_gradient(v[13], v[15]),
+            ],
+            [by[0], by[1], by[3]],
+            curve,
+        ) * curve.derivative(by[2]),
+        mix_3d::<T, I>(
+            [
+                T::lerp_gradient(v[0], v[1]),
+                T::lerp_gradient(v[2], v[3]),
+                T::lerp_gradient(v[4], v[5]),
+                T::lerp_gradient(v[6], v[7]),
+                T::lerp_gradient(v[8], v[9]),
+                T::lerp_gradient(v[10], v[11]),
+                T::lerp_gradient(v[12], v[13]),
+                T::lerp_gradient(v[14], v[15]),
+            ],
+            [by[0], by[1], by[2]],
+            curve,
+        ) * curve.derivative(by[3]),
+    ]
+}
