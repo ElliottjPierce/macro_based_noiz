@@ -59,7 +59,7 @@ type NoiseUsed = WhiteNoise;
 fn make_noise(image: &mut Image) {
     let width = image.width();
     let height = image.height();
-    let noise = NoiseUsed::new(0, 2.0);
+    let noise = NoiseUsed::new(982465245, 2.0);
 
     for x in 0..width {
         for y in 0..height {
