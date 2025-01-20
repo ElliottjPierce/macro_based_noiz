@@ -80,10 +80,20 @@ macro_rules! make_grid_point {
         /// represents a point in a grid
         #[derive(Debug, Clone, PartialEq)]
         pub struct $name {
-            /// the least corner of the grid cell the point is in
+            /// the corner of the grid cell we are anchored to
             pub base: $uint,
-            /// the UNorm offset from the [`base`](Self::base)
+            /// the offset from the [`base`](Self::base)
             pub offset: $f,
+        }
+
+        impl $name {
+            /// pushes the grid point by this offset
+            pub fn pushed(&self, push: $uint) -> Self {
+                Self {
+                    base: self.base + push,
+                    offset: self.offset - push.$ui2f(),
+                }
+            }
         }
 
         impl NoiseType for $name {}
