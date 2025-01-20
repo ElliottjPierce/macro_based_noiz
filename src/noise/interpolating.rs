@@ -108,22 +108,6 @@ pub struct Cubic;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Quintic;
 
-// /// Clamps The inner mixing function's input to between 0 and 1
-// #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-// pub struct Clamped<M>(M);
-
-// impl<T: Clamp, M: MixerFxn<T>> MixerFxn<T> for Clamped<M> {
-//     #[inline]
-//     fn mix(&self, x: T) -> T {
-//         self.0.mix(x.clamp(T::ZERO, T::PLUS_ONE))
-//     }
-
-//     #[inline]
-//     fn derivative(&self, x: T) -> T {
-//         self.0.derivative(x.clamp(T::ZERO, T::PLUS_ONE))
-//     }
-// }
-
 /// Allows implementing curves easily
 macro_rules! impl_curves {
     ($t:path) => {
