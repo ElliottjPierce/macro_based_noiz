@@ -16,10 +16,7 @@ use noiz::{
             GridNoise,
             GridPoint2,
         },
-        interpolating::{
-            Cubic,
-            Quintic,
-        },
+        interpolating::Cubic,
         norm::UNorm,
         white::White32,
     },
@@ -93,7 +90,7 @@ noise_fn! {
 noise_fn! {
     pub struct ValueNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Smooth<Quintic, (GridPoint2, UVec2), White32, (u32, UNorm, f32)> = Smooth::new_vec2(Quintic, White32(seed)),
+        noise Smooth<Cubic, (GridPoint2, UVec2), White32, (u32, UNorm, f32)> = Smooth::new_vec2(Cubic, White32(seed)),
         into UNorm
     }
 }

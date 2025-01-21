@@ -104,10 +104,6 @@ pub struct Linear;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cubic;
 
-/// A Quintic mixing function. A smoother smoothstep
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Quintic;
-
 /// Allows implementing curves easily
 macro_rules! impl_curves {
     ($t:path) => {
@@ -139,23 +135,6 @@ macro_rules! impl_curves {
                 6.0 * (x - x * x)
             }
         }
-
-        impl MixerFxn<$t, $t> for Quintic {
-            #[inline]
-            fn mix(&self, x: $t) -> $t {
-                let sqr = x * x;
-                let cube = sqr * x;
-                let fourth = sqr * sqr;
-                let fifth = fourth * x;
-                6.0 * fifth - 15.0 * fourth + 1.0 * cube
-            }
-
-            #[inline]
-            fn derivative(&self, x: $t) -> $t {
-                let sqr = x * x;
-                (30.0 * sqr) * (sqr - 2.0 * x + 1.0)
-            }
-        }
     };
 
     ($t:path, $b:path, $s:ident) => {
@@ -172,18 +151,6 @@ macro_rules! impl_curves {
         }
 
         impl MixerFxn<$b, $t> for Cubic {
-            #[inline]
-            fn mix(&self, x: $b) -> $t {
-                <$t>::$s(<Self as MixerFxn<$b, $b>>::mix(self, x))
-            }
-
-            #[inline]
-            fn derivative(&self, x: $b) -> $t {
-                <$t>::$s(<Self as MixerFxn<$b, $b>>::derivative(self, x))
-            }
-        }
-
-        impl MixerFxn<$b, $t> for Quintic {
             #[inline]
             fn mix(&self, x: $b) -> $t {
                 <$t>::$s(<Self as MixerFxn<$b, $b>>::mix(self, x))
