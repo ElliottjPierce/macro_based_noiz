@@ -63,9 +63,13 @@ pub trait NoiseConvert<T: NoiseType>: NoiseType {
 }
 
 /// A trait to perform conversions
-pub trait ConversionChain<I: NoiseType, O: NoiseType> {
+pub trait ConversionChain {
+    /// The input type
+    type Input: NoiseType;
+    /// The output type
+    type Output: NoiseType;
     /// performs static conversion between noise types
-    fn convert(x: I) -> O;
+    fn convert(x: Self::Input) -> Self::Output;
 }
 
 /// Marks the type as involved in noise functions as either an input, output or both.
@@ -218,6 +222,116 @@ impl<I, O: NoiseType, D> NoiseOp<I> for Morph<I, O, D> {
     #[inline]
     fn get(&self, input: I) -> Self::Output {
         self.0(input, &self.1)
+    }
+}
+
+impl<I: NoiseConvert<O>, O: NoiseType> ConversionChain for (I, O) {
+    type Input = I;
+    type Output = O;
+
+    fn convert(x: Self::Input) -> Self::Output {
+        x.convert()
+    }
+}
+
+impl<I: NoiseConvert<T1>, T1: NoiseConvert<O>, O: NoiseType> ConversionChain for (I, T1, O) {
+    type Input = I;
+    type Output = O;
+
+    fn convert(x: Self::Input) -> Self::Output {
+        x.convert().convert()
+    }
+}
+
+impl<I: NoiseConvert<T2>, T2: NoiseConvert<T1>, T1: NoiseConvert<O>, O: NoiseType> ConversionChain
+    for (I, T2, T1, O)
+{
+    type Input = I;
+    type Output = O;
+
+    fn convert(x: Self::Input) -> Self::Output {
+        x.convert().convert().convert()
+    }
+}
+
+impl<
+    I: NoiseConvert<T3>,
+    T3: NoiseConvert<T2>,
+    T2: NoiseConvert<T1>,
+    T1: NoiseConvert<O>,
+    O: NoiseType,
+> ConversionChain for (I, T3, T2, T1, O)
+{
+    type Input = I;
+    type Output = O;
+
+    fn convert(x: Self::Input) -> Self::Output {
+        x.convert().convert().convert().convert()
+    }
+}
+
+impl<
+    I: NoiseConvert<T4>,
+    T4: NoiseConvert<T3>,
+    T3: NoiseConvert<T2>,
+    T2: NoiseConvert<T1>,
+    T1: NoiseConvert<O>,
+    O: NoiseType,
+> ConversionChain for (I, T4, T3, T2, T1, O)
+{
+    type Input = I;
+    type Output = O;
+
+    fn convert(x: Self::Input) -> Self::Output {
+        x.convert().convert().convert().convert().convert()
+    }
+}
+
+impl<
+    I: NoiseConvert<T5>,
+    T5: NoiseConvert<T4>,
+    T4: NoiseConvert<T3>,
+    T3: NoiseConvert<T2>,
+    T2: NoiseConvert<T1>,
+    T1: NoiseConvert<O>,
+    O: NoiseType,
+> ConversionChain for (I, T5, T4, T3, T2, T1, O)
+{
+    type Input = I;
+    type Output = O;
+
+    fn convert(x: Self::Input) -> Self::Output {
+        x.convert()
+            .convert()
+            .convert()
+            .convert()
+            .convert()
+            .convert()
+    }
+}
+
+impl<
+    I: NoiseConvert<T6>,
+    T6: NoiseConvert<T5>,
+    T5: NoiseConvert<T4>,
+    T4: NoiseConvert<T3>,
+    T3: NoiseConvert<T2>,
+    T2: NoiseConvert<T1>,
+    T1: NoiseConvert<O>,
+    O: NoiseType,
+> ConversionChain for (I, T6, T5, T4, T3, T2, T1, O)
+{
+    type Input = I;
+    type Output = O;
+
+    fn convert(x: Self::Input) -> Self::Output {
+        x.convert()
+            .convert()
+            .convert()
+            .convert()
+            .convert()
+            .convert()
+            .convert()
     }
 }
 

@@ -1,6 +1,9 @@
 //! This module allows arrays of noise to be combinned into one in various ways
 
+use std::marker::PhantomData;
+
 use super::{
+    ConversionChain,
     NoiseOp,
     grid::{
         GridPoint2,
@@ -21,36 +24,59 @@ use super::{
 
 /// a noise type to smooth out grid noise
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Smooth<C, N> {
+pub struct Smooth<
+    C,
+    I: ConversionChain,
+    N: NoiseOp<I::Output>,
+    O: ConversionChain<Input = N::Output>,
+> {
     /// the way we are smoothing
     curve: C,
     /// the noise we are smoothing
     noise: N,
+    /// phantom data
+    marker: PhantomData<(I, O)>,
 }
 
 /// allows implementing easily Shooth for different types
 macro_rules! impl_smooth {
     ($t:path, $mix:ident, $f:ident, $new:ident) => {
-        impl<C: MixerFxn<$f, N::Output>, N: NoiseOp<$t>> NoiseOp<$t> for Smooth<C, N>
+        impl<
+            C: MixerFxn<$f, O::Output>,
+            I: ConversionChain<Input = $t>,
+            N: NoiseOp<I::Output>,
+            O: ConversionChain<Input = N::Output>,
+        > NoiseOp<$t> for Smooth<C, I, N, O>
         where
-            N::Output: Lerpable + Copy,
+            O::Output: Lerpable + Copy,
         {
-            type Output = N::Output;
+            type Output = O::Output;
 
             #[inline]
-            fn get(&self, input: $t) -> N::Output {
-                let values = input.corners().map(|c| self.noise.get(c));
+            fn get(&self, input: $t) -> Self::Output {
+                let values = input
+                    .corners()
+                    .map(|c| O::convert(self.noise.get(I::convert(c))));
                 $mix(values, input.offset.to_array(), &self.curve)
             }
         }
 
-        impl<C: MixerFxn<$f, N::Output>, N: NoiseOp<$t>> Smooth<C, N>
+        impl<
+            C: MixerFxn<$f, O::Output>,
+            I: ConversionChain<Input = $t>,
+            N: NoiseOp<I::Output>,
+            O: ConversionChain<Input = N::Output>,
+        > Smooth<C, I, N, O>
         where
-            N::Output: Lerpable + Copy,
+            O::Output: Lerpable + Copy,
         {
             /// constructs a new [`Smooth`] with these values
             pub fn $new(curve: C, noise: N) -> Self {
-                Self { curve, noise }
+                Self {
+                    curve,
+                    noise,
+                    marker: PhantomData,
+                }
             }
         }
     };
