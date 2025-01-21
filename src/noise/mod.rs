@@ -38,6 +38,7 @@ use bevy_math::{
 pub mod grid;
 pub mod interpolating;
 pub mod mapping;
+pub mod merging;
 pub mod norm;
 pub mod smoothing;
 pub mod white;
