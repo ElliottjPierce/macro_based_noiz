@@ -11,13 +11,13 @@ use noiz::{
     noise::{
         Noise,
         NoiseType,
-        combining::Smooth,
         grid::{
             GridNoise,
             GridPoint2,
         },
         interpolating::Cubic,
         norm::UNorm,
+        smoothing::Smooth,
         white::White32,
     },
     noise_fn,

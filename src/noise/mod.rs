@@ -35,11 +35,11 @@ use bevy_math::{
     Vec4,
 };
 
-pub mod combining;
 pub mod grid;
 pub mod interpolating;
 pub mod mapping;
 pub mod norm;
+pub mod smoothing;
 pub mod white;
 
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.
