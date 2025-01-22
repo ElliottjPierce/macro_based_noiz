@@ -56,7 +56,7 @@ impl Nudge {
 }
 
 impl<T> WorlyOf<T> {
-    /// creates a new [`WorldOf`]
+    /// creates a new [`WorlyOf`]
     pub fn new(noise: T, seed: u32, shift: f32) -> Self {
         Self(noise, Nudge::new(seed, shift))
     }
