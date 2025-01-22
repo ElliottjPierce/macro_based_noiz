@@ -19,6 +19,7 @@ use noiz::{
         norm::UNorm,
         smoothing::Smooth,
         white::White32,
+        worly::Worly,
     },
     noise_fn,
 };
@@ -59,12 +60,12 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = ValueNoise;
+type NoiseUsed = WorlyNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
     let height = image.height();
-    let noise = NoiseUsed::new(982465245, 20.0);
+    let noise = NoiseUsed::new(2345, 20.0);
 
     for x in 0..width {
         for y in 0..height {
@@ -92,5 +93,12 @@ noise_fn! {
         noise GridNoise = GridNoise::new_period(period),
         noise Smooth<Cubic, (GridPoint2, UVec2), White32, (u32, UNorm, f32)> = Smooth::new_vec2(Cubic, White32(seed)),
         into UNorm
+    }
+}
+
+noise_fn! {
+    pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
+        noise GridNoise = GridNoise::new_period(period),
+        noise Worly = Worly::new(seed, 1.0),
     }
 }

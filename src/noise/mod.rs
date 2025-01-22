@@ -42,6 +42,7 @@ pub mod merging;
 pub mod norm;
 pub mod smoothing;
 pub mod white;
+pub mod worly;
 
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.
 pub trait NoiseOp<I> {
