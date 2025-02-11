@@ -53,8 +53,7 @@ macro_rules! impl_nudge {
 
             #[inline]
             fn get(&self, mut input: $point) -> Self::Output {
-                let shift = self.get(input.base);
-                input.offset += -((input.base % 2).$u2f()) * shift; // we have to flip the offset every other cell.
+                input.offset += self.get(input.base);
                 input
             }
         }

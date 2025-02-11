@@ -53,8 +53,10 @@ macro_rules! impl_nudge {
                 let mut min = f32::INFINITY;
 
                 for c in input.corners() {
-                    let v = self.0.get(c);
-                    min = min.min(v.offset.length())
+                    let grid_shift = self.0.get(c.base);
+                    let relative_shift = -((c.base % 2).$u2f()) * grid_shift; // we have to flip the offset every other cell.
+                    let total_offset = c.offset + relative_shift;
+                    min = min.min(total_offset.length())
                 }
 
                 let max_dist_1d = self.0.max_nudge() + 0.5;
