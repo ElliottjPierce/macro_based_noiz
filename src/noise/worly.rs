@@ -11,10 +11,6 @@ use super::{
     nudges::Nudge,
 };
 
-/// Offsets grid values for future noise
-#[derive(Debug, Clone, PartialEq)]
-pub struct WorlyOf<N>(pub N, pub Nudge);
-
 /// Offsets grid values for distance-based noise
 #[derive(Debug, Clone, PartialEq)]
 pub struct Worly(pub Nudge);
@@ -26,25 +22,9 @@ impl Worly {
     }
 }
 
-impl<T> WorlyOf<T> {
-    /// creates a new [`WorlyOf`]
-    pub fn new(noise: T, seed: u32, shift: f32) -> Self {
-        Self(noise, Nudge::new(seed, shift))
-    }
-}
-
 /// easily implements nudging for different types
 macro_rules! impl_nudge {
     ($vec:path, $point:path, $d:literal, $u2f:ident) => {
-        impl<N: NoiseOp<$point>> NoiseOp<$point> for WorlyOf<N> {
-            type Output = N::Output;
-
-            #[inline]
-            fn get(&self, input: $point) -> Self::Output {
-                self.0.get(self.1.get(input))
-            }
-        }
-
         impl NoiseOp<$point> for Worly {
             type Output = UNorm;
 
