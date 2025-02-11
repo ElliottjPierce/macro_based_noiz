@@ -1,6 +1,9 @@
 //! This module allows worly noise to be created
 
 use bevy_math::{
+    UVec2,
+    UVec3,
+    UVec4,
     Vec2,
     Vec3,
     Vec4,
@@ -44,25 +47,34 @@ impl Nudge {
 
 /// easily implements nudging for different types
 macro_rules! impl_nudge {
-    ($vec:path, $point:path, $d:literal, $u2f:ident) => {
+    ($vec:path, $uvec:path, $point:path, $d:literal, $u2f:ident) => {
         impl NoiseOp<$point> for Nudge {
             type Output = $point;
 
             #[inline]
             fn get(&self, mut input: $point) -> Self::Output {
-                let unique = self.seed.get(input.base);
-                let additional = input
-                    .base
-                    .to_array()
-                    .map(|v| White32(unique).get(v).adapt::<SNorm>().adapt());
-                let shift = <$vec>::from_array(additional) * self.multiplier;
+                let shift = self.get(input.base);
                 input.offset += -((input.base % 2).$u2f()) * shift; // we have to flip the offset every other cell.
                 input
+            }
+        }
+
+        impl NoiseOp<$uvec> for Nudge {
+            type Output = $vec;
+
+            #[inline]
+            fn get(&self, input: $uvec) -> Self::Output {
+                let unique = self.seed.get(input);
+                let raw_shift = input
+                    .to_array()
+                    .map(|v| White32(unique).get(v).adapt::<SNorm>().adapt());
+                let shift = <$vec>::from_array(raw_shift) * self.multiplier;
+                shift
             }
         }
     };
 }
 
-impl_nudge!(Vec2, GridPoint2, 2.0, as_vec2);
-impl_nudge!(Vec3, GridPoint3, 3.0, as_vec3);
-impl_nudge!(Vec4, GridPoint4, 4.0, as_vec4);
+impl_nudge!(Vec2, UVec2, GridPoint2, 2.0, as_vec2);
+impl_nudge!(Vec3, UVec3, GridPoint3, 3.0, as_vec3);
+impl_nudge!(Vec4, UVec4, GridPoint4, 4.0, as_vec4);
