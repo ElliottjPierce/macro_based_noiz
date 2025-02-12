@@ -188,11 +188,13 @@ impl<I: NoiseType + Default, M, T: WeightFactorer<I>> Merger<I, M> for Weighted<
 }
 
 /// A type that can merge in a noise operation, anything that can be merged by M.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Merged<M>(pub M);
 
 impl<I: Mergeable, M: Merger<I::Part, I::Meta>> NoiseOp<I> for Merged<M> {
     type Output = M::Output;
 
+    #[inline]
     fn get(&self, input: I) -> Self::Output {
         input.perform_merge(&self.0)
     }
@@ -201,10 +203,12 @@ impl<I: Mergeable, M: Merger<I::Part, I::Meta>> NoiseOp<I> for Merged<M> {
 impl Orderer<f32> for () {
     type OrderingOutput = f32;
 
+    #[inline]
     fn ordering_of(&self, value: &f32) -> f32 {
         *value
     }
 
+    #[inline]
     fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
         ordering
     }
@@ -213,22 +217,26 @@ impl Orderer<f32> for () {
 impl WeightFactorer<f32> for () {
     type Output = f32;
 
+    #[inline]
     fn weight_of(&self, value: &f32) -> f32 {
         *value
     }
 
+    #[inline]
     fn weigh_value(&self, _value: f32, relative_weight: f32) -> Self::Output {
         relative_weight
     }
 }
 
 /// A [`Orderer`] and for "as the crow flyies" distance
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EuclideanDistance {
     /// represents the inverse of the maximum expected evaluation of this distance.
     pub inv_max_expected: f32,
 }
 
 /// A [`Orderer`] and for "manhatan" or diagonal distance
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ManhatanDistance {
     /// represents the inverse of the maximum expected evaluation of this distance.
     pub inv_max_expected: f32,
@@ -239,10 +247,12 @@ macro_rules! impl_distances {
         impl Orderer<$t> for EuclideanDistance {
             type OrderingOutput = f32;
 
+            #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
                 value$(.$getter)?.length_squared()
             }
 
+            #[inline]
             fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
                 ordering.sqrt() * self.inv_max_expected
             }
@@ -251,10 +261,12 @@ macro_rules! impl_distances {
         impl Orderer<$t> for ManhatanDistance {
             type OrderingOutput = f32;
 
+            #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
                 value$(.$getter)?.length_squared()
             }
 
+            #[inline]
             fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
                 ordering * self.inv_max_expected
             }

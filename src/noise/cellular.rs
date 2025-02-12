@@ -20,6 +20,7 @@ use super::{
 pub struct Cellular(pub Nudge);
 
 /// Stores a result of a [`Cellular`] noise
+#[derive(Debug, Clone, PartialEq)]
 pub struct CellularResult<T> {
     /// The original [`Cellular`] noise.
     pub source: Cellular,
@@ -72,6 +73,7 @@ macro_rules! impl_nudge {
             type Meta = Cellular;
             type Part = $point;
 
+            #[inline]
             fn perform_merge<M: Merger<Self::Part, Self::Meta>>(self, merger: &M) -> M::Output {
                 merger.merge(self.points, &self.source)
             }

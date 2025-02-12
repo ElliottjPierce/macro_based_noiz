@@ -25,6 +25,7 @@ pub trait WorlyInitializer<I, T>: Sized {
 
 /// Worly noise is defined as any kind of noise derived from [`Cellular`] noise via a
 /// [`WorlyNoiseSource`] as `T`.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Worly<T> {
     cellular: Cellular,
     source: T,
@@ -70,6 +71,7 @@ macro_rules! impl_worly {
         }
 
         impl WorlyInitializer<$point, MinOrder<EuclideanDistance>> for () {
+            #[inline]
             fn init(self, cellular: &Cellular) -> MinOrder<EuclideanDistance> {
                 let max_component = cellular.0.max_nudge() + 0.5;
                 let distance = EuclideanDistance {
@@ -80,6 +82,7 @@ macro_rules! impl_worly {
         }
 
         impl WorlyInitializer<$point, MinOrder<ManhatanDistance>> for () {
+            #[inline]
             fn init(self, cellular: &Cellular) -> MinOrder<ManhatanDistance> {
                 let max_component = cellular.0.max_nudge() + 0.5;
                 let distance = ManhatanDistance {
