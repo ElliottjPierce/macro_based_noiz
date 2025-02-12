@@ -11,6 +11,11 @@ use bevy_math::{
 use super::{
     NoiseOp,
     NoiseType,
+    grid::{
+        GridPoint2,
+        GridPoint3,
+        GridPoint4,
+    },
 };
 
 /// Allows the noise type to be merged
@@ -60,9 +65,9 @@ pub trait WeightFactorer<I> {
 
 /// A merger that selects the value with the least weight.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Min;
+pub struct Min<T>(pub T);
 
-impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for Min {
+impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Min<T> {
     type Output = I;
 
     #[inline]
@@ -70,7 +75,7 @@ impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for Min {
         let mut ordering_number = f32::INFINITY;
         let mut result = I::default();
         for val in vals {
-            let weight = meta.ordering_of(&val);
+            let weight = self.0.ordering_of(&val);
             if weight < ordering_number {
                 ordering_number = weight;
                 result = val;
@@ -83,30 +88,30 @@ impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for Min {
 
 /// A merger that selects the weight of the value with the least weight.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct MinWeight;
+pub struct MinOrder<T>(pub T);
 
-impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for MinWeight {
-    type Output = M::OrderingOutput;
+impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MinOrder<T> {
+    type Output = T::OrderingOutput;
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
         let mut ordering_number = f32::INFINITY;
         for val in vals {
-            let weight = meta.ordering_of(&val);
+            let weight = self.0.ordering_of(&val);
             if weight < ordering_number {
                 ordering_number = weight;
             }
         }
 
-        meta.relative_ordering(ordering_number)
+        self.0.relative_ordering(ordering_number)
     }
 }
 
 /// A merger that selects the value with the greatest weight.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Max;
+pub struct Max<T>(pub T);
 
-impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for Max {
+impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Max<T> {
     type Output = I;
 
     #[inline]
@@ -114,7 +119,7 @@ impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for Max {
         let mut ordering_number = f32::NEG_INFINITY;
         let mut result = I::default();
         for val in vals {
-            let weight = meta.ordering_of(&val);
+            let weight = self.0.ordering_of(&val);
             if weight > ordering_number {
                 ordering_number = weight;
                 result = val;
@@ -127,48 +132,48 @@ impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for Max {
 
 /// A merger that selects the weight of the value with the greatest weight.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct MaxWeight;
+pub struct MaxOrder<T>(pub T);
 
-impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for MaxWeight {
-    type Output = M::OrderingOutput;
+impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MaxOrder<T> {
+    type Output = T::OrderingOutput;
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
         let mut ordering_number = f32::NEG_INFINITY;
         for val in vals {
-            let weight = meta.ordering_of(&val);
+            let weight = self.0.ordering_of(&val);
             if weight > ordering_number {
                 ordering_number = weight;
             }
         }
 
-        meta.relative_ordering(ordering_number)
+        self.0.relative_ordering(ordering_number)
     }
 }
 
 /// A merger that merges values by assigning them weights.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Weighted;
+pub struct Weighted<T>(pub T);
 
-impl<I: NoiseType + Default, M: WeightFactorer<I>> Merger<I, M> for Weighted {
-    type Output = M::Output;
+impl<I: NoiseType + Default, M, T: WeightFactorer<I>> Merger<I, M> for Weighted<T> {
+    type Output = T::Output;
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
         if vals.is_empty() {
-            return meta.weigh_value(I::default(), 1.0);
+            return self.0.weigh_value(I::default(), 1.0);
         }
 
         let mut total = 0f32;
         for value in &vals {
-            total += meta.weight_of(value);
+            total += self.0.weight_of(value);
         }
         let inverse_total = if total == 0f32 { 0f32 } else { 1.0 / total };
 
         let mut result = None;
         for v in vals {
-            let relative_weight = meta.weight_of(&v) * inverse_total;
-            let local = meta.weigh_value(v, relative_weight);
+            let relative_weight = self.0.weight_of(&v) * inverse_total;
+            let local = self.0.weigh_value(v, relative_weight);
             if let Some(result) = &mut result {
                 *result += local;
             } else {
@@ -219,21 +224,23 @@ impl WeightFactorer<f32> for () {
 
 /// A [`Orderer`] and for "as the crow flyies" distance
 pub struct EuclideanDistance {
+    /// represents the inverse of the maximum expected evaluation of this distance.
     pub inv_max_expected: f32,
 }
 
 /// A [`Orderer`] and for "manhatan" or diagonal distance
 pub struct ManhatanDistance {
+    /// represents the inverse of the maximum expected evaluation of this distance.
     pub inv_max_expected: f32,
 }
 
 macro_rules! impl_distances {
-    ($vec:path) => {
-        impl Orderer<$vec> for EuclideanDistance {
+    ($t:path, $($getter:ident)?) => {
+        impl Orderer<$t> for EuclideanDistance {
             type OrderingOutput = f32;
 
-            fn ordering_of(&self, value: &$vec) -> f32 {
-                value.length_squared()
+            fn ordering_of(&self, value: &$t) -> f32 {
+                value$(.$getter)?.length_squared()
             }
 
             fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
@@ -241,11 +248,11 @@ macro_rules! impl_distances {
             }
         }
 
-        impl Orderer<$vec> for ManhatanDistance {
+        impl Orderer<$t> for ManhatanDistance {
             type OrderingOutput = f32;
 
-            fn ordering_of(&self, value: &$vec) -> f32 {
-                value.length_squared()
+            fn ordering_of(&self, value: &$t) -> f32 {
+                value$(.$getter)?.length_squared()
             }
 
             fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
@@ -255,6 +262,9 @@ macro_rules! impl_distances {
     };
 }
 
-impl_distances!(Vec2);
-impl_distances!(Vec3);
-impl_distances!(Vec4);
+impl_distances!(Vec2,);
+impl_distances!(Vec3,);
+impl_distances!(Vec4,);
+impl_distances!(GridPoint2, offset);
+impl_distances!(GridPoint3, offset);
+impl_distances!(GridPoint4, offset);

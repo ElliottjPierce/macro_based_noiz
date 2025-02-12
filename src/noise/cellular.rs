@@ -8,6 +8,10 @@ use super::{
         GridPoint3,
         GridPoint4,
     },
+    merging::{
+        Mergeable,
+        Merger,
+    },
     nudges::Nudge,
 };
 
@@ -63,6 +67,15 @@ macro_rules! impl_nudge {
         }
 
         impl NoiseType for CellularResult<[$point; $d]> {}
+
+        impl Mergeable for CellularResult<[$point; $d]> {
+            type Meta = Cellular;
+            type Part = $point;
+
+            fn perform_merge<M: Merger<Self::Part, Self::Meta>>(self, merger: &M) -> M::Output {
+                merger.merge(self.points, &self.source)
+            }
+        }
     };
 }
 

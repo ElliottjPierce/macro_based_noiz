@@ -11,11 +11,16 @@ use noiz::{
     noise::{
         Noise,
         NoiseType,
+        cellular::Cellular,
         grid::{
             GridNoise,
             GridPoint2,
         },
         interpolating::Cubic,
+        merging::{
+            EuclideanDistance,
+            MinOrder,
+        },
         norm::UNorm,
         smoothing::Smooth,
         white::White32,
@@ -99,6 +104,6 @@ noise_fn! {
 noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Worly = Worly::new(seed, 1.0),
+        noise Worly<MinOrder<EuclideanDistance>> = Worly::new::<GridPoint2>(Cellular::new(seed, 1.0)),
     }
 }

@@ -78,7 +78,7 @@ pub struct GridNoiseInt {
 macro_rules! make_grid_point {
     ($name:ident, $uint:ty, $f:ty, $fnoise:ty, $f2i:ident, $ui2f:ident, $s:ty, $i:ty) => {
         /// represents a point in a grid
-        #[derive(Debug, Clone, PartialEq)]
+        #[derive(Debug, Default, Clone, PartialEq)]
         pub struct $name {
             /// the corner of the grid cell we are anchored to
             pub base: $uint,
