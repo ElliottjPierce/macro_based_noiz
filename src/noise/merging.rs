@@ -140,7 +140,7 @@ impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for MaxWeight {
     }
 }
 
-/// A merger that selects the least value.
+/// A merger that merges values by assigning them weights.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Weighted;
 
@@ -184,5 +184,29 @@ impl<I: Mergeable, M: Merger<I::Part, I::Meta>> NoiseOp<I> for Merged<M> {
 
     fn get(&self, input: I) -> Self::Output {
         input.perform_merge(&self.0)
+    }
+}
+
+impl Orderer<f32> for () {
+    type OrderingOutput = f32;
+
+    fn ordering_of(&self, value: &f32) -> f32 {
+        *value
+    }
+
+    fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
+        ordering
+    }
+}
+
+impl WeightFactorer<f32> for () {
+    type Output = f32;
+
+    fn weight_of(&self, value: &f32) -> f32 {
+        *value
+    }
+
+    fn weigh_value(&self, _value: f32, relative_weight: f32) -> Self::Output {
+        relative_weight
     }
 }
