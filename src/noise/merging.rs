@@ -2,6 +2,12 @@
 
 use std::ops::AddAssign;
 
+use bevy_math::{
+    Vec2,
+    Vec3,
+    Vec4,
+};
+
 use super::{
     NoiseOp,
     NoiseType,
@@ -210,3 +216,45 @@ impl WeightFactorer<f32> for () {
         relative_weight
     }
 }
+
+/// A [`Orderer`] and for "as the crow flyies" distance
+pub struct EuclideanDistance {
+    pub inv_max_expected: f32,
+}
+
+/// A [`Orderer`] and for "manhatan" or diagonal distance
+pub struct ManhatanDistance {
+    pub inv_max_expected: f32,
+}
+
+macro_rules! impl_distances {
+    ($vec:path) => {
+        impl Orderer<$vec> for EuclideanDistance {
+            type OrderingOutput = f32;
+
+            fn ordering_of(&self, value: &$vec) -> f32 {
+                value.length_squared()
+            }
+
+            fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
+                ordering.sqrt() * self.inv_max_expected
+            }
+        }
+
+        impl Orderer<$vec> for ManhatanDistance {
+            type OrderingOutput = f32;
+
+            fn ordering_of(&self, value: &$vec) -> f32 {
+                value.length_squared()
+            }
+
+            fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
+                ordering * self.inv_max_expected
+            }
+        }
+    };
+}
+
+impl_distances!(Vec2);
+impl_distances!(Vec3);
+impl_distances!(Vec4);
