@@ -16,6 +16,17 @@ pub trait Merger<I, M> {
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output;
 }
 
+/// Marks a type as being able to be merged.
+pub trait Mergeable {
+    /// the kind of metadata given.
+    type Meta;
+    /// the kind of part given, the item type in an array.
+    type Part;
+
+    /// performs merging on a with a given compatible merger.
+    fn perform_merge<M: Merger<Self::Part, Self::Meta>>(self, merger: &M) -> M::Output;
+}
+
 /// Defines a type that is able to order a particular type by mapping it to a number.
 pub trait Orderer<I> {
     /// Value's ordering can be mapped to this value
@@ -162,5 +173,16 @@ impl<I: NoiseType + Default, M: WeightFactorer<I>> Merger<I, M> for Weighted {
         // SAFETY: we know vals is non-empty and that therefore on the first iteration and
         // thereafter, result will be some.
         unsafe { result.unwrap_unchecked() }
+    }
+}
+
+/// A type that can merge in a noise operation, anything that can be merged by M.
+pub struct Merged<M>(pub M);
+
+impl<I: Mergeable, M: Merger<I::Part, I::Meta>> NoiseOp<I> for Merged<M> {
+    type Output = M::Output;
+
+    fn get(&self, input: I) -> Self::Output {
+        input.perform_merge(&self.0)
     }
 }
