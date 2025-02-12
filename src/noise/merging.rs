@@ -1,78 +1,121 @@
 //! THis module allows noise types to be merged together
 
-use std::{
-    marker::PhantomData,
-    ops::{
-        AddAssign,
-        Div,
-        Mul,
-    },
-};
+use std::ops::AddAssign;
 
 use super::{
-    ConversionChain,
     NoiseOp,
     NoiseType,
-    grid::{
-        GridPoint2,
-        GridPoint3,
-        GridPoint4,
-        GridPointD2,
-        GridPointD3,
-        GridPointD4,
-    },
 };
 
 /// Allows the noise type to be merged
-pub trait Merger<I> {
+pub trait Merger<I, M> {
     /// the merged output
     type Output: NoiseType;
 
     /// merges any number of the input type into an output
-    fn merge<const N: usize>(&self, vals: [I; N]) -> Self::Output;
+    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output;
 }
 
-/// a noise type to smooth out grid noise
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Merged<
-    M,
-    I: ConversionChain,
-    N: NoiseOp<I::Output>,
-    O: ConversionChain<Input = N::Output>,
-> {
-    /// the way we are merging
-    merger: M,
-    /// the noise we are merging
-    noise: N,
-    /// phantom data
-    marker: PhantomData<(I, O)>,
+/// Defines a type that is able to give weights to a particular kind of value.
+pub trait WeightGiver<I> {
+    /// Calculates the weight of the given value.
+    fn weight_of(&self, value: &I) -> f32;
 }
 
-/// A merger that selects the least value.
+/// Defines a type that is able to weigh a given type of value relative to other weights
+pub trait WeightFactorer<I>: WeightGiver<I> {
+    /// The type that the weighing results in
+    type Output: AddAssign + NoiseType;
+
+    /// Given a value and it's relative weight in 0..=1 convert the value to the output
+    fn weigh_value(&self, value: I, relative_weight: f32) -> Self::Output;
+}
+
+/// A merger that selects the value with the least weight.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Nearest;
+pub struct Min;
 
-impl<C: PartialOrd, T: NoiseType + Default> Merger<(C, T)> for Nearest
-where
-    (C, T): Clone,
-{
-    type Output = T;
+impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for Min {
+    type Output = I;
 
     #[inline]
-    fn merge<const N: usize>(&self, vals: [(C, T); N]) -> Self::Output {
-        if vals.is_empty() {
-            return T::default();
-        }
-
-        let (mut least, mut result) = vals[0].clone();
-        for (c, t) in vals {
-            if c < least {
-                least = c;
-                result = t;
+    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
+        let mut least_weight = f32::INFINITY;
+        let mut result = I::default();
+        for val in vals {
+            let weight = meta.weight_of(&val);
+            if weight < least_weight {
+                least_weight = weight;
+                result = val;
             }
         }
 
         result
+    }
+}
+
+/// A merger that selects the weight of the value with the least weight.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct MinWeight;
+
+impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for MinWeight {
+    type Output = f32;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
+        let mut least_weight = f32::INFINITY;
+        for val in vals {
+            let weight = meta.weight_of(&val);
+            if weight < least_weight {
+                least_weight = weight;
+            }
+        }
+
+        least_weight
+    }
+}
+
+/// A merger that selects the value with the greatest weight.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Max;
+
+impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for Max {
+    type Output = I;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
+        let mut least_weight = f32::NEG_INFINITY;
+        let mut result = I::default();
+        for val in vals {
+            let weight = meta.weight_of(&val);
+            if weight > least_weight {
+                least_weight = weight;
+                result = val;
+            }
+        }
+
+        result
+    }
+}
+
+/// A merger that selects the weight of the value with the greatest weight.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct MaxWeight;
+
+impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for MaxWeight {
+    type Output = f32;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
+        let mut least_weight = f32::NEG_INFINITY;
+        for val in vals {
+            let weight = meta.weight_of(&val);
+            if weight > least_weight {
+                least_weight = weight;
+            }
+        }
+
+        least_weight
     }
 }
 
@@ -80,78 +123,34 @@ where
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Weighted;
 
-impl<
-    C: AddAssign + Div<Output = C> + Default + Copy,
-    T: NoiseType + Default + AddAssign + Mul<C, Output = T> + Copy,
-> Merger<(C, T)> for Weighted
-{
-    type Output = T;
+impl<I: NoiseType + Default, M: WeightFactorer<I>> Merger<I, M> for Weighted {
+    type Output = M::Output;
 
     #[inline]
-    fn merge<const N: usize>(&self, vals: [(C, T); N]) -> Self::Output {
+    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
         if vals.is_empty() {
-            return T::default();
+            return meta.weigh_value(I::default(), 1.0);
         }
 
-        let mut total = C::default();
+        let mut total = 0f32;
+        for value in &vals {
+            total += meta.weight_of(value);
+        }
+        let inverse_total = if total == 0f32 { 0f32 } else { 1.0 / total };
 
-        for (c, _t) in &vals {
-            total += *c
+        let mut result = None;
+        for v in vals {
+            let relative_weight = meta.weight_of(&v) * inverse_total;
+            let local = meta.weigh_value(v, relative_weight);
+            if let Some(result) = &mut result {
+                *result += local;
+            } else {
+                result = Some(local)
+            }
         }
 
-        let first = vals[0];
-        let mut result = first.1 * (first.0 / total);
-        for (c, t) in &vals[1..] {
-            result += *t * (*c / total);
-        }
-
-        result
+        // SAFETY: we know vals is non-empty and that therefore on the first iteration and
+        // thereafter, result will be some.
+        unsafe { result.unwrap_unchecked() }
     }
 }
-
-/// allows implementing easily merge for different types
-macro_rules! impl_merge {
-    ($t:path, $f:path, $new:ident) => {
-        impl<
-            M: Merger<($f, O::Output)>,
-            I: ConversionChain<Input = $t>,
-            N: NoiseOp<I::Output>,
-            O: ConversionChain<Input = N::Output>,
-        > NoiseOp<$t> for Merged<M, I, N, O>
-        {
-            type Output = M::Output;
-
-            #[inline]
-            fn get(&self, input: $t) -> Self::Output {
-                let values = input
-                    .corners()
-                    .map(|c| (c.offset.length(), O::convert(self.noise.get(I::convert(c)))));
-                self.merger.merge(values)
-            }
-        }
-
-        impl<
-            M: Merger<($f, O::Output)>,
-            I: ConversionChain<Input = $t>,
-            N: NoiseOp<I::Output>,
-            O: ConversionChain<Input = N::Output>,
-        > Merged<M, I, N, O>
-        {
-            /// constructs a new [`Merged`]
-            pub fn $new(merger: M, noise: N) -> Self {
-                Self {
-                    merger,
-                    noise,
-                    marker: PhantomData,
-                }
-            }
-        }
-    };
-}
-
-impl_merge!(GridPoint2, f32, new_vec2);
-impl_merge!(GridPoint3, f32, new_vec3);
-impl_merge!(GridPoint4, f32, new_vec4);
-impl_merge!(GridPointD2, f64, new_dvec2);
-impl_merge!(GridPointD3, f64, new_dvec3);
-impl_merge!(GridPointD4, f64, new_dvec4);
