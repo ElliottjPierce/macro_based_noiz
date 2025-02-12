@@ -71,7 +71,7 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Min<T> {
     type Output = I;
 
     #[inline]
-    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
         let mut ordering_number = f32::INFINITY;
         let mut result = I::default();
         for val in vals {
@@ -94,7 +94,7 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MinOrder<T> {
     type Output = T::OrderingOutput;
 
     #[inline]
-    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
         let mut ordering_number = f32::INFINITY;
         for val in vals {
             let weight = self.0.ordering_of(&val);
@@ -115,7 +115,7 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Max<T> {
     type Output = I;
 
     #[inline]
-    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
         let mut ordering_number = f32::NEG_INFINITY;
         let mut result = I::default();
         for val in vals {
@@ -138,7 +138,7 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MaxOrder<T> {
     type Output = T::OrderingOutput;
 
     #[inline]
-    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
         let mut ordering_number = f32::NEG_INFINITY;
         for val in vals {
             let weight = self.0.ordering_of(&val);
@@ -159,7 +159,7 @@ impl<I: NoiseType + Default, M, T: WeightFactorer<I>> Merger<I, M> for Weighted<
     type Output = T::Output;
 
     #[inline]
-    fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
         if vals.is_empty() {
             return self.0.weigh_value(I::default(), 1.0);
         }
