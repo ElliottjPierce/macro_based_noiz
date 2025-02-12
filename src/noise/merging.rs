@@ -16,16 +16,26 @@ pub trait Merger<I, M> {
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output;
 }
 
-/// Defines a type that is able to give weights to a particular kind of value.
-pub trait WeightGiver<I> {
-    /// Calculates the weight of the given value.
-    fn weight_of(&self, value: &I) -> f32;
+/// Defines a type that is able to order a particular type by mapping it to a number.
+pub trait Orderer<I> {
+    /// Value's ordering can be mapped to this value
+    type OrderingOutput: NoiseType;
+
+    /// Maps the value to a number for its ordering.
+    fn ordering_of(&self, value: &I) -> f32;
+
+    /// Maps this particular ordering number to an output. This is useful when calculating a final
+    /// order is slower than calculating one that maintains the same ordering.
+    fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput;
 }
 
 /// Defines a type that is able to weigh a given type of value relative to other weights
-pub trait WeightFactorer<I>: WeightGiver<I> {
+pub trait WeightFactorer<I> {
     /// The type that the weighing results in
     type Output: AddAssign + NoiseType;
+
+    /// Calculates the weight of the given value.
+    fn weight_of(&self, value: &I) -> f32;
 
     /// Given a value and it's relative weight in 0..=1 convert the value to the output
     fn weigh_value(&self, value: I, relative_weight: f32) -> Self::Output;
@@ -35,17 +45,17 @@ pub trait WeightFactorer<I>: WeightGiver<I> {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Min;
 
-impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for Min {
+impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for Min {
     type Output = I;
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
-        let mut least_weight = f32::INFINITY;
+        let mut ordering_number = f32::INFINITY;
         let mut result = I::default();
         for val in vals {
-            let weight = meta.weight_of(&val);
-            if weight < least_weight {
-                least_weight = weight;
+            let weight = meta.ordering_of(&val);
+            if weight < ordering_number {
+                ordering_number = weight;
                 result = val;
             }
         }
@@ -58,20 +68,20 @@ impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for Min {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct MinWeight;
 
-impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for MinWeight {
-    type Output = f32;
+impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for MinWeight {
+    type Output = M::OrderingOutput;
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
-        let mut least_weight = f32::INFINITY;
+        let mut ordering_number = f32::INFINITY;
         for val in vals {
-            let weight = meta.weight_of(&val);
-            if weight < least_weight {
-                least_weight = weight;
+            let weight = meta.ordering_of(&val);
+            if weight < ordering_number {
+                ordering_number = weight;
             }
         }
 
-        least_weight
+        meta.relative_ordering(ordering_number)
     }
 }
 
@@ -79,17 +89,17 @@ impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for MinWeight {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Max;
 
-impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for Max {
+impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for Max {
     type Output = I;
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
-        let mut least_weight = f32::NEG_INFINITY;
+        let mut ordering_number = f32::NEG_INFINITY;
         let mut result = I::default();
         for val in vals {
-            let weight = meta.weight_of(&val);
-            if weight > least_weight {
-                least_weight = weight;
+            let weight = meta.ordering_of(&val);
+            if weight > ordering_number {
+                ordering_number = weight;
                 result = val;
             }
         }
@@ -102,20 +112,20 @@ impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for Max {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct MaxWeight;
 
-impl<I: NoiseType + Default, M: WeightGiver<I>> Merger<I, M> for MaxWeight {
-    type Output = f32;
+impl<I: NoiseType + Default, M: Orderer<I>> Merger<I, M> for MaxWeight {
+    type Output = M::OrderingOutput;
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output {
-        let mut least_weight = f32::NEG_INFINITY;
+        let mut ordering_number = f32::NEG_INFINITY;
         for val in vals {
-            let weight = meta.weight_of(&val);
-            if weight > least_weight {
-                least_weight = weight;
+            let weight = meta.ordering_of(&val);
+            if weight > ordering_number {
+                ordering_number = weight;
             }
         }
 
-        least_weight
+        meta.relative_ordering(ordering_number)
     }
 }
 
