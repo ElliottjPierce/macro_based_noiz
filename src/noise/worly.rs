@@ -29,8 +29,6 @@ use super::{
         Mergeable,
         MinOrder,
         Orderer,
-        WeightFactorer,
-        Weighted,
     },
     norm::UNorm,
     parallel::Parallel,
@@ -133,44 +131,41 @@ macro_rules! impl_worly {
         }
 
         impl<O: Orderer<$vec, OrderingOutput = UNorm>, N: NoiseOp<Seeded<$point>>>
-            WeightFactorer<Seeded<$point>> for WeightedWorly<O, N>
+            NoiseOp<CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>> for WeightedWorly<O, N>
         where
             N::Output: Mul<f32>,
-            <N::Output as Mul<f32>>::Output: NoiseType + AddAssign,
+            <N::Output as Mul<f32>>::Output: NoiseType + AddAssign + Default,
         {
             type Output = <N::Output as Mul<f32>>::Output;
-
-            fn weight_of(&self, value: &Seeded<$point>) -> f32 {
-                self.orderer
-                    .relative_ordering(self.orderer.ordering_of(&value.value.offset))
-                    .inverse()
-                    .adapt()
-            }
-
-            fn weigh_value(&self, value: Seeded<$point>, relative_weight: f32) -> Self::Output {
-                self.noise.get(value) * relative_weight
-            }
-        }
-
-        impl<O, N> WorlySource<$point, { 2 << ($d - 1) }> for WeightedWorly<O, N> where
-            WeightedWorly<O, N>: WeightFactorer<Seeded<$point>>
-        {
-        }
-
-        impl<O, N> NoiseOp<CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>>
-            for WeightedWorly<O, N>
-        where
-            WeightedWorly<O, N>: WeightFactorer<Seeded<$point>>,
-        {
-            type Output = <Self as WeightFactorer<Seeded<$point>>>::Output;
 
             #[inline]
             fn get(
                 &self,
                 input: CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>,
             ) -> Self::Output {
-                input.perform_merge(&Weighted(self))
+                let mut result = None;
+                for point in input.points {
+                    let weight = self
+                        .orderer
+                        .relative_ordering(self.orderer.ordering_of(&point.value.offset))
+                        .inverse()
+                        .adapt::<f32>();
+                    let local = self.noise.get(point) * weight;
+                    if let Some(result) = &mut result {
+                        *result += local;
+                    } else {
+                        result = Some(local);
+                    }
+                }
+                // SAFETY: we know the points will not be empty, and that this can therefore never
+                // be none.
+                unsafe { result.unwrap_unchecked() }
             }
+        }
+
+        impl<O, N> WorlySource<$point, { 2 << ($d - 1) }> for WeightedWorly<O, N> where
+            WeightedWorly<O, N>: NoiseOp<CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>>
+        {
         }
 
         impl WorlyInitializer<$point, EuclideanDistance> for () {
