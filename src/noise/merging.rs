@@ -63,6 +63,30 @@ pub trait WeightFactorer<I> {
     fn weigh_value(&self, value: I, relative_weight: f32) -> Self::Output;
 }
 
+impl<I, T: WeightFactorer<I>> WeightFactorer<I> for &T {
+    type Output = T::Output;
+
+    fn weight_of(&self, value: &I) -> f32 {
+        T::weight_of(self, value)
+    }
+
+    fn weigh_value(&self, value: I, relative_weight: f32) -> Self::Output {
+        T::weigh_value(self, value, relative_weight)
+    }
+}
+
+impl<I, T: Orderer<I>> Orderer<I> for &T {
+    type OrderingOutput = T::OrderingOutput;
+
+    fn ordering_of(&self, value: &I) -> f32 {
+        T::ordering_of(self, value)
+    }
+
+    fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
+        T::relative_ordering(self, ordering)
+    }
+}
+
 /// A [`Merger`] that operates on [`Seeded`] values by passing them to an inner [`Merger`] of type
 /// `T`.
 pub struct MergeWithoutSeed<T>(pub T);
@@ -201,15 +225,15 @@ impl<I: NoiseType + Default, M, T: WeightFactorer<I>> Merger<I, M> for Weighted<
 
 /// A [`WeightFactorer`] that leverages an [`Orderer`] of type `O` to weigh values based on some
 /// distance. Those weights are then applied to the noise output of the [`NoiseOp`] `N`.
-pub struct OrderingWeight<O, N> {
+pub struct OrderingWeight<O, N, const INVERTED: bool = true> {
     /// The [`Orderer`]
     pub orderer: O,
     /// The [`NoiseOp`]
     pub noise: N,
 }
 
-impl<I, O: Orderer<I, OrderingOutput = UNorm>, N: NoiseOp<I>> WeightFactorer<I>
-    for OrderingWeight<O, N>
+impl<I, O: Orderer<I, OrderingOutput = UNorm>, N: NoiseOp<I>, const INVERTED: bool>
+    WeightFactorer<I> for OrderingWeight<O, N, INVERTED>
 where
     N::Output: Mul<f32>,
     <N::Output as Mul<f32>>::Output: NoiseType + AddAssign,
@@ -217,9 +241,15 @@ where
     type Output = <N::Output as Mul<f32>>::Output;
 
     fn weight_of(&self, value: &I) -> f32 {
-        self.orderer
-            .relative_ordering(self.orderer.ordering_of(value))
-            .adapt()
+        let standard = self
+            .orderer
+            .relative_ordering(self.orderer.ordering_of(value));
+        if INVERTED {
+            standard.inverse()
+        } else {
+            standard
+        }
+        .adapt()
     }
 
     fn weigh_value(&self, value: I, relative_weight: f32) -> Self::Output {

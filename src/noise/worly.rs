@@ -1,5 +1,10 @@
 //! Allows [`Cellular`] noise to be converted into more useful things.
 
+use core::ops::{
+    AddAssign,
+    Mul,
+};
+
 use bevy_math::{
     Vec2,
     Vec3,
@@ -24,6 +29,8 @@ use super::{
         Mergeable,
         MinOrder,
         Orderer,
+        WeightFactorer,
+        Weighted,
     },
     norm::UNorm,
     parallel::Parallel,
@@ -82,6 +89,14 @@ impl<T> Worly<T> {
 /// A [`WorlySource`] based on an [`Orderer`] that outputs a [`UNorm`]
 pub struct DistanceWorly<T>(pub MinOrder<T>);
 
+/// A [`WorlySource`] similar to [`OrderingWeight`].
+pub struct WeightedWorly<O, N> {
+    /// The [`Orderer`]
+    pub orderer: O,
+    /// The [`NoiseOp`]
+    pub noise: N,
+}
+
 /// easily implements worly for different inputs
 macro_rules! impl_worly {
     ($point:path, $vec:path, $d:literal) => {
@@ -117,25 +132,107 @@ macro_rules! impl_worly {
             }
         }
 
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>, N: NoiseOp<Seeded<$point>>>
+            WeightFactorer<Seeded<$point>> for WeightedWorly<O, N>
+        where
+            N::Output: Mul<f32>,
+            <N::Output as Mul<f32>>::Output: NoiseType + AddAssign,
+        {
+            type Output = <N::Output as Mul<f32>>::Output;
+
+            fn weight_of(&self, value: &Seeded<$point>) -> f32 {
+                self.orderer
+                    .relative_ordering(self.orderer.ordering_of(&value.value.offset))
+                    .inverse()
+                    .adapt()
+            }
+
+            fn weigh_value(&self, value: Seeded<$point>, relative_weight: f32) -> Self::Output {
+                self.noise.get(value) * relative_weight
+            }
+        }
+
+        impl<O, N> WorlySource<$point, { 2 << ($d - 1) }> for WeightedWorly<O, N> where
+            WeightedWorly<O, N>: WeightFactorer<Seeded<$point>>
+        {
+        }
+
+        impl<O, N> NoiseOp<CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>>
+            for WeightedWorly<O, N>
+        where
+            WeightedWorly<O, N>: WeightFactorer<Seeded<$point>>,
+        {
+            type Output = <Self as WeightFactorer<Seeded<$point>>>::Output;
+
+            #[inline]
+            fn get(
+                &self,
+                input: CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>,
+            ) -> Self::Output {
+                input.perform_merge(&Weighted(self))
+            }
+        }
+
+        impl WorlyInitializer<$point, EuclideanDistance> for () {
+            #[inline]
+            fn init(self, cellular: &Cellular) -> EuclideanDistance {
+                let max_component = cellular.0.max_nudge() + 0.5;
+                EuclideanDistance {
+                    inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)).sqrt(),
+                }
+            }
+        }
+
+        impl WorlyInitializer<$point, ManhatanDistance> for () {
+            #[inline]
+            fn init(self, cellular: &Cellular) -> ManhatanDistance {
+                let max_component = cellular.0.max_nudge() + 0.5;
+                ManhatanDistance {
+                    inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)),
+                }
+            }
+        }
+
         impl WorlyInitializer<$point, DistanceWorly<EuclideanDistance>> for () {
             #[inline]
             fn init(self, cellular: &Cellular) -> DistanceWorly<EuclideanDistance> {
-                let max_component = cellular.0.max_nudge() + 0.5;
-                let distance = EuclideanDistance {
-                    inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)).sqrt(),
-                };
-                DistanceWorly(MinOrder(distance))
+                DistanceWorly(MinOrder(<Self as WorlyInitializer<
+                    $point,
+                    EuclideanDistance,
+                >>::init(self, cellular)))
             }
         }
 
         impl WorlyInitializer<$point, DistanceWorly<ManhatanDistance>> for () {
             #[inline]
             fn init(self, cellular: &Cellular) -> DistanceWorly<ManhatanDistance> {
-                let max_component = cellular.0.max_nudge() + 0.5;
-                let distance = ManhatanDistance {
-                    inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)),
-                };
-                DistanceWorly(MinOrder(distance))
+                DistanceWorly(MinOrder(<Self as WorlyInitializer<
+                    $point,
+                    ManhatanDistance,
+                >>::init(self, cellular)))
+            }
+        }
+
+        impl<N> WorlyInitializer<$point, WeightedWorly<EuclideanDistance, N>> for N {
+            #[inline]
+            fn init(self, cellular: &Cellular) -> WeightedWorly<EuclideanDistance, N> {
+                WeightedWorly {
+                    noise: self,
+                    orderer: <() as WorlyInitializer<$point, EuclideanDistance>>::init(
+                        (),
+                        cellular,
+                    ),
+                }
+            }
+        }
+
+        impl<N> WorlyInitializer<$point, WeightedWorly<ManhatanDistance, N>> for N {
+            #[inline]
+            fn init(self, cellular: &Cellular) -> WeightedWorly<ManhatanDistance, N> {
+                WeightedWorly {
+                    noise: self,
+                    orderer: <() as WorlyInitializer<$point, ManhatanDistance>>::init((), cellular),
+                }
             }
         }
     };

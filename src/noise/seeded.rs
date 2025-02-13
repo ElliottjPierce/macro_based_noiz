@@ -37,6 +37,7 @@ pub trait SeedableNoiseType: NoiseType {
 }
 
 /// Represents a type that has been given a seed for quick access.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Seeded<T: NoiseType> {
     /// the value
     pub value: T,
