@@ -34,7 +34,7 @@ use bevy_math::{
     Vec3,
     Vec4,
 };
-use conversions::ConversionChain;
+use conversions::NoiseConverter;
 
 pub mod cellular;
 pub mod conversions;
@@ -71,7 +71,7 @@ pub trait NoiseType {
     /// [`NoiseConvert::convert`]
     fn adapt<T: NoiseType>(self) -> T
     where
-        Self: ConversionChain<T, Input = Self> + Sized,
+        Self: NoiseConverter<T, Input = Self> + Sized,
     {
         Self::convert(self)
     }
@@ -87,12 +87,12 @@ where
 
     /// samples the noise at this input
     #[inline]
-    fn sample<C: ConversionChain<Self::Input, Input = C>>(&self, input: C) -> Self::Output {
+    fn sample<C: NoiseConverter<Self::Input, Input = C>>(&self, input: C) -> Self::Output {
         self.get(C::convert(input))
     }
 
     /// samples the noise at this input
-    fn sample_cold<C: ConversionChain<Self::Input, Input = C>>(&self, input: C) -> Self::Output {
+    fn sample_cold<C: NoiseConverter<Self::Input, Input = C>>(&self, input: C) -> Self::Output {
         self.sample::<C>(input)
     }
 }

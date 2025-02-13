@@ -8,7 +8,7 @@ use super::{
 };
 
 /// A trait to perform conversions
-pub trait ConversionChain<O: NoiseType> {
+pub trait NoiseConverter<O: NoiseType> {
     /// The input type
     type Input: NoiseType;
     /// performs static conversion between noise types
@@ -17,16 +17,16 @@ pub trait ConversionChain<O: NoiseType> {
 
 /// A noise operation that converts one noise type to another
 #[derive(Default, Clone, PartialEq)]
-pub struct Adapter<C: ConversionChain<O>, O: NoiseType>(PhantomData<(C, O)>);
+pub struct Adapter<C: NoiseConverter<O>, O: NoiseType>(PhantomData<(C, O)>);
 
-impl<C: ConversionChain<O>, O: NoiseType> Adapter<C, O> {
+impl<C: NoiseConverter<O>, O: NoiseType> Adapter<C, O> {
     /// Constructs a new [`Adapter`]
     pub fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<C: ConversionChain<O>, O: NoiseType> NoiseOp<C::Input> for Adapter<C, O> {
+impl<C: NoiseConverter<O>, O: NoiseType> NoiseOp<C::Input> for Adapter<C, O> {
     type Output = O;
 
     #[inline]
@@ -35,7 +35,7 @@ impl<C: ConversionChain<O>, O: NoiseType> NoiseOp<C::Input> for Adapter<C, O> {
     }
 }
 
-impl<T: NoiseType> ConversionChain<T> for T {
+impl<T: NoiseType> NoiseConverter<T> for T {
     type Input = T;
 
     fn convert(source: Self::Input) -> T {
@@ -43,7 +43,7 @@ impl<T: NoiseType> ConversionChain<T> for T {
     }
 }
 
-impl<I: ConversionChain<O, Input = I> + NoiseType, O: NoiseType> ConversionChain<O> for (I, O) {
+impl<I: NoiseConverter<O, Input = I> + NoiseType, O: NoiseType> NoiseConverter<O> for (I, O) {
     type Input = I;
 
     fn convert(source: Self::Input) -> O {
@@ -51,8 +51,8 @@ impl<I: ConversionChain<O, Input = I> + NoiseType, O: NoiseType> ConversionChain
     }
 }
 
-impl<I: ConversionChain<CF::Input, Input = I> + NoiseType, CF: ConversionChain<O>, O: NoiseType>
-    ConversionChain<O> for (I, CF, O)
+impl<I: NoiseConverter<CF::Input, Input = I> + NoiseType, CF: NoiseConverter<O>, O: NoiseType>
+    NoiseConverter<O> for (I, CF, O)
 {
     type Input = I;
 
@@ -63,11 +63,11 @@ impl<I: ConversionChain<CF::Input, Input = I> + NoiseType, CF: ConversionChain<O
 }
 
 impl<
-    I: ConversionChain<C9::Input, Input = I> + NoiseType,
-    C9: ConversionChain<CF::Input>,
-    CF: ConversionChain<O>,
+    I: NoiseConverter<C9::Input, Input = I> + NoiseType,
+    C9: NoiseConverter<CF::Input>,
+    CF: NoiseConverter<O>,
     O: NoiseType,
-> ConversionChain<O> for (I, C9, CF, O)
+> NoiseConverter<O> for (I, C9, CF, O)
 {
     type Input = I;
 
@@ -79,12 +79,12 @@ impl<
 }
 
 impl<
-    I: ConversionChain<C8::Input, Input = I> + NoiseType,
-    C8: ConversionChain<C9::Input>,
-    C9: ConversionChain<CF::Input>,
-    CF: ConversionChain<O>,
+    I: NoiseConverter<C8::Input, Input = I> + NoiseType,
+    C8: NoiseConverter<C9::Input>,
+    C9: NoiseConverter<CF::Input>,
+    CF: NoiseConverter<O>,
     O: NoiseType,
-> ConversionChain<O> for (I, C8, C9, CF, O)
+> NoiseConverter<O> for (I, C8, C9, CF, O)
 {
     type Input = I;
 
@@ -97,13 +97,13 @@ impl<
 }
 
 impl<
-    I: ConversionChain<C7::Input, Input = I> + NoiseType,
-    C7: ConversionChain<C8::Input>,
-    C8: ConversionChain<C9::Input>,
-    C9: ConversionChain<CF::Input>,
-    CF: ConversionChain<O>,
+    I: NoiseConverter<C7::Input, Input = I> + NoiseType,
+    C7: NoiseConverter<C8::Input>,
+    C8: NoiseConverter<C9::Input>,
+    C9: NoiseConverter<CF::Input>,
+    CF: NoiseConverter<O>,
     O: NoiseType,
-> ConversionChain<O> for (I, C7, C8, C9, CF, O)
+> NoiseConverter<O> for (I, C7, C8, C9, CF, O)
 {
     type Input = I;
 
@@ -117,14 +117,14 @@ impl<
 }
 
 impl<
-    I: ConversionChain<C6::Input, Input = I> + NoiseType,
-    C6: ConversionChain<C7::Input>,
-    C7: ConversionChain<C8::Input>,
-    C8: ConversionChain<C9::Input>,
-    C9: ConversionChain<CF::Input>,
-    CF: ConversionChain<O>,
+    I: NoiseConverter<C6::Input, Input = I> + NoiseType,
+    C6: NoiseConverter<C7::Input>,
+    C7: NoiseConverter<C8::Input>,
+    C8: NoiseConverter<C9::Input>,
+    C9: NoiseConverter<CF::Input>,
+    CF: NoiseConverter<O>,
     O: NoiseType,
-> ConversionChain<O> for (I, C6, C7, C8, C9, CF, O)
+> NoiseConverter<O> for (I, C6, C7, C8, C9, CF, O)
 {
     type Input = I;
 
@@ -139,15 +139,15 @@ impl<
 }
 
 impl<
-    I: ConversionChain<C5::Input, Input = I> + NoiseType,
-    C5: ConversionChain<C6::Input>,
-    C6: ConversionChain<C7::Input>,
-    C7: ConversionChain<C8::Input>,
-    C8: ConversionChain<C9::Input>,
-    C9: ConversionChain<CF::Input>,
-    CF: ConversionChain<O>,
+    I: NoiseConverter<C5::Input, Input = I> + NoiseType,
+    C5: NoiseConverter<C6::Input>,
+    C6: NoiseConverter<C7::Input>,
+    C7: NoiseConverter<C8::Input>,
+    C8: NoiseConverter<C9::Input>,
+    C9: NoiseConverter<CF::Input>,
+    CF: NoiseConverter<O>,
     O: NoiseType,
-> ConversionChain<O> for (I, C5, C6, C7, C8, C9, CF, O)
+> NoiseConverter<O> for (I, C5, C6, C7, C8, C9, CF, O)
 {
     type Input = I;
 
@@ -173,7 +173,7 @@ macro_rules! convertible {
     };
 
     ($type:path = $out:path, | $name:ident | $converter:expr) => {
-        impl $crate::noise::conversions::ConversionChain<$out> for $type {
+        impl $crate::noise::conversions::NoiseConverter<$out> for $type {
             type Input = $type;
 
             #[inline]
