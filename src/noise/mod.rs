@@ -42,6 +42,7 @@ pub mod mapping;
 pub mod merging;
 pub mod norm;
 pub mod nudges;
+pub mod seeded;
 pub mod smoothing;
 pub mod white;
 pub mod worly;
