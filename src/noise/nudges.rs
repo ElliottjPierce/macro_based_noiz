@@ -69,11 +69,11 @@ macro_rules! impl_nudge {
                 let raw_shift = input
                     .value
                     .to_array()
-                    .map(|v| White32(input.seed).get(v).adapt::<SNorm>().adapt());
+                    .map(|v| White32(input.meta).get(v).adapt::<SNorm>().adapt());
                 let shift = <$vec>::from_array(raw_shift) * self.multiplier;
                 Seeded {
                     value: shift,
-                    seed: input.seed,
+                    meta: input.meta,
                 }
             }
         }

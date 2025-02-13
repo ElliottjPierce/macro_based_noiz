@@ -11,6 +11,7 @@ use noiz::{
     noise::{
         Noise,
         NoiseType,
+        associating::MetaOf,
         cellular::Cellular,
         grid::{
             GridNoise,
@@ -20,10 +21,7 @@ use noiz::{
         merging::EuclideanDistance,
         norm::UNorm,
         nudges::Nudge,
-        seeded::{
-            SeedOf,
-            Seeding,
-        },
+        seeded::Seeding,
         smoothing::Smooth,
         white::White32,
         worly::{
@@ -93,7 +91,7 @@ noise_fn! {
     pub struct WhiteNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
         noise Seeding = Seeding(seed),
-        noise SeedOf = SeedOf,
+        noise MetaOf = MetaOf,
         into UNorm
     }
 }
