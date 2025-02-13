@@ -37,6 +37,26 @@ impl Cellular {
     }
 }
 
+impl<T> CellularResult<T> {
+    /// Maps this value to another, keeping its source.
+    #[inline]
+    pub fn map<O: NoiseType>(self, f: impl FnOnce(T) -> O) -> CellularResult<O> {
+        CellularResult {
+            points: f(self.points),
+            source: self.source,
+        }
+    }
+
+    /// Maps this value to another, keeping its source.
+    #[inline]
+    pub fn map_ref<O: NoiseType>(&self, f: impl FnOnce(&T) -> O) -> CellularResult<O> {
+        CellularResult {
+            points: f(&self.points),
+            source: self.source,
+        }
+    }
+}
+
 impl<T: NoiseType> NoiseType for CellularResult<T> {}
 
 impl<T: NoiseType, const K: usize> Mergeable for CellularResult<[T; K]> {

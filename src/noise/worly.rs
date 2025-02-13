@@ -1,8 +1,18 @@
 //! Allows [`Cellular`] noise to be converted into more useful things.
 
+use bevy_math::{
+    Vec2,
+    Vec3,
+    Vec4,
+};
+
 use super::{
     NoiseOp,
-    cellular::Cellular,
+    NoiseType,
+    cellular::{
+        Cellular,
+        CellularResult,
+    },
     grid::{
         GridPoint2,
         GridPoint3,
@@ -11,11 +21,11 @@ use super::{
     merging::{
         EuclideanDistance,
         ManhatanDistance,
-        MergeWithoutSeed,
         Mergeable,
-        Merger,
         MinOrder,
+        Orderer,
     },
+    norm::UNorm,
     parallel::Parallel,
     seeded::{
         Seeded,
@@ -23,10 +33,16 @@ use super::{
     },
 };
 
-/// Initializes a particular kind of worly noise
-pub trait WorlyInitializer<I, T>: Sized {
+/// Initializes a particular kind of worly noise. The `I` describes the expected input point type.
+pub trait WorlyInitializer<I: NoiseType, T>: Sized {
     /// Creates a new `T` noise based on this [`Cellular`].
     fn init(self, cellular: &Cellular) -> T;
+}
+
+/// Describes a source of Worly noise as a [`NoiseOp`] for [`CellularResult`].
+pub trait WorlySource<I: NoiseType, const D: usize>:
+    NoiseOp<CellularResult<[Seeded<I>; D]>>
+{
 }
 
 /// Worly noise is defined as any kind of noise derived from [`Cellular`] noise via a
@@ -41,7 +57,7 @@ pub struct Worly<T> {
 impl<T> Worly<T> {
     /// creates a new [`Worly`] from the initializer and seed
     #[inline]
-    pub fn from_initializer<I>(
+    pub fn from_initializer<I: NoiseType>(
         cellular: Cellular,
         seed: u32,
         initializer: impl WorlyInitializer<I, T>,
@@ -55,7 +71,7 @@ impl<T> Worly<T> {
 
     /// creates a new [`Worly`] from [`Cellular`] with a seed
     #[inline]
-    pub fn new<I>(cellular: Cellular, seed: u32) -> Self
+    pub fn new<I: NoiseType>(cellular: Cellular, seed: u32) -> Self
     where
         (): WorlyInitializer<I, T>,
     {
@@ -63,44 +79,68 @@ impl<T> Worly<T> {
     }
 }
 
+/// A [`WorlySource`] based on an [`Orderer`] that outputs a [`UNorm`]
+pub struct DistanceWorly<T>(pub MinOrder<T>);
+
 /// easily implements worly for different inputs
 macro_rules! impl_worly {
-    ($point:path, $d:literal) => {
-        impl<T: Merger<Seeded<$point>, Cellular>> NoiseOp<$point> for Worly<T> {
+    ($point:path, $vec:path, $d:literal) => {
+        impl<T: WorlySource<$point, { 2 << ($d - 1) }>> NoiseOp<$point> for Worly<T> {
             type Output = T::Output;
 
             #[inline]
             fn get(&self, input: $point) -> Self::Output {
                 let corners = Parallel::<$point, Seeding>::new(self.seeder).get(input.corners());
                 let cellular = self.cellular.get(corners);
-                cellular.perform_merge(&self.source)
+                self.source.get(cellular)
             }
         }
 
-        impl WorlyInitializer<$point, MergeWithoutSeed<MinOrder<EuclideanDistance>>> for () {
+        impl<T: Orderer<$vec, OrderingOutput = UNorm>> WorlySource<$point, { 2 << ($d - 1) }>
+            for DistanceWorly<T>
+        {
+        }
+
+        impl<T: Orderer<$vec, OrderingOutput = UNorm>>
+            NoiseOp<CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>> for DistanceWorly<T>
+        {
+            type Output = UNorm;
+
             #[inline]
-            fn init(self, cellular: &Cellular) -> MergeWithoutSeed<MinOrder<EuclideanDistance>> {
+            fn get(
+                &self,
+                input: CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>,
+            ) -> Self::Output {
+                input
+                    .map(|points| points.map(|point| point.value.offset))
+                    .perform_merge(&self.0)
+            }
+        }
+
+        impl WorlyInitializer<$point, DistanceWorly<EuclideanDistance>> for () {
+            #[inline]
+            fn init(self, cellular: &Cellular) -> DistanceWorly<EuclideanDistance> {
                 let max_component = cellular.0.max_nudge() + 0.5;
                 let distance = EuclideanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)).sqrt(),
                 };
-                MergeWithoutSeed(MinOrder(distance))
+                DistanceWorly(MinOrder(distance))
             }
         }
 
-        impl WorlyInitializer<$point, MergeWithoutSeed<MinOrder<ManhatanDistance>>> for () {
+        impl WorlyInitializer<$point, DistanceWorly<ManhatanDistance>> for () {
             #[inline]
-            fn init(self, cellular: &Cellular) -> MergeWithoutSeed<MinOrder<ManhatanDistance>> {
+            fn init(self, cellular: &Cellular) -> DistanceWorly<ManhatanDistance> {
                 let max_component = cellular.0.max_nudge() + 0.5;
                 let distance = ManhatanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)),
                 };
-                MergeWithoutSeed(MinOrder(distance))
+                DistanceWorly(MinOrder(distance))
             }
         }
     };
 }
 
-impl_worly!(GridPoint2, 2);
-impl_worly!(GridPoint3, 3);
-impl_worly!(GridPoint4, 4);
+impl_worly!(GridPoint2, Vec2, 2);
+impl_worly!(GridPoint3, Vec3, 3);
+impl_worly!(GridPoint4, Vec4, 4);

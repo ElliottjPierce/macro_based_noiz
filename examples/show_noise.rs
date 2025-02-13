@@ -17,11 +17,7 @@ use noiz::{
             GridPoint2,
         },
         interpolating::Cubic,
-        merging::{
-            EuclideanDistance,
-            MergeWithoutSeed,
-            MinOrder,
-        },
+        merging::EuclideanDistance,
         norm::UNorm,
         nudges::Nudge,
         seeded::{
@@ -30,7 +26,10 @@ use noiz::{
         },
         smoothing::Smooth,
         white::White32,
-        worly::Worly,
+        worly::{
+            DistanceWorly,
+            Worly,
+        },
     },
     noise_fn,
 };
@@ -110,6 +109,6 @@ noise_fn! {
 noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Worly<MergeWithoutSeed<MinOrder<EuclideanDistance>>> = Worly::new::<GridPoint2>(Cellular(Nudge::full()), seed),
+        noise Worly<DistanceWorly<EuclideanDistance>> = Worly::new::<GridPoint2>(Cellular(Nudge::full()), seed),
     }
 }
