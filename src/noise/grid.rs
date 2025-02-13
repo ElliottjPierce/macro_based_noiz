@@ -16,12 +16,12 @@ use bevy_math::{
 };
 
 use super::{
-    NoiseConvert,
     NoiseOp,
     NoiseType,
     norm::make_nonzero_f32,
     seeded::SeedableNoiseType,
 };
+use crate::convertible;
 
 /// a noise that converts a vector input to a point in a grid
 #[derive(Debug, Clone, PartialEq)]
@@ -107,24 +107,14 @@ macro_rules! make_grid_point {
         impl NoiseType for $name {}
 
         impl SeedableNoiseType for $name {
+            #[inline]
             fn generate_seed(&self, seed: u32) -> u32 {
                 self.base.generate_seed(seed)
             }
         }
 
-        impl NoiseConvert<$uint> for $name {
-            #[inline]
-            fn convert(self) -> $uint {
-                self.base
-            }
-        }
-
-        impl NoiseConvert<$f> for $name {
-            #[inline]
-            fn convert(self) -> $f {
-                self.offset
-            }
-        }
+        convertible!($name = $uint, |source| source.base);
+        convertible!($name = $f, |source| source.offset);
 
         impl NoiseOp<$name> for GridCorners {
             type Output = [$name; $d];
@@ -142,7 +132,7 @@ macro_rules! make_grid_point {
             fn get(&self, input: $f) -> Self::Output {
                 let val = input * self.frequency;
                 $name {
-                    base: NoiseConvert::<$uint>::convert(val.floor().$f2i()),
+                    base: val.floor().$f2i().adapt::<$uint>(),
                     offset: val.fract_gl(),
                 }
             }
@@ -219,65 +209,31 @@ make_grid_point!(
     16
 );
 
-impl NoiseConvert<GridPoint2> for GridPointD2 {
-    #[inline]
-    fn convert(self) -> GridPoint2 {
-        GridPoint2 {
-            offset: self.offset.as_vec2(),
-            base: self.base.as_uvec2(),
-        }
-    }
-}
+convertible!(GridPointD2 = GridPoint2, |source| GridPoint2 {
+    offset: source.offset.as_vec2(),
+    base: source.base.as_uvec2(),
+});
+convertible!(GridPointD3 = GridPoint3, |source| GridPoint3 {
+    offset: source.offset.as_vec3(),
+    base: source.base.as_uvec3(),
+});
+convertible!(GridPointD4 = GridPoint4, |source| GridPoint4 {
+    offset: source.offset.as_vec4(),
+    base: source.base.as_uvec4(),
+});
 
-impl NoiseConvert<GridPointD2> for GridPoint2 {
-    #[inline]
-    fn convert(self) -> GridPointD2 {
-        GridPointD2 {
-            offset: self.offset.as_dvec2(),
-            base: self.base.as_u64vec2(),
-        }
-    }
-}
-
-impl NoiseConvert<GridPoint3> for GridPointD3 {
-    #[inline]
-    fn convert(self) -> GridPoint3 {
-        GridPoint3 {
-            offset: self.offset.as_vec3(),
-            base: self.base.as_uvec3(),
-        }
-    }
-}
-
-impl NoiseConvert<GridPointD3> for GridPoint3 {
-    #[inline]
-    fn convert(self) -> GridPointD3 {
-        GridPointD3 {
-            offset: self.offset.as_dvec3(),
-            base: self.base.as_u64vec3(),
-        }
-    }
-}
-
-impl NoiseConvert<GridPoint4> for GridPointD4 {
-    #[inline]
-    fn convert(self) -> GridPoint4 {
-        GridPoint4 {
-            offset: self.offset.as_vec4(),
-            base: self.base.as_uvec4(),
-        }
-    }
-}
-
-impl NoiseConvert<GridPointD4> for GridPoint4 {
-    #[inline]
-    fn convert(self) -> GridPointD4 {
-        GridPointD4 {
-            offset: self.offset.as_dvec4(),
-            base: self.base.as_u64vec4(),
-        }
-    }
-}
+convertible!(GridPoint2 = GridPointD2, |source| GridPointD2 {
+    offset: source.offset.as_dvec2(),
+    base: source.base.as_u64vec2(),
+});
+convertible!(GridPoint3 = GridPointD3, |source| GridPointD3 {
+    offset: source.offset.as_dvec3(),
+    base: source.base.as_u64vec3(),
+});
+convertible!(GridPoint4 = GridPointD4, |source| GridPointD4 {
+    offset: source.offset.as_dvec4(),
+    base: source.base.as_u64vec4(),
+});
 
 impl GridPoint2 {
     /// produces an array of all positive unit offset combinations from the current value.

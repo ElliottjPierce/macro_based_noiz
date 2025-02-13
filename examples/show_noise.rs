@@ -98,13 +98,13 @@ noise_fn! {
     }
 }
 
-noise_fn! {
-    pub struct ValueNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise Smooth<Cubic, (GridPoint2, UVec2), White32, (u32, UNorm, f32)> = Smooth::new_vec2(Cubic, White32(seed)),
-        into UNorm
-    }
-}
+// noise_fn! {
+//     pub struct ValueNoise for Vec2 = (seed: u32, period: f32) {
+//         noise GridNoise = GridNoise::new_period(period),
+//         noise Smooth<Cubic, (GridPoint2, UVec2), White32, (u32, UNorm, f32)> =
+// Smooth::new_vec2(Cubic, White32(seed)),         into UNorm
+//     }
+// }
 
 noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {

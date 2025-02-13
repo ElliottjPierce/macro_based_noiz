@@ -34,8 +34,10 @@ use bevy_math::{
     Vec3,
     Vec4,
 };
+use conversions::ConversionChain;
 
 pub mod cellular;
+pub mod conversions;
 pub mod grid;
 pub mod interpolating;
 pub mod mapping;
@@ -62,22 +64,6 @@ pub trait NoiseOp<I> {
     }
 }
 
-/// Signifies that these types are effectively the same as far as noise is concerned.
-pub trait NoiseConvert<T: NoiseType>: NoiseType {
-    /// maps this value to a noise. Note that you should usually prefer [`NoiseResult::adapt`]
-    fn convert(self) -> T;
-}
-
-/// A trait to perform conversions
-pub trait ConversionChain {
-    /// The input type
-    type Input: NoiseType;
-    /// The output type
-    type Output: NoiseType;
-    /// performs static conversion between noise types
-    fn convert(x: Self::Input) -> Self::Output;
-}
-
 /// Marks the type as involved in noise functions as either an input, output or both.
 pub trait NoiseType {
     /// converts this value into a different type with a common noise goal.
@@ -85,9 +71,9 @@ pub trait NoiseType {
     /// [`NoiseConvert::convert`]
     fn adapt<T: NoiseType>(self) -> T
     where
-        Self: NoiseConvert<T> + Sized,
+        Self: ConversionChain<T, Input = Self> + Sized,
     {
-        self.convert()
+        Self::convert(self)
     }
 }
 
@@ -101,15 +87,12 @@ where
 
     /// samples the noise at this input
     #[inline]
-    fn sample<C: ConversionChain<Output = Self::Input>>(&self, input: C::Input) -> Self::Output {
+    fn sample<C: ConversionChain<Self::Input, Input = C>>(&self, input: C) -> Self::Output {
         self.get(C::convert(input))
     }
 
     /// samples the noise at this input
-    fn sample_cold<C: ConversionChain<Output = Self::Input>>(
-        &self,
-        input: C::Input,
-    ) -> Self::Output {
+    fn sample_cold<C: ConversionChain<Self::Input, Input = C>>(&self, input: C) -> Self::Output {
         self.sample::<C>(input)
     }
 }
@@ -163,22 +146,9 @@ impl NoiseType for UVec4 {}
 
 impl<T: NoiseType, const N: usize> NoiseType for [T; N] {}
 
-impl<T: NoiseType> NoiseConvert<T> for T {
-    #[inline]
-    fn convert(self) -> T {
-        self
-    }
-}
-
 /// Allows chaining noise functions together
 #[derive(Default, Clone, PartialEq)]
 pub struct Chain<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>>(N1, N2, PhantomData<I>);
-
-/// A noise operation that converts one noise type to another
-#[derive(Default, Clone, PartialEq)]
-pub struct Adapter<I: NoiseType, O: NoiseType>(PhantomData<(I, O)>)
-where
-    I: NoiseConvert<O>;
 
 /// allows a function to be used as a noise operation
 #[derive(Clone, PartialEq)]
@@ -188,16 +158,6 @@ impl<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>> Chain<I, N1, N2> {
     /// Constructs a new [`Chain`]
     pub fn new(fist: N1, second: N2) -> Self {
         Self(fist, second, PhantomData)
-    }
-}
-
-impl<I: NoiseType, O: NoiseType> Adapter<I, O>
-where
-    I: NoiseConvert<O>,
-{
-    /// Constructs a new [`Adapter`]
-    pub fn new() -> Self {
-        Self(PhantomData)
     }
 }
 
@@ -217,134 +177,12 @@ impl<I, N1: NoiseOp<I>, N2: NoiseOp<N1::Output>> NoiseOp<I> for Chain<I, N1, N2>
     }
 }
 
-impl<I: NoiseType, O: NoiseType> NoiseOp<I> for Adapter<I, O>
-where
-    I: NoiseConvert<O>,
-{
-    type Output = O;
-
-    #[inline]
-    fn get(&self, input: I) -> Self::Output {
-        input.convert()
-    }
-}
-
 impl<I, O: NoiseType, D> NoiseOp<I> for Morph<I, O, D> {
     type Output = O;
 
     #[inline]
     fn get(&self, input: I) -> Self::Output {
         self.0(input, &self.1)
-    }
-}
-
-impl<I: NoiseConvert<O>, O: NoiseType> ConversionChain for (I, O) {
-    type Input = I;
-    type Output = O;
-
-    fn convert(x: Self::Input) -> Self::Output {
-        x.convert()
-    }
-}
-
-impl<I: NoiseConvert<T1>, T1: NoiseConvert<O>, O: NoiseType> ConversionChain for (I, T1, O) {
-    type Input = I;
-    type Output = O;
-
-    fn convert(x: Self::Input) -> Self::Output {
-        x.convert().convert()
-    }
-}
-
-impl<I: NoiseConvert<T2>, T2: NoiseConvert<T1>, T1: NoiseConvert<O>, O: NoiseType> ConversionChain
-    for (I, T2, T1, O)
-{
-    type Input = I;
-    type Output = O;
-
-    fn convert(x: Self::Input) -> Self::Output {
-        x.convert().convert().convert()
-    }
-}
-
-impl<
-    I: NoiseConvert<T3>,
-    T3: NoiseConvert<T2>,
-    T2: NoiseConvert<T1>,
-    T1: NoiseConvert<O>,
-    O: NoiseType,
-> ConversionChain for (I, T3, T2, T1, O)
-{
-    type Input = I;
-    type Output = O;
-
-    fn convert(x: Self::Input) -> Self::Output {
-        x.convert().convert().convert().convert()
-    }
-}
-
-impl<
-    I: NoiseConvert<T4>,
-    T4: NoiseConvert<T3>,
-    T3: NoiseConvert<T2>,
-    T2: NoiseConvert<T1>,
-    T1: NoiseConvert<O>,
-    O: NoiseType,
-> ConversionChain for (I, T4, T3, T2, T1, O)
-{
-    type Input = I;
-    type Output = O;
-
-    fn convert(x: Self::Input) -> Self::Output {
-        x.convert().convert().convert().convert().convert()
-    }
-}
-
-impl<
-    I: NoiseConvert<T5>,
-    T5: NoiseConvert<T4>,
-    T4: NoiseConvert<T3>,
-    T3: NoiseConvert<T2>,
-    T2: NoiseConvert<T1>,
-    T1: NoiseConvert<O>,
-    O: NoiseType,
-> ConversionChain for (I, T5, T4, T3, T2, T1, O)
-{
-    type Input = I;
-    type Output = O;
-
-    fn convert(x: Self::Input) -> Self::Output {
-        x.convert()
-            .convert()
-            .convert()
-            .convert()
-            .convert()
-            .convert()
-    }
-}
-
-impl<
-    I: NoiseConvert<T6>,
-    T6: NoiseConvert<T5>,
-    T5: NoiseConvert<T4>,
-    T4: NoiseConvert<T3>,
-    T3: NoiseConvert<T2>,
-    T2: NoiseConvert<T1>,
-    T1: NoiseConvert<O>,
-    O: NoiseType,
-> ConversionChain for (I, T6, T5, T4, T3, T2, T1, O)
-{
-    type Input = I;
-    type Output = O;
-
-    fn convert(x: Self::Input) -> Self::Output {
-        x.convert()
-            .convert()
-            .convert()
-            .convert()
-            .convert()
-            .convert()
-            .convert()
     }
 }
 
@@ -369,7 +207,7 @@ macro_rules! noise_type {
 
     // starts with adapting
     (input=$input:path, into $converted:path, $($next:tt)*) => {
-        $crate::noise_type!(input=$input, prev=$crate::noise::Adapter<$input, $converted>, $($next)*,)
+        $crate::noise_type!(input=$input, prev=$crate::noise::conversions::Adapter<$input, $converted>, $($next)*,)
     };
 
     // chains another noise
@@ -395,7 +233,7 @@ macro_rules! noise_type {
 
     // chains another adaption
     (input=$input:path, prev=$prev_t:path, into $converted:path, $($next:tt)*) => {
-        $crate::noise_type!(input=$input, prev=$crate::noise::Chain<$input, $prev_t, $crate::noise::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>, $($next)*)
+        $crate::noise_type!(input=$input, prev=$crate::noise::Chain<$input, $prev_t, $crate::noise::conversions::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>, $($next)*)
     };
 
     // finishes when there are no more tokens
@@ -457,7 +295,7 @@ macro_rules! noise_build {
 
     // starts with adapting
     (input=$input:path, into $converted:path, $($next:tt)*) => {
-        $crate::noise_build!(input=$input, prev=($crate::noise::Adapter<$input, $converted>, { $crate::noise::Adapter::<$input, $converted>::new() }), $($next)*,)
+        $crate::noise_build!(input=$input, prev=($crate::noise::conversions::Adapter<$input, $converted>, { $crate::noise::conversions::Adapter::<$input, $converted>::new() }), $($next)*,)
     };
 
     // chains another noise
@@ -523,10 +361,10 @@ macro_rules! noise_build {
         $crate::noise_build!(
             input=$input,
             prev=(
-                $crate::noise::Chain<$input, $prev_t, $crate::noise::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>,
+                $crate::noise::Chain<$input, $prev_t, $crate::noise::conversions::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>,
                 {
-                    $crate::noise::Chain::<$input, $prev_t, $crate::noise::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>::new(
-                        $prev_c, $crate::noise::Adapter::new()
+                    $crate::noise::Chain::<$input, $prev_t, $crate::noise::conversions::Adapter<<$prev_t as $crate::noise::NoiseOp<$input>>::Output, $converted>>::new(
+                        $prev_c, $crate::noise::conversions::Adapter::new()
                     )
                 }
             ),

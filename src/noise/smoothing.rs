@@ -3,15 +3,12 @@
 use std::marker::PhantomData;
 
 use super::{
-    ConversionChain,
     NoiseOp,
+    NoiseType,
     grid::{
         GridPoint2,
         GridPoint3,
         GridPoint4,
-        GridPointD2,
-        GridPointD3,
-        GridPointD4,
     },
     interpolating::{
         Lerpable,
@@ -24,67 +21,43 @@ use super::{
 
 /// a noise type to smooth out grid noise
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Smooth<
-    C,
-    I: ConversionChain,
-    N: NoiseOp<I::Output>,
-    O: ConversionChain<Input = N::Output>,
-> {
+pub struct Smooth<I: NoiseType, N: NoiseOp<I>, C: MixerFxn<f32, N::Output>> {
     /// the way we are smoothing
     curve: C,
     /// the noise we are smoothing
     noise: N,
-    /// phantom data
-    marker: PhantomData<(I, O)>,
+    marker: PhantomData<I>,
+}
+
+impl<I: NoiseType, N: NoiseOp<I>, C: MixerFxn<f32, N::Output>> Smooth<I, N, C> {
+    /// constructs a new [`Smooth`] with these values
+    pub fn new(curve: C, noise: N) -> Self {
+        Self {
+            curve,
+            noise,
+            marker: PhantomData,
+        }
+    }
 }
 
 /// allows implementing easily Shooth for different types
 macro_rules! impl_smooth {
-    ($t:path, $mix:ident, $f:ident, $new:ident) => {
-        impl<
-            C: MixerFxn<$f, O::Output>,
-            I: ConversionChain<Input = $t>,
-            N: NoiseOp<I::Output>,
-            O: ConversionChain<Input = N::Output>,
-        > NoiseOp<$t> for Smooth<C, I, N, O>
+    ($t:path, $mix:ident, $new:ident) => {
+        impl<N: NoiseOp<$t>, C: MixerFxn<f32, N::Output>> NoiseOp<$t> for Smooth<$t, N, C>
         where
-            O::Output: Lerpable + Copy,
+            N::Output: Lerpable + Copy,
         {
-            type Output = O::Output;
+            type Output = N::Output;
 
             #[inline]
             fn get(&self, input: $t) -> Self::Output {
-                let values = input
-                    .corners()
-                    .map(|c| O::convert(self.noise.get(I::convert(c))));
+                let values = input.corners().map(|c| self.noise.get(c));
                 $mix(values, input.offset.to_array(), &self.curve)
-            }
-        }
-
-        impl<
-            C: MixerFxn<$f, O::Output>,
-            I: ConversionChain<Input = $t>,
-            N: NoiseOp<I::Output>,
-            O: ConversionChain<Input = N::Output>,
-        > Smooth<C, I, N, O>
-        where
-            O::Output: Lerpable + Copy,
-        {
-            /// constructs a new [`Smooth`] with these values
-            pub fn $new(curve: C, noise: N) -> Self {
-                Self {
-                    curve,
-                    noise,
-                    marker: PhantomData,
-                }
             }
         }
     };
 }
 
-impl_smooth!(GridPoint2, mix_2d, f32, new_vec2);
-impl_smooth!(GridPoint3, mix_3d, f32, new_vec3);
-impl_smooth!(GridPoint4, mix_4d, f32, new_vec4);
-impl_smooth!(GridPointD2, mix_2d, f64, new_dvec2);
-impl_smooth!(GridPointD3, mix_3d, f64, new_dvec3);
-impl_smooth!(GridPointD4, mix_4d, f64, new_dvec4);
+impl_smooth!(GridPoint2, mix_2d, new_vec2);
+impl_smooth!(GridPoint3, mix_3d, new_vec3);
+impl_smooth!(GridPoint4, mix_4d, new_vec4);

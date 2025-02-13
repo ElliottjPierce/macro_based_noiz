@@ -2,10 +2,8 @@
 
 use bevy_math::Curve;
 
-use super::{
-    NoiseConvert,
-    NoiseType,
-};
+use super::NoiseType;
+use crate::convertible;
 
 /// A value that stores an f32 in range (-1, 0)∪(0, 1).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -278,64 +276,20 @@ impl UNorm {
     }
 }
 
-impl NoiseConvert<UNorm> for u32 {
-    #[inline]
-    fn convert(self) -> UNorm {
-        UNorm::from_bits(self)
-    }
-}
+convertible!(u32 = UNorm, |source| UNorm::from_bits(source));
+convertible!(u32 = SNorm, |source| SNorm::from_bits(source));
 
-impl NoiseConvert<SNorm> for u32 {
-    #[inline]
-    fn convert(self) -> SNorm {
-        SNorm::from_bits(self)
-    }
-}
+convertible!(f32 = UNorm, |source| UNorm::new_rolling(source));
+convertible!(f32 = SNorm, |source| SNorm::new_rolling(source));
 
-impl NoiseConvert<UNorm> for f32 {
-    #[inline]
-    fn convert(self) -> UNorm {
-        UNorm::new_rolling(self)
-    }
-}
+convertible!(UNorm = f32, |source| source.0);
+convertible!(SNorm = f32, |source| source.0);
 
-impl NoiseConvert<SNorm> for f32 {
-    #[inline]
-    fn convert(self) -> SNorm {
-        SNorm::new_rolling(self)
-    }
-}
-
-impl NoiseConvert<SNorm> for UNorm {
-    #[inline]
-    fn convert(self) -> SNorm {
-        self.map_to_snorm()
-    }
-}
-
-impl NoiseConvert<UNorm> for SNorm {
-    #[inline]
-    fn convert(self) -> UNorm {
-        self.map_to_unorm()
-    }
-}
+convertible!(SNorm = UNorm, |source| SNorm::map_to_unorm(source));
+convertible!(UNorm = SNorm, |source| UNorm::map_to_snorm(source));
 
 impl NoiseType for SNorm {}
 impl NoiseType for UNorm {}
-
-impl NoiseConvert<f32> for SNorm {
-    #[inline]
-    fn convert(self) -> f32 {
-        self.0
-    }
-}
-
-impl NoiseConvert<f32> for UNorm {
-    #[inline]
-    fn convert(self) -> f32 {
-        self.0
-    }
-}
 
 /// forces the f32 to be nonzero by forcing on the least significant bit.
 #[inline]

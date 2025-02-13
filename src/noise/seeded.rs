@@ -16,9 +16,9 @@ use bevy_math::{
 };
 
 use super::{
-    NoiseConvert,
     NoiseOp,
     NoiseType,
+    conversions::ConversionChain,
     white::{
         White8,
         White16,
@@ -63,9 +63,11 @@ impl<T: SeedableNoiseType> NoiseOp<T> for Seeding {
     }
 }
 
-impl<T: NoiseType> NoiseConvert<T> for Seeded<T> {
-    fn convert(self) -> T {
-        self.value
+impl<T: NoiseType> ConversionChain<T> for Seeded<T> {
+    type Input = Seeded<T>;
+
+    fn convert(source: Self::Input) -> T {
+        source.value
     }
 }
 
