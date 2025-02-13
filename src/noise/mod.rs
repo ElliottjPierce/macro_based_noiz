@@ -81,6 +81,8 @@ pub trait ConversionChain {
 /// Marks the type as involved in noise functions as either an input, output or both.
 pub trait NoiseType {
     /// converts this value into a different type with a common noise goal.
+    /// This exists to prevent the user from having to qualify the trait and the using
+    /// [`NoiseConvert::convert`]
     fn adapt<T: NoiseType>(self) -> T
     where
         Self: NoiseConvert<T> + Sized,
@@ -99,13 +101,16 @@ where
 
     /// samples the noise at this input
     #[inline]
-    fn sample<T: NoiseConvert<Self::Input>>(&self, input: T) -> Self::Output {
-        self.get(input.convert())
+    fn sample<C: ConversionChain<Output = Self::Input>>(&self, input: C::Input) -> Self::Output {
+        self.get(C::convert(input))
     }
 
     /// samples the noise at this input
-    fn sample_cold<T: NoiseConvert<Self::Input>>(&self, input: T) -> Self::Output {
-        self.sample(input)
+    fn sample_cold<C: ConversionChain<Output = Self::Input>>(
+        &self,
+        input: C::Input,
+    ) -> Self::Output {
+        self.sample::<C>(input)
     }
 }
 
