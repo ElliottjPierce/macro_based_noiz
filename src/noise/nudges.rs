@@ -18,6 +18,7 @@ use super::{
         GridPoint4,
     },
     norm::SNorm,
+    seeded::Seeded,
     white::White32,
 };
 
@@ -26,17 +27,19 @@ use super::{
 pub struct Nudge {
     /// the amount the grid point can move
     multiplier: f32,
-    /// the seed to use
-    seed: White32,
 }
 
 impl Nudge {
-    /// creates a new [`Nudge`]
-    pub fn new(seed: u32, shift: f32) -> Self {
+    /// Creates a new [`Nudge`] with this range. Each point will be shifted by ± half this range.
+    pub fn new(range: f32) -> Self {
         Self {
-            multiplier: shift.clamp(-1.0, 1.0) * 0.5,
-            seed: White32(seed),
+            multiplier: range.clamp(-1.0, 1.0) * 0.5,
         }
+    }
+
+    /// Creates a new [`Nudge`] with this full 1.0 range. Each point will be shifted by ±0.5.
+    pub fn full() -> Self {
+        Self::new(1.0)
     }
 
     /// the maximum amount a point will be nudged
@@ -48,27 +51,35 @@ impl Nudge {
 /// easily implements nudging for different types
 macro_rules! impl_nudge {
     ($vec:path, $uvec:path, $point:path, $d:literal, $u2f:ident) => {
-        impl NoiseOp<$point> for Nudge {
-            type Output = $point;
+        impl NoiseOp<Seeded<$point>> for Nudge {
+            type Output = Seeded<$point>;
 
             #[inline]
-            fn get(&self, mut input: $point) -> Self::Output {
-                input.offset += self.get(input.base);
+            fn get(&self, mut input: Seeded<$point>) -> Self::Output {
+                input.value.offset += self
+                    .get(Seeded {
+                        value: input.value.base,
+                        seed: input.seed,
+                    })
+                    .value;
                 input
             }
         }
 
-        impl NoiseOp<$uvec> for Nudge {
-            type Output = $vec;
+        impl NoiseOp<Seeded<$uvec>> for Nudge {
+            type Output = Seeded<$vec>;
 
             #[inline]
-            fn get(&self, input: $uvec) -> Self::Output {
-                let unique = self.seed.get(input);
+            fn get(&self, input: Seeded<$uvec>) -> Self::Output {
                 let raw_shift = input
+                    .value
                     .to_array()
-                    .map(|v| White32(unique).get(v).adapt::<SNorm>().adapt());
+                    .map(|v| White32(input.seed).get(v).adapt::<SNorm>().adapt());
                 let shift = <$vec>::from_array(raw_shift) * self.multiplier;
-                shift
+                Seeded {
+                    value: shift,
+                    seed: input.seed,
+                }
             }
         }
     };

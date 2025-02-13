@@ -50,7 +50,7 @@ pub struct Seeding {
     pub seed: u32,
 }
 
-impl<T: SeedableNoiseType> NoiseType for Seeded<T> {}
+impl<T: NoiseType> NoiseType for Seeded<T> {}
 
 impl<T: SeedableNoiseType> NoiseOp<T> for Seeding {
     type Output = Seeded<T>;

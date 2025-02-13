@@ -13,6 +13,7 @@ use super::{
         Merger,
     },
     nudges::Nudge,
+    seeded::Seeded,
 };
 
 /// Offsets grid values for distance-based noise
@@ -29,19 +30,9 @@ pub struct CellularResult<T> {
 }
 
 impl Cellular {
-    /// creates a new [`Cellular`].
-    pub fn new(seed: u32, shift: f32) -> Self {
-        Self::from_nudge(Nudge::new(seed, shift))
-    }
-
-    /// constructs a new [`Cellular`] that shifts maximially.
-    pub fn full(seed: u32) -> Self {
-        Self::new(seed, 1.0)
-    }
-
-    /// constructs a new [`World`] based on its nudge.
+    /// constructs a new [`Cellular`] based on its [`Nudge`].
     #[inline]
-    pub fn from_nudge(nudge: Nudge) -> Self {
+    pub fn new(nudge: Nudge) -> Self {
         Self(nudge)
     }
 }
