@@ -86,7 +86,7 @@ macro_rules! impl_worly {
             fn init(self, cellular: &Cellular) -> MinOrder<ManhatanDistance> {
                 let max_component = cellular.0.max_nudge() + 0.5;
                 let distance = ManhatanDistance {
-                    inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)).sqrt(),
+                    inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)),
                 };
                 MinOrder(distance)
             }
