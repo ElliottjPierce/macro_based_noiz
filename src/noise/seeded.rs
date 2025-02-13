@@ -1,8 +1,30 @@
 //! Allows noise types to be given a seed.
 
+use bevy_math::{
+    U8Vec2,
+    U8Vec3,
+    U8Vec4,
+    U16Vec2,
+    U16Vec3,
+    U16Vec4,
+    U64Vec2,
+    U64Vec3,
+    U64Vec4,
+    UVec2,
+    UVec3,
+    UVec4,
+};
+
 use super::{
     NoiseOp,
     NoiseType,
+    white::{
+        White8,
+        White16,
+        White32,
+        White64,
+        White128,
+    },
 };
 
 /// Marks the type as being able to be given aseed. For example, grid points implement this so that
@@ -40,3 +62,31 @@ impl<T: SeedableNoiseType> NoiseOp<T> for Seeding {
         }
     }
 }
+
+macro_rules! impl_seedable {
+    ($dt:path, $white:path, $uint:ident) => {
+        impl SeedableNoiseType for $dt {
+            fn generate_seed(&self, seed: u32) -> u32 {
+                $white(seed as $uint).get(*self) as u32
+            }
+        }
+    };
+}
+
+impl_seedable!(u8, White8, u8);
+impl_seedable!(u16, White16, u16);
+impl_seedable!(u32, White32, u32);
+impl_seedable!(u64, White64, u64);
+impl_seedable!(u128, White128, u128);
+impl_seedable!(U8Vec2, White8, u8);
+impl_seedable!(U8Vec3, White8, u8);
+impl_seedable!(U8Vec4, White8, u8);
+impl_seedable!(U16Vec2, White16, u16);
+impl_seedable!(U16Vec3, White16, u16);
+impl_seedable!(U16Vec4, White16, u16);
+impl_seedable!(UVec2, White32, u32);
+impl_seedable!(UVec3, White32, u32);
+impl_seedable!(UVec4, White32, u32);
+impl_seedable!(U64Vec2, White64, u64);
+impl_seedable!(U64Vec3, White64, u64);
+impl_seedable!(U64Vec4, White64, u64);
