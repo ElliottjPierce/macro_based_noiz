@@ -42,6 +42,7 @@ pub mod mapping;
 pub mod merging;
 pub mod norm;
 pub mod nudges;
+pub mod parallel;
 pub mod seeded;
 pub mod smoothing;
 pub mod white;
@@ -154,6 +155,8 @@ impl NoiseType for U64Vec4 {}
 impl NoiseType for UVec2 {}
 impl NoiseType for UVec3 {}
 impl NoiseType for UVec4 {}
+
+impl<T: NoiseType, const N: usize> NoiseType for [T; N] {}
 
 impl<T: NoiseType> NoiseConvert<T> for T {
     #[inline]

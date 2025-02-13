@@ -106,8 +106,6 @@ macro_rules! make_grid_point {
 
         impl NoiseType for $name {}
 
-        impl NoiseType for [$name; $d] {}
-
         impl SeedableNoiseType for $name {
             fn generate_seed(&self, seed: u32) -> u32 {
                 self.base.generate_seed(seed)
