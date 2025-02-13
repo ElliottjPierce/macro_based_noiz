@@ -1,6 +1,9 @@
 //! THis module allows noise types to be merged together
 
-use std::ops::AddAssign;
+use std::ops::{
+    AddAssign,
+    Mul,
+};
 
 use bevy_math::{
     Vec2,
@@ -193,6 +196,34 @@ impl<I: NoiseType + Default, M, T: WeightFactorer<I>> Merger<I, M> for Weighted<
         // SAFETY: we know vals is non-empty and that therefore on the first iteration and
         // thereafter, result will be some.
         unsafe { result.unwrap_unchecked() }
+    }
+}
+
+/// A [`WeightFactorer`] that leverages an [`Orderer`] of type `O` to weigh values based on some
+/// distance. Those weights are then applied to the noise output of the [`NoiseOp`] `N`.
+pub struct OrderingWeight<O, N> {
+    /// The [`Orderer`]
+    pub orderer: O,
+    /// The [`NoiseOp`]
+    pub noise: N,
+}
+
+impl<I, O: Orderer<I, OrderingOutput = UNorm>, N: NoiseOp<I>> WeightFactorer<I>
+    for OrderingWeight<O, N>
+where
+    N::Output: Mul<f32>,
+    <N::Output as Mul<f32>>::Output: NoiseType + AddAssign,
+{
+    type Output = <N::Output as Mul<f32>>::Output;
+
+    fn weight_of(&self, value: &I) -> f32 {
+        self.orderer
+            .relative_ordering(self.orderer.ordering_of(value))
+            .adapt()
+    }
+
+    fn weigh_value(&self, value: I, relative_weight: f32) -> Self::Output {
+        self.noise.get(value) * relative_weight
     }
 }
 
