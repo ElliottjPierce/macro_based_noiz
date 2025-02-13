@@ -45,12 +45,9 @@ pub struct Seeded<T: NoiseType> {
 }
 
 /// A noise operation that produces a [`Seeded`] version of any value that is passed into it,
-/// provided it implements [`SeedableNoiseType`].
+/// provided it implements [`SeedableNoiseType`]. Contains a [`u32`] seed to do this.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Seeding {
-    /// the seed used to produce the seed in each value passed in.
-    pub seed: u32,
-}
+pub struct Seeding(pub u32);
 
 impl<T: NoiseType> NoiseType for Seeded<T> {}
 
@@ -59,7 +56,7 @@ impl<T: SeedableNoiseType> NoiseOp<T> for Seeding {
 
     fn get(&self, input: T) -> Self::Output {
         Seeded {
-            seed: input.generate_seed(self.seed),
+            seed: input.generate_seed(self.0),
             value: input,
         }
     }
@@ -94,6 +91,14 @@ impl<T: NoiseType> Seeded<T> {
 /// A [`NoiseOp`] that takes only the seed from a [`Seeded`] value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SeedOf;
+
+impl<T: NoiseType> NoiseOp<Seeded<T>> for SeedOf {
+    type Output = u32;
+
+    fn get(&self, input: Seeded<T>) -> Self::Output {
+        input.seed
+    }
+}
 
 macro_rules! impl_seedable {
     ($dt:path, $white:path, $uint:ident) => {

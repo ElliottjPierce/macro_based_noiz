@@ -49,7 +49,7 @@ impl<T> Worly<T> {
         Self {
             source: initializer.init(&cellular),
             cellular,
-            seeder: Seeding { seed },
+            seeder: Seeding(seed),
         }
     }
 

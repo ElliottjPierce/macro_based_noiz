@@ -24,6 +24,10 @@ use noiz::{
         },
         norm::UNorm,
         nudges::Nudge,
+        seeded::{
+            SeedOf,
+            Seeding,
+        },
         smoothing::Smooth,
         white::White32,
         worly::Worly,
@@ -89,8 +93,8 @@ fn make_noise(image: &mut Image) {
 noise_fn! {
     pub struct WhiteNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        into UVec2,
-        noise White32 = White32(seed),
+        noise Seeding = Seeding(seed),
+        noise SeedOf = SeedOf,
         into UNorm
     }
 }
