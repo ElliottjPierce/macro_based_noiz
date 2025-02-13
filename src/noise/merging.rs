@@ -11,11 +11,6 @@ use bevy_math::{
 use super::{
     NoiseOp,
     NoiseType,
-    grid::{
-        GridPoint2,
-        GridPoint3,
-        GridPoint4,
-    },
     norm::UNorm,
     seeded::Seeded,
 };
@@ -257,13 +252,13 @@ pub struct ManhatanDistance {
 }
 
 macro_rules! impl_distances {
-    ($t:path, $($getter:ident)?) => {
+    ($t:path) => {
         impl Orderer<$t> for EuclideanDistance {
             type OrderingOutput = UNorm;
 
             #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
-                value$(.$getter)?.length_squared()
+                value.length_squared()
             }
 
             #[inline]
@@ -277,7 +272,7 @@ macro_rules! impl_distances {
 
             #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
-                value$(.$getter)?.length_squared()
+                value.length_squared()
             }
 
             #[inline]
@@ -288,9 +283,6 @@ macro_rules! impl_distances {
     };
 }
 
-impl_distances!(Vec2,);
-impl_distances!(Vec3,);
-impl_distances!(Vec4,);
-impl_distances!(GridPoint2, offset);
-impl_distances!(GridPoint3, offset);
-impl_distances!(GridPoint4, offset);
+impl_distances!(Vec2);
+impl_distances!(Vec3);
+impl_distances!(Vec4);
