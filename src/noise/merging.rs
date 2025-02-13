@@ -27,6 +27,15 @@ pub trait Merger<I, M> {
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output;
 }
 
+/// A version of [`Merger`] that operates for only a particular size
+pub trait SizedMerger<I, M, const N: usize> {
+    /// the merged output
+    type Output: NoiseType;
+
+    /// merges a specific number of the input type into an output
+    fn merge_sized(&self, vals: [I; N], meta: &M) -> Self::Output;
+}
+
 /// Marks a type as being able to be merged.
 pub trait Mergeable {
     /// the kind of metadata given.
@@ -36,6 +45,28 @@ pub trait Mergeable {
 
     /// performs merging on a with a given compatible merger.
     fn perform_merge<M: Merger<Self::Part, Self::Meta>>(self, merger: &M) -> M::Output;
+}
+
+/// Marks a type as being able to be merged.
+pub trait SizedMergeable<const N: usize> {
+    /// the kind of metadata given.
+    type Meta;
+    /// the kind of part given, the item type in an array.
+    type Part;
+
+    /// performs merging on a with a given compatible [`SizedMerger`].
+    fn perform_merge_sized<M: SizedMerger<Self::Part, Self::Meta, N>>(
+        self,
+        merger: &M,
+    ) -> M::Output;
+}
+
+impl<I, M, const N: usize, T: Merger<I, M>> SizedMerger<I, M, N> for T {
+    type Output = <T as Merger<I, M>>::Output;
+
+    fn merge_sized(&self, vals: [I; N], meta: &M) -> Self::Output {
+        self.merge(vals, meta)
+    }
 }
 
 /// Defines a type that is able to order a particular type by mapping it to a number.
