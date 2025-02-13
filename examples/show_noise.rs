@@ -22,14 +22,12 @@ use noiz::{
         nudges::Nudge,
         seeded::{
             SeedOf,
-            Seeded,
             Seeding,
         },
         smoothing::Smooth,
         white::White32,
         worly::{
             DistanceWorly,
-            WeightedWorly,
             Worly,
         },
     },
@@ -72,7 +70,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WorlyValueNoise;
+type NoiseUsed = WorlyNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -112,21 +110,5 @@ noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
         noise Worly<DistanceWorly<EuclideanDistance>> = Worly::new::<GridPoint2>(Cellular(Nudge::full()), seed),
-    }
-}
-
-noise_fn! {
-    pub struct WorlyValueHelper for Seeded<GridPoint2> = () {
-        noise SeedOf = SeedOf,
-        into UNorm,
-        into f32,
-    }
-}
-
-noise_fn! {
-    pub struct WorlyValueNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise Worly<WeightedWorly<EuclideanDistance, WorlyValueHelper>> = Worly::from_initializer::<GridPoint2>(Cellular(Nudge::full()), seed, WorlyValueHelper::new()),
-        into UNorm
     }
 }

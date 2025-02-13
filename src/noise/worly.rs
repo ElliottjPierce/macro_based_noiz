@@ -1,10 +1,5 @@
 //! Allows [`Cellular`] noise to be converted into more useful things.
 
-use core::ops::{
-    AddAssign,
-    Mul,
-};
-
 use bevy_math::{
     Vec2,
     Vec3,
@@ -87,14 +82,6 @@ impl<T> Worly<T> {
 /// A [`WorlySource`] based on an [`Orderer`] that outputs a [`UNorm`]
 pub struct DistanceWorly<T>(pub MinOrder<T>);
 
-/// A [`WorlySource`] similar to [`OrderingWeight`].
-pub struct WeightedWorly<O, N> {
-    /// The [`Orderer`]
-    pub orderer: O,
-    /// The [`NoiseOp`]
-    pub noise: N,
-}
-
 /// easily implements worly for different inputs
 macro_rules! impl_worly {
     ($point:path, $vec:path, $d:literal) => {
@@ -128,44 +115,6 @@ macro_rules! impl_worly {
                     .map(|points| points.map(|point| point.value.offset))
                     .perform_merge(&self.0)
             }
-        }
-
-        impl<O: Orderer<$vec, OrderingOutput = UNorm>, N: NoiseOp<Seeded<$point>>>
-            NoiseOp<CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>> for WeightedWorly<O, N>
-        where
-            N::Output: Mul<f32>,
-            <N::Output as Mul<f32>>::Output: NoiseType + AddAssign + Default,
-        {
-            type Output = <N::Output as Mul<f32>>::Output;
-
-            #[inline]
-            fn get(
-                &self,
-                input: CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>,
-            ) -> Self::Output {
-                let mut result = None;
-                for point in input.points {
-                    let weight = self
-                        .orderer
-                        .relative_ordering(self.orderer.ordering_of(&point.value.offset))
-                        .inverse()
-                        .adapt::<f32>();
-                    let local = self.noise.get(point) * weight;
-                    if let Some(result) = &mut result {
-                        *result += local;
-                    } else {
-                        result = Some(local);
-                    }
-                }
-                // SAFETY: we know the points will not be empty, and that this can therefore never
-                // be none.
-                unsafe { result.unwrap_unchecked() }
-            }
-        }
-
-        impl<O, N> WorlySource<$point, { 2 << ($d - 1) }> for WeightedWorly<O, N> where
-            WeightedWorly<O, N>: NoiseOp<CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>>
-        {
         }
 
         impl WorlyInitializer<$point, EuclideanDistance> for () {
@@ -205,29 +154,6 @@ macro_rules! impl_worly {
                     $point,
                     ManhatanDistance,
                 >>::init(self, cellular)))
-            }
-        }
-
-        impl<N> WorlyInitializer<$point, WeightedWorly<EuclideanDistance, N>> for N {
-            #[inline]
-            fn init(self, cellular: &Cellular) -> WeightedWorly<EuclideanDistance, N> {
-                WeightedWorly {
-                    noise: self,
-                    orderer: <() as WorlyInitializer<$point, EuclideanDistance>>::init(
-                        (),
-                        cellular,
-                    ),
-                }
-            }
-        }
-
-        impl<N> WorlyInitializer<$point, WeightedWorly<ManhatanDistance, N>> for N {
-            #[inline]
-            fn init(self, cellular: &Cellular) -> WeightedWorly<ManhatanDistance, N> {
-                WeightedWorly {
-                    noise: self,
-                    orderer: <() as WorlyInitializer<$point, ManhatanDistance>>::init((), cellular),
-                }
             }
         }
     };
