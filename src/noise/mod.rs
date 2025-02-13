@@ -36,6 +36,7 @@ use bevy_math::{
 };
 use conversions::NoiseConverter;
 
+pub mod associating;
 pub mod cellular;
 pub mod conversions;
 pub mod grid;
