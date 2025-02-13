@@ -11,9 +11,15 @@ use super::{
     merging::{
         EuclideanDistance,
         ManhatanDistance,
+        MergeWithoutSeed,
         Mergeable,
         Merger,
         MinOrder,
+    },
+    parallel::Parallel,
+    seeded::{
+        Seeded,
+        Seeding,
     },
 };
 
@@ -27,68 +33,69 @@ pub trait WorlyInitializer<I, T>: Sized {
 /// [`WorlyNoiseSource`] as `T`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Worly<T> {
+    seeder: Seeding,
     cellular: Cellular,
     source: T,
 }
 
 impl<T> Worly<T> {
-    /// creates a new [`Worly`] from the initializer
+    /// creates a new [`Worly`] from the initializer and seed
     #[inline]
     pub fn from_initializer<I>(
         cellular: Cellular,
+        seed: u32,
         initializer: impl WorlyInitializer<I, T>,
     ) -> Self {
         Self {
             source: initializer.init(&cellular),
             cellular,
+            seeder: Seeding { seed },
         }
     }
 
-    /// creates a new [`Worly`] from [`Cellular`]
+    /// creates a new [`Worly`] from [`Cellular`] with a seed
     #[inline]
-    pub fn new<I>(cellular: Cellular) -> Self
+    pub fn new<I>(cellular: Cellular, seed: u32) -> Self
     where
         (): WorlyInitializer<I, T>,
     {
-        Self {
-            source: ().init(&cellular),
-            cellular,
-        }
+        Self::from_initializer(cellular, seed, ())
     }
 }
 
 /// easily implements worly for different inputs
 macro_rules! impl_worly {
     ($point:path, $d:literal) => {
-        impl<T: Merger<$point, Cellular>> NoiseOp<$point> for Worly<T> {
+        impl<T: Merger<Seeded<$point>, Cellular>> NoiseOp<$point> for Worly<T> {
             type Output = T::Output;
 
             #[inline]
             fn get(&self, input: $point) -> Self::Output {
-                let cellular = self.cellular.get(input);
+                let corners = Parallel::<$point, Seeding>::new(self.seeder).get(input.corners());
+                let cellular = self.cellular.get(corners);
                 cellular.perform_merge(&self.source)
             }
         }
 
-        impl WorlyInitializer<$point, MinOrder<EuclideanDistance>> for () {
+        impl WorlyInitializer<$point, MergeWithoutSeed<MinOrder<EuclideanDistance>>> for () {
             #[inline]
-            fn init(self, cellular: &Cellular) -> MinOrder<EuclideanDistance> {
+            fn init(self, cellular: &Cellular) -> MergeWithoutSeed<MinOrder<EuclideanDistance>> {
                 let max_component = cellular.0.max_nudge() + 0.5;
                 let distance = EuclideanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)).sqrt(),
                 };
-                MinOrder(distance)
+                MergeWithoutSeed(MinOrder(distance))
             }
         }
 
-        impl WorlyInitializer<$point, MinOrder<ManhatanDistance>> for () {
+        impl WorlyInitializer<$point, MergeWithoutSeed<MinOrder<ManhatanDistance>>> for () {
             #[inline]
-            fn init(self, cellular: &Cellular) -> MinOrder<ManhatanDistance> {
+            fn init(self, cellular: &Cellular) -> MergeWithoutSeed<MinOrder<ManhatanDistance>> {
                 let max_component = cellular.0.max_nudge() + 0.5;
                 let distance = ManhatanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)),
                 };
-                MinOrder(distance)
+                MergeWithoutSeed(MinOrder(distance))
             }
         }
     };

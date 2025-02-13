@@ -16,6 +16,7 @@ use super::{
         GridPoint3,
         GridPoint4,
     },
+    seeded::Seeded,
 };
 
 /// Allows the noise type to be merged
@@ -61,6 +62,18 @@ pub trait WeightFactorer<I> {
 
     /// Given a value and it's relative weight in 0..=1 convert the value to the output
     fn weigh_value(&self, value: I, relative_weight: f32) -> Self::Output;
+}
+
+/// A [`Merger`] that operates on [`Seeded`] values by passing them to an inner [`Merger`] of type
+/// `T`.
+pub struct MergeWithoutSeed<T>(pub T);
+
+impl<I: NoiseType, M, T: Merger<I, M>> Merger<Seeded<I>, M> for MergeWithoutSeed<T> {
+    type Output = T::Output;
+
+    fn merge<const N: usize>(&self, vals: [Seeded<I>; N], meta: &M) -> Self::Output {
+        self.0.merge(vals.map(|v| v.value), meta)
+    }
 }
 
 /// A merger that selects the value with the least weight.

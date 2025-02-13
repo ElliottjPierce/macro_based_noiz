@@ -45,6 +45,7 @@ pub struct Seeded<T: NoiseType> {
 
 /// A noise operation that produces a [`Seeded`] version of any value that is passed into it,
 /// provided it implements [`SeedableNoiseType`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Seeding {
     /// the seed used to produce the seed in each value passed in.
     pub seed: u32,

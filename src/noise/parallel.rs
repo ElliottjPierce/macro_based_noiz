@@ -12,6 +12,17 @@ pub struct Parallel<I, N: NoiseOp<I>> {
     pub phantom: PhantomData<I>,
 }
 
+impl<I, N: NoiseOp<I>> Parallel<I, N> {
+    /// Constructs a new [`Parallel`] from the noise
+    #[inline]
+    pub fn new(noise: N) -> Self {
+        Self {
+            noise,
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<I, N: NoiseOp<I>, const K: usize> NoiseOp<[I; K]> for Parallel<I, N> {
     type Output = [N::Output; K];
 
