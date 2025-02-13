@@ -56,12 +56,7 @@ macro_rules! impl_nudge {
 
             #[inline]
             fn get(&self, mut input: Seeded<$point>) -> Self::Output {
-                input.value.offset += self
-                    .get(Seeded {
-                        value: input.value.base,
-                        seed: input.seed,
-                    })
-                    .value;
+                input.value.offset += self.get(input.map_ref(|v| v.base)).value;
                 input
             }
         }

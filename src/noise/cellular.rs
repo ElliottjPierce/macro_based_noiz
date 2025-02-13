@@ -37,36 +37,35 @@ impl Cellular {
     }
 }
 
+impl<T: NoiseType> NoiseType for CellularResult<T> {}
+
+impl<T: NoiseType, const K: usize> Mergeable for CellularResult<[T; K]> {
+    type Meta = Cellular;
+    type Part = T;
+
+    #[inline]
+    fn perform_merge<M: Merger<Self::Part, Self::Meta>>(self, merger: &M) -> M::Output {
+        merger.merge(self.points, &self.source)
+    }
+}
+
 /// easily implements nudging for different types
 macro_rules! impl_nudge {
     ($vec:path, $point:path, $d:literal, $u2f:ident) => {
-        impl NoiseOp<$point> for Cellular {
-            type Output = CellularResult<[$point; $d]>;
+        impl NoiseOp<[Seeded<$point>; $d]> for Cellular {
+            type Output = CellularResult<[Seeded<$point>; $d]>;
 
             #[inline]
-            fn get(&self, input: $point) -> Self::Output {
-                let mut points = input.corners();
-                for c in &mut points {
-                    let grid_shift = self.0.get(c.base);
-                    let relative_shift = -((c.base % 2).$u2f()) * grid_shift; // we have to flip the offset every other cell.
-                    c.offset += relative_shift;
+            fn get(&self, mut input: [Seeded<$point>; $d]) -> Self::Output {
+                for c in &mut input {
+                    let grid_shift = self.0.get(c.map_ref(|c| c.base)).value;
+                    let relative_shift = -((c.value.base % 2).$u2f()) * grid_shift; // we have to flip the offset every other cell.
+                    c.value.offset += relative_shift;
                 }
                 CellularResult {
                     source: *self,
-                    points,
+                    points: input,
                 }
-            }
-        }
-
-        impl NoiseType for CellularResult<[$point; $d]> {}
-
-        impl Mergeable for CellularResult<[$point; $d]> {
-            type Meta = Cellular;
-            type Part = $point;
-
-            #[inline]
-            fn perform_merge<M: Merger<Self::Part, Self::Meta>>(self, merger: &M) -> M::Output {
-                merger.merge(self.points, &self.source)
             }
         }
     };

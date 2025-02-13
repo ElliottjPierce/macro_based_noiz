@@ -63,6 +63,26 @@ impl<T: SeedableNoiseType> NoiseOp<T> for Seeding {
     }
 }
 
+impl<T: NoiseType> Seeded<T> {
+    /// Maps this value to another, keeping its seed.
+    #[inline]
+    pub fn map<O: NoiseType>(self, f: impl FnOnce(T) -> O) -> Seeded<O> {
+        Seeded {
+            value: f(self.value),
+            seed: self.seed,
+        }
+    }
+
+    /// Maps this value to another, keeping its seed.
+    #[inline]
+    pub fn map_ref<O: NoiseType>(&self, f: impl FnOnce(&T) -> O) -> Seeded<O> {
+        Seeded {
+            value: f(&self.value),
+            seed: self.seed,
+        }
+    }
+}
+
 macro_rules! impl_seedable {
     ($dt:path, $white:path, $uint:ident) => {
         impl SeedableNoiseType for $dt {
