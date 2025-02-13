@@ -20,6 +20,7 @@ use super::{
     NoiseOp,
     NoiseType,
     norm::make_nonzero_f32,
+    seeded::SeedableNoiseType,
 };
 
 /// a noise that converts a vector input to a point in a grid
@@ -98,6 +99,12 @@ macro_rules! make_grid_point {
         }
 
         impl NoiseType for $name {}
+
+        impl SeedableNoiseType for $name {
+            fn generate_seed(&self, seed: u32) -> u32 {
+                self.base.generate_seed(seed)
+            }
+        }
 
         impl NoiseConvert<$uint> for $name {
             #[inline]
