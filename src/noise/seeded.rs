@@ -16,6 +16,7 @@ use bevy_math::{
 };
 
 use super::{
+    NoiseConvert,
     NoiseOp,
     NoiseType,
     white::{
@@ -64,6 +65,12 @@ impl<T: SeedableNoiseType> NoiseOp<T> for Seeding {
     }
 }
 
+impl<T: NoiseType> NoiseConvert<T> for Seeded<T> {
+    fn convert(self) -> T {
+        self.value
+    }
+}
+
 impl<T: NoiseType> Seeded<T> {
     /// Maps this value to another, keeping its seed.
     #[inline]
@@ -83,6 +90,10 @@ impl<T: NoiseType> Seeded<T> {
         }
     }
 }
+
+/// A [`NoiseOp`] that takes only the seed from a [`Seeded`] value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SeedOf;
 
 macro_rules! impl_seedable {
     ($dt:path, $white:path, $uint:ident) => {
