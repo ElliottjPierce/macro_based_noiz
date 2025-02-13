@@ -75,9 +75,15 @@ pub struct GridNoiseInt {
     pub period: u32,
 }
 
+/// A noise operation that converts a grid point to its corners.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GridCorners;
+
 /// easily creates grid points
 macro_rules! make_grid_point {
-    ($name:ident, $uint:ty, $f:ty, $fnoise:ty, $f2i:ident, $ui2f:ident, $s:ty, $i:ty) => {
+    (
+        $name:ident, $uint:ty, $f:ty, $fnoise:ty, $f2i:ident, $ui2f:ident, $s:ty, $i:ty, $d:literal
+    ) => {
         /// represents a point in a grid
         #[derive(Debug, Default, Clone, PartialEq)]
         pub struct $name {
@@ -100,6 +106,8 @@ macro_rules! make_grid_point {
 
         impl NoiseType for $name {}
 
+        impl NoiseType for [$name; $d] {}
+
         impl SeedableNoiseType for $name {
             fn generate_seed(&self, seed: u32) -> u32 {
                 self.base.generate_seed(seed)
@@ -117,6 +125,15 @@ macro_rules! make_grid_point {
             #[inline]
             fn convert(self) -> $f {
                 self.offset
+            }
+        }
+
+        impl NoiseOp<$name> for GridCorners {
+            type Output = [$name; $d];
+
+            #[inline]
+            fn get(&self, input: $name) -> Self::Output {
+                input.corners()
             }
         }
 
@@ -162,13 +179,13 @@ macro_rules! make_grid_point {
 }
 
 make_grid_point!(
-    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32
+    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32, 4
 );
 make_grid_point!(
-    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32
+    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32, 8
 );
 make_grid_point!(
-    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32
+    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32, 16
 );
 make_grid_point!(
     GridPointD2,
@@ -178,7 +195,8 @@ make_grid_point!(
     as_i64vec2,
     as_dvec2,
     f64,
-    u64
+    u64,
+    4
 );
 make_grid_point!(
     GridPointD3,
@@ -188,7 +206,8 @@ make_grid_point!(
     as_i64vec3,
     as_dvec3,
     f64,
-    u64
+    u64,
+    8
 );
 make_grid_point!(
     GridPointD4,
@@ -198,7 +217,8 @@ make_grid_point!(
     as_i64vec4,
     as_dvec4,
     f64,
-    u64
+    u64,
+    16
 );
 
 impl NoiseConvert<GridPoint2> for GridPointD2 {
