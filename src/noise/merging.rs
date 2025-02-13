@@ -16,6 +16,7 @@ use super::{
         GridPoint3,
         GridPoint4,
     },
+    norm::UNorm,
     seeded::Seeded,
 };
 
@@ -258,7 +259,7 @@ pub struct ManhatanDistance {
 macro_rules! impl_distances {
     ($t:path, $($getter:ident)?) => {
         impl Orderer<$t> for EuclideanDistance {
-            type OrderingOutput = f32;
+            type OrderingOutput = UNorm;
 
             #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
@@ -267,12 +268,12 @@ macro_rules! impl_distances {
 
             #[inline]
             fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
-                ordering.sqrt() * self.inv_max_expected
+                UNorm::new_clamped(ordering.sqrt() * self.inv_max_expected)
             }
         }
 
         impl Orderer<$t> for ManhatanDistance {
-            type OrderingOutput = f32;
+            type OrderingOutput = UNorm;
 
             #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
@@ -281,7 +282,7 @@ macro_rules! impl_distances {
 
             #[inline]
             fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
-                ordering * self.inv_max_expected
+                UNorm::new_clamped(ordering * self.inv_max_expected)
             }
         }
     };
