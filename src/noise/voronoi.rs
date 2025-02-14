@@ -19,7 +19,7 @@ use super::{
 
 /// Offsets grid values for distance-based noise
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Voronoi(pub Nudge);
+pub struct Voronoi(pub Nudge<true>);
 
 /// Stores a result of a [`Cellular`] noise
 pub type VoronoiGraph<T> = Associated<T, Voronoi>;
@@ -27,7 +27,7 @@ pub type VoronoiGraph<T> = Associated<T, Voronoi>;
 impl Voronoi {
     /// constructs a new [`Cellular`] based on its [`Nudge`].
     #[inline]
-    pub fn new(nudge: Nudge) -> Self {
+    pub fn new(nudge: Nudge<true>) -> Self {
         Self(nudge)
     }
 }

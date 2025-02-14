@@ -75,7 +75,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = ValueNoise;
+type NoiseUsed = WorlyNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -117,7 +117,7 @@ noise_fn! {
 noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Worly<DistanceWorly<EuclideanDistance>> = Worly::new::<GridPoint2>(Voronoi(Nudge::full()), seed),
+        noise Worly<DistanceWorly<EuclideanDistance>> = Worly::new::<GridPoint2>(Voronoi(Nudge::full_leashed()), seed),
         morph |input| -> UNorm {
             input.inverse()
         }
