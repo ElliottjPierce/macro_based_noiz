@@ -83,9 +83,9 @@ impl<T: NoiseType, M: NoiseType> NoiseOp<Associated<T, M>> for MetaOf {
 
 /// A [`NoiseOp`] that maps an [`Associated`] value by its value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MapAssociation<N>(pub N);
+pub struct MapValue<N>(pub N);
 
-impl<T: NoiseType, M: NoiseType, N: NoiseOp<T>> NoiseOp<Associated<T, M>> for MapAssociation<N> {
+impl<T: NoiseType, M: NoiseType, N: NoiseOp<T>> NoiseOp<Associated<T, M>> for MapValue<N> {
     type Output = Associated<N::Output, M>;
 
     fn get(&self, input: Associated<T, M>) -> Self::Output {
