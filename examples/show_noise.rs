@@ -78,7 +78,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = ValueNoise;
+type NoiseUsed = WorlyNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
