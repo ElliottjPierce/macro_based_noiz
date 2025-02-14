@@ -3,6 +3,7 @@
 use super::{
     NoiseOp,
     NoiseType,
+    associating::Associated,
     grid::{
         GridPoint2,
         GridPoint3,
@@ -21,13 +22,7 @@ use super::{
 pub struct Cellular(pub Nudge);
 
 /// Stores a result of a [`Cellular`] noise
-#[derive(Debug, Clone, PartialEq)]
-pub struct CellularResult<T> {
-    /// The original [`Cellular`] noise.
-    pub source: Cellular,
-    /// The points around which this sample is roughly centered.
-    pub points: T,
-}
+pub type CellularResult<T> = Associated<T, Cellular>;
 
 impl Cellular {
     /// constructs a new [`Cellular`] based on its [`Nudge`].
@@ -37,41 +32,19 @@ impl Cellular {
     }
 }
 
-impl<T> CellularResult<T> {
-    /// Maps this value to another, keeping its source.
-    #[inline]
-    pub fn map<O: NoiseType>(self, f: impl FnOnce(T) -> O) -> CellularResult<O> {
-        CellularResult {
-            points: f(self.points),
-            source: self.source,
-        }
-    }
-
-    /// Maps this value to another, keeping its source.
-    #[inline]
-    pub fn map_ref<O: NoiseType>(&self, f: impl FnOnce(&T) -> O) -> CellularResult<O> {
-        CellularResult {
-            points: f(&self.points),
-            source: self.source,
-        }
-    }
-}
-
-impl<T: NoiseType> NoiseType for CellularResult<T> {}
-
 impl<T: NoiseType, const K: usize> Mergeable for CellularResult<[T; K]> {
     type Meta = Cellular;
     type Part = T;
 
     #[inline]
     fn perform_merge<M: Merger<Self::Part, Self::Meta>>(self, merger: &M) -> M::Output {
-        merger.merge(self.points, &self.source)
+        merger.merge(self.value, &self.meta)
     }
 }
 
 /// easily implements nudging for different types
 macro_rules! impl_nudge {
-    ($vec:path, $point:path, $d:literal, $u2f:ident) => {
+    ($point:path, $d:literal, $u2f:ident) => {
         impl NoiseOp<[Seeded<$point>; $d]> for Cellular {
             type Output = CellularResult<[Seeded<$point>; $d]>;
 
@@ -83,14 +56,14 @@ macro_rules! impl_nudge {
                     c.value.offset += relative_shift;
                 }
                 CellularResult {
-                    source: *self,
-                    points: input,
+                    meta: *self,
+                    value: input,
                 }
             }
         }
     };
 }
 
-impl_nudge!(Vec2, GridPoint2, 4, as_vec2);
-impl_nudge!(Vec3, GridPoint3, 8, as_vec3);
-impl_nudge!(Vec4, GridPoint4, 16, as_vec4);
+impl_nudge!(GridPoint2, 4, as_vec2);
+impl_nudge!(GridPoint3, 8, as_vec3);
+impl_nudge!(GridPoint4, 16, as_vec4);

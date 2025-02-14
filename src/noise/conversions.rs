@@ -16,7 +16,7 @@ pub trait NoiseConverter<O: NoiseType> {
 }
 
 /// A noise operation that converts one noise type to another
-#[derive(Default, Clone, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub struct Adapter<C: NoiseConverter<O>, O: NoiseType>(PhantomData<(C, O)>);
 
 impl<C: NoiseConverter<O>, O: NoiseType> Adapter<C, O> {
@@ -38,6 +38,7 @@ impl<C: NoiseConverter<O>, O: NoiseType> NoiseOp<C::Input> for Adapter<C, O> {
 impl<T: NoiseType> NoiseConverter<T> for T {
     type Input = T;
 
+    #[inline]
     fn convert(source: Self::Input) -> T {
         source
     }
@@ -46,6 +47,7 @@ impl<T: NoiseType> NoiseConverter<T> for T {
 impl<I: NoiseConverter<O, Input = I> + NoiseType, O: NoiseType> NoiseConverter<O> for (I, O) {
     type Input = I;
 
+    #[inline]
     fn convert(source: Self::Input) -> O {
         I::convert(source)
     }
@@ -56,6 +58,7 @@ impl<I: NoiseConverter<CF::Input, Input = I> + NoiseType, CF: NoiseConverter<O>,
 {
     type Input = I;
 
+    #[inline]
     fn convert(source: Self::Input) -> O {
         let source = I::convert(source);
         CF::convert(source)
@@ -71,6 +74,7 @@ impl<
 {
     type Input = I;
 
+    #[inline]
     fn convert(source: Self::Input) -> O {
         let source = I::convert(source);
         let source = C9::convert(source);
@@ -88,6 +92,7 @@ impl<
 {
     type Input = I;
 
+    #[inline]
     fn convert(source: Self::Input) -> O {
         let source = I::convert(source);
         let source = C8::convert(source);
@@ -107,6 +112,7 @@ impl<
 {
     type Input = I;
 
+    #[inline]
     fn convert(source: Self::Input) -> O {
         let source = I::convert(source);
         let source = C7::convert(source);
@@ -128,6 +134,7 @@ impl<
 {
     type Input = I;
 
+    #[inline]
     fn convert(source: Self::Input) -> O {
         let source = I::convert(source);
         let source = C6::convert(source);
@@ -151,6 +158,7 @@ impl<
 {
     type Input = I;
 
+    #[inline]
     fn convert(source: Self::Input) -> O {
         let source = I::convert(source);
         let source = C5::convert(source);

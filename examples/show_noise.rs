@@ -11,7 +11,12 @@ use noiz::{
     noise::{
         Noise,
         NoiseType,
+        associating::{
+            MapValue,
+            MetaOf,
+        },
         cellular::Cellular,
+        conversions::Adapter,
         grid::{
             GridNoise,
             GridPoint2,
@@ -20,12 +25,12 @@ use noiz::{
         merging::EuclideanDistance,
         norm::UNorm,
         nudges::Nudge,
-        seeded::{
-            SeedOf,
-            Seeding,
+        parallel::Parallel,
+        seeded::Seeding,
+        smoothing::{
+            Lerp,
+            Smooth,
         },
-        smoothing::Smooth,
-        white::White32,
         worly::{
             DistanceWorly,
             Worly,
@@ -70,12 +75,12 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WorlyNoise;
+type NoiseUsed = ValueNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
     let height = image.height();
-    let noise = NoiseUsed::new(2345, 20.0);
+    let noise = NoiseUsed::new(2345, 100.0);
 
     for x in 0..width {
         for y in 0..height {
@@ -93,22 +98,28 @@ noise_fn! {
     pub struct WhiteNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
         noise Seeding = Seeding(seed),
-        noise SeedOf = SeedOf,
+        noise MetaOf = MetaOf,
         into UNorm
     }
 }
 
-// noise_fn! {
-//     pub struct ValueNoise for Vec2 = (seed: u32, period: f32) {
-//         noise GridNoise = GridNoise::new_period(period),
-//         noise Smooth<Cubic, (GridPoint2, UVec2), White32, (u32, UNorm, f32)> =
-// Smooth::new_vec2(Cubic, White32(seed)),         into UNorm
-//     }
-// }
+noise_fn! {
+    pub struct ValueNoise for Vec2 = (seed: u32, period: f32) {
+        noise GridNoise = GridNoise::new_period(period),
+        noise Lerp = Lerp,
+        noise MapValue<Parallel<Seeding>> = MapValue(Parallel(Seeding(seed))),
+        noise MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf)),
+        noise MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new())),
+        noise Smooth<Cubic> = Smooth(Cubic),
+    }
+}
 
 noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
         noise Worly<DistanceWorly<EuclideanDistance>> = Worly::new::<GridPoint2>(Cellular(Nudge::full()), seed),
+        morph |input| -> UNorm {
+            input.inverse()
+        }
     }
 }

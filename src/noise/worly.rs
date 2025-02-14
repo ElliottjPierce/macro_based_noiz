@@ -80,6 +80,7 @@ impl<T> Worly<T> {
 }
 
 /// A [`WorlySource`] based on an [`Orderer`] that outputs a [`UNorm`]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct DistanceWorly<T>(pub MinOrder<T>);
 
 /// easily implements worly for different inputs
@@ -90,7 +91,7 @@ macro_rules! impl_worly {
 
             #[inline]
             fn get(&self, input: $point) -> Self::Output {
-                let corners = Parallel::<$point, Seeding>::new(self.seeder).get(input.corners());
+                let corners = Parallel(self.seeder).get(input.corners());
                 let cellular = self.cellular.get(corners);
                 self.source.get(cellular)
             }
@@ -120,7 +121,7 @@ macro_rules! impl_worly {
         impl WorlyInitializer<$point, EuclideanDistance> for () {
             #[inline]
             fn init(self, cellular: &Cellular) -> EuclideanDistance {
-                let max_component = cellular.0.max_nudge() + 0.5;
+                let max_component = cellular.0.max_nudge();
                 EuclideanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)).sqrt(),
                 }
@@ -130,7 +131,7 @@ macro_rules! impl_worly {
         impl WorlyInitializer<$point, ManhatanDistance> for () {
             #[inline]
             fn init(self, cellular: &Cellular) -> ManhatanDistance {
-                let max_component = cellular.0.max_nudge() + 0.5;
+                let max_component = cellular.0.max_nudge();
                 ManhatanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)),
                 }
