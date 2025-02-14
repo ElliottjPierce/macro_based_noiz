@@ -18,8 +18,10 @@ use bevy_math::{
 use super::{
     NoiseOp,
     NoiseType,
+    associating::Associated,
     norm::make_nonzero_f32,
     seeded::SeedableNoiseType,
+    smoothing::LerpLocatable,
 };
 use crate::convertible;
 
@@ -82,7 +84,16 @@ pub struct GridCorners;
 /// easily creates grid points
 macro_rules! make_grid_point {
     (
-        $name:ident, $uint:ty, $f:ty, $fnoise:ty, $f2i:ident, $ui2f:ident, $s:ty, $i:ty, $d:literal
+        $name:ident,
+        $uint:ty,
+        $f:ty,
+        $fnoise:ty,
+        $f2i:ident,
+        $ui2f:ident,
+        $s:ty,
+        $i:ty,
+        $d:literal,
+        $num_d:literal
     ) => {
         /// represents a point in a grid
         #[derive(Debug, Default, Clone, PartialEq)]
@@ -110,6 +121,20 @@ macro_rules! make_grid_point {
             #[inline]
             fn generate_seed(&self, seed: u32) -> u32 {
                 self.base.generate_seed(seed)
+            }
+        }
+
+        impl LerpLocatable for $name {
+            type Location = [$s; $num_d];
+
+            type Extents = [$name; $d];
+
+            #[inline]
+            fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
+                Associated {
+                    value: self.corners(),
+                    meta: self.offset.to_array(),
+                }
             }
         }
 
@@ -167,13 +192,13 @@ macro_rules! make_grid_point {
 }
 
 make_grid_point!(
-    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32, 4
+    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32, 4, 2
 );
 make_grid_point!(
-    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32, 8
+    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32, 8, 3
 );
 make_grid_point!(
-    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32, 16
+    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32, 16, 4
 );
 make_grid_point!(
     GridPointD2,
@@ -184,7 +209,8 @@ make_grid_point!(
     as_dvec2,
     f64,
     u64,
-    4
+    4,
+    2
 );
 make_grid_point!(
     GridPointD3,
@@ -195,7 +221,8 @@ make_grid_point!(
     as_dvec3,
     f64,
     u64,
-    8
+    8,
+    3
 );
 make_grid_point!(
     GridPointD4,
@@ -206,7 +233,8 @@ make_grid_point!(
     as_dvec4,
     f64,
     u64,
-    16
+    16,
+    4
 );
 
 convertible!(GridPointD2 = GridPoint2, |source| GridPoint2 {

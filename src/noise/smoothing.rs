@@ -1,16 +1,9 @@
 //! This module allows arrays of noise to be combinned into one in various ways
 
-use std::marker::PhantomData;
-
 use super::{
     NoiseOp,
     NoiseType,
     associating::Associated,
-    grid::{
-        GridPoint2,
-        GridPoint3,
-        GridPoint4,
-    },
     interpolating::{
         Lerpable,
         MixerFxn,
@@ -21,44 +14,51 @@ use super::{
 };
 
 /// A trait that allows this type to have its context of `T` lerped.
-///
-/// `Extents` is the type storing the contents to be lerped. This should usually be an array with
-/// length 2 ^ number of dimensions this will be lerped.
-pub trait LerpLocatable<Extents: NoiseType> {
+pub trait LerpLocatable {
     /// The type storing dimension information. This should usually be a `f32` array the length of
     /// the number of dimensions this will be lerped.
     type Location;
+    /// The type storing the contents to be lerped. This should usually be an array with
+    /// length 2 ^ number of dimensions this will be lerped.
+    type Extents: NoiseType;
 
     /// prepares this value to be lerped by packaging its extents and location relative to its
     /// dimensions.
-    fn prepare_lerp(self) -> Associated<Extents, Self::Location>;
+    fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location>;
 }
+
+/// A noise type that prepares a type to be lerped.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct Lerp;
 
 /// a noise type to smooth out grid noise
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Smooth<C, T> {
-    pub curve: C,
-    pub marker: PhantomData<T>,
+pub struct Smooth<C>(pub C);
+
+impl<L: LerpLocatable> NoiseOp<L> for Lerp {
+    type Output = Associated<L::Extents, L::Location>;
+
+    #[inline]
+    fn get(&self, input: L) -> Self::Output {
+        input.prepare_lerp()
+    }
 }
 
 /// allows implementing easily Shooth for different types
 macro_rules! impl_smooth {
     ($mix:ident, $d:literal, $c:literal) => {
-        impl<
-            T: NoiseType + Lerpable + Copy,
-            L: LerpLocatable<[T; $c], Location = [f32; $d]>,
-            C: MixerFxn<f32, T>,
-        > NoiseOp<L> for Smooth<C, [T; $d]>
+        impl<T: NoiseType + Lerpable + Copy, C: MixerFxn<f32, T>>
+            NoiseOp<Associated<[T; $c], [f32; $d]>> for Smooth<C>
         {
             type Output = T;
 
             #[inline]
-            fn get(&self, input: L) -> Self::Output {
+            fn get(&self, input: Associated<[T; $c], [f32; $d]>) -> Self::Output {
                 let Associated {
                     value: extents,
                     meta: location,
-                } = input.prepare_lerp();
-                $mix(extents, location, &self.curve)
+                } = input;
+                $mix(extents, location, &self.0)
             }
         }
     };
