@@ -87,7 +87,7 @@ impl<T: NoiseType, M: NoiseType> NoiseOp<Associated<T, M>> for MetaOf {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct ValueOf;
 
-impl<T: NoiseType, M: NoiseType> NoiseOp<Associated<T, M>> for ValueOf {
+impl<T: NoiseType, M> NoiseOp<Associated<T, M>> for ValueOf {
     type Output = T;
 
     #[inline]
@@ -100,7 +100,7 @@ impl<T: NoiseType, M: NoiseType> NoiseOp<Associated<T, M>> for ValueOf {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct MapValue<N>(pub N);
 
-impl<T: NoiseType, M: NoiseType, N: NoiseOp<T>> NoiseOp<Associated<T, M>> for MapValue<N> {
+impl<T: NoiseType, M, N: NoiseOp<T>> NoiseOp<Associated<T, M>> for MapValue<N> {
     type Output = Associated<N::Output, M>;
 
     #[inline]

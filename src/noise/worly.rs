@@ -91,7 +91,7 @@ macro_rules! impl_worly {
 
             #[inline]
             fn get(&self, input: $point) -> Self::Output {
-                let corners = Parallel::<$point, Seeding>::new(self.seeder).get(input.corners());
+                let corners = Parallel(self.seeder).get(input.corners());
                 let cellular = self.cellular.get(corners);
                 self.source.get(cellular)
             }

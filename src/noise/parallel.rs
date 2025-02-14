@@ -1,32 +1,15 @@
 //! Allows a noise op to be done to multiple of the same type in sequence.
 
-use std::marker::PhantomData;
-
 use super::NoiseOp;
 
 /// A [`NoiseOp`] that applies a noise operation to sequences of inputs at once.
-pub struct Parallel<I, N: NoiseOp<I>> {
-    /// The noise being used
-    pub noise: N,
-    /// marker
-    pub phantom: PhantomData<I>,
-}
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Parallel<N>(pub N);
 
-impl<I, N: NoiseOp<I>> Parallel<I, N> {
-    /// Constructs a new [`Parallel`] from the noise
-    #[inline]
-    pub fn new(noise: N) -> Self {
-        Self {
-            noise,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<I, N: NoiseOp<I>, const K: usize> NoiseOp<[I; K]> for Parallel<I, N> {
+impl<I, N: NoiseOp<I>, const K: usize> NoiseOp<[I; K]> for Parallel<N> {
     type Output = [N::Output; K];
 
     fn get(&self, input: [I; K]) -> Self::Output {
-        input.map(|i| self.noise.get(i))
+        input.map(|i| self.0.get(i))
     }
 }
