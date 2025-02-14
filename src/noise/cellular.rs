@@ -71,8 +71,14 @@ impl_nudge!(GridPoint2, 4, as_vec2);
 impl_nudge!(GridPoint3, 8, as_vec3);
 impl_nudge!(GridPoint4, 16, as_vec4);
 
-fn orthogonal_from_side_by_legs(a: Vec2, b: Vec2) -> Vec2 {
-    a - a.project_onto(a - b)
+fn norm_length_of_a_along_opposite(a: Vec2, b: Vec2) -> f32 {
+    // let opposite = a - b;
+    // a.dot(opposite).max(0.0) * opposite.length_recip()
+
+    a.length_squared() / (a.length_squared() + b.length_squared())
+
+    // let opposite = (a + b).normalize();
+    // a.dot(opposite) / (a.dot(opposite) + b.dot(opposite))
 }
 
 impl LerpLocatable for CellularResult<[Vec2; 4]> {
@@ -82,16 +88,20 @@ impl LerpLocatable for CellularResult<[Vec2; 4]> {
 
     #[inline]
     fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
-        let nx = orthogonal_from_side_by_legs(self.value[1], self.value[0]).length();
-        let px = orthogonal_from_side_by_legs(self.value[3], self.value[2]).length();
-        let ny = orthogonal_from_side_by_legs(self.value[2], self.value[0]).length();
-        let py = orthogonal_from_side_by_legs(self.value[3], self.value[1]).length();
+        let nx = norm_length_of_a_along_opposite(self.value[0], self.value[1]);
+        let px = norm_length_of_a_along_opposite(self.value[2], self.value[3]);
+        let ny = norm_length_of_a_along_opposite(self.value[0], self.value[2]);
+        let py = norm_length_of_a_along_opposite(self.value[1], self.value[3]);
 
-        let loc = [nx / (nx + px), ny / (ny + py)];
+        let dx = px - nx;
+        let dy = py - ny;
+        let skew = 1.0 / (1.0 - dy * dx);
+        let x = (ny + dy * nx) * skew;
+        let y = (nx + dx * ny) * skew;
 
         Associated {
             value: self.value,
-            meta: loc,
+            meta: [x, y],
         }
     }
 }
