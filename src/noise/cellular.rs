@@ -1,5 +1,7 @@
 //! This module allows Cellular noise to be created
 
+use bevy_math::Vec2;
+
 use super::{
     NoiseOp,
     NoiseType,
@@ -69,17 +71,21 @@ impl_nudge!(GridPoint2, 4, as_vec2);
 impl_nudge!(GridPoint3, 8, as_vec3);
 impl_nudge!(GridPoint4, 16, as_vec4);
 
-impl LerpLocatable for CellularResult<[Seeded<GridPoint2>; 4]> {
+fn orthogonal_from_side_by_legs(a: Vec2, b: Vec2) -> Vec2 {
+    a - a.project_onto(a - b)
+}
+
+impl LerpLocatable for CellularResult<[Vec2; 4]> {
     type Location = [f32; 2];
 
-    type Extents = [Seeded<GridPoint2>; 4];
+    type Extents = [Vec2; 4];
 
     #[inline]
     fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
-        let nx = (self.value[1].value.offset + self.value[0].value.offset).length();
-        let px = (self.value[3].value.offset + self.value[2].value.offset).length();
-        let ny = (self.value[2].value.offset + self.value[0].value.offset).length();
-        let py = (self.value[3].value.offset + self.value[1].value.offset).length();
+        let nx = orthogonal_from_side_by_legs(self.value[1], self.value[0]).length();
+        let px = orthogonal_from_side_by_legs(self.value[3], self.value[2]).length();
+        let ny = orthogonal_from_side_by_legs(self.value[2], self.value[0]).length();
+        let py = orthogonal_from_side_by_legs(self.value[3], self.value[1]).length();
 
         let loc = [nx / (nx + px), ny / (ny + py)];
 
@@ -87,5 +93,20 @@ impl LerpLocatable for CellularResult<[Seeded<GridPoint2>; 4]> {
             value: self.value,
             meta: loc,
         }
+    }
+}
+
+impl LerpLocatable for CellularResult<[Seeded<GridPoint2>; 4]> {
+    type Location = [f32; 2];
+
+    type Extents = [Seeded<GridPoint2>; 4];
+
+    #[inline]
+    fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
+        let lerp_loc = self
+            .map_ref(|points| points.clone().map(|point| point.value.offset))
+            .prepare_lerp()
+            .meta;
+        self.map_meta(|_| lerp_loc)
     }
 }

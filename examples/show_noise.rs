@@ -116,11 +116,24 @@ noise_fn! {
 }
 
 noise_fn! {
-    pub struct WorlyValueNoise for Vec2 = (seed: u32, period: f32) {
+    pub struct TestNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
         noise GridCorners = GridCorners,
         noise Parallel<Seeding> = Parallel(Seeding(seed)),
         noise Cellular = Cellular(Nudge::full()),
+        noise Lerp = Lerp,
+        morph |input| -> f32 {
+            input.meta[0]
+        },
+    }
+}
+
+noise_fn! {
+    pub struct WorlyValueNoise for Vec2 = (seed: u32, period: f32) {
+        noise GridNoise = GridNoise::new_period(period),
+        noise GridCorners = GridCorners,
+        noise Parallel<Seeding> = Parallel(Seeding(seed)),
+        noise Cellular = Cellular(Nudge::new(1.0)),
         noise Lerp = Lerp,
         noise MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf)),
         noise MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new())),
