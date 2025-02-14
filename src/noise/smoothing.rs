@@ -28,11 +28,11 @@ pub trait LerpLocatable {
 }
 
 /// A noise type that prepares a type to be lerped.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Lerp;
 
 /// a noise type to smooth out grid noise
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Smooth<C>(pub C);
 
 impl<L: LerpLocatable> NoiseOp<L> for Lerp {

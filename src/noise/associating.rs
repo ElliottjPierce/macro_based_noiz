@@ -20,6 +20,7 @@ impl<T: NoiseType, M> NoiseType for Associated<T, M> {}
 impl<T: NoiseType, M> NoiseConverter<T> for Associated<T, M> {
     type Input = Associated<T, M>;
 
+    #[inline]
     fn convert(source: Self::Input) -> T {
         source.value
     }
@@ -70,36 +71,39 @@ impl<T: NoiseType, M> Associated<T, M> {
 }
 
 /// A [`NoiseOp`] that takes only the meta from a [`Associated`] value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct MetaOf;
 
 impl<T: NoiseType, M: NoiseType> NoiseOp<Associated<T, M>> for MetaOf {
     type Output = M;
 
+    #[inline]
     fn get(&self, input: Associated<T, M>) -> Self::Output {
         input.meta
     }
 }
 
 /// A [`NoiseOp`] that maps an [`Associated`] value by its value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct MapValue<N>(pub N);
 
 impl<T: NoiseType, M: NoiseType, N: NoiseOp<T>> NoiseOp<Associated<T, M>> for MapValue<N> {
     type Output = Associated<N::Output, M>;
 
+    #[inline]
     fn get(&self, input: Associated<T, M>) -> Self::Output {
         input.map(|value| self.0.get(value))
     }
 }
 
 /// A [`NoiseOp`] that maps an [`Associated`] value by its metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct MapMeta<N>(pub N);
 
 impl<T: NoiseType, M: NoiseType, N: NoiseOp<M>> NoiseOp<Associated<T, M>> for MapMeta<N> {
     type Output = Associated<T, N::Output>;
 
+    #[inline]
     fn get(&self, input: Associated<T, M>) -> Self::Output {
         input.map_meta(|meta| self.0.get(meta))
     }

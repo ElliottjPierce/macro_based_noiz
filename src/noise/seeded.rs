@@ -47,6 +47,7 @@ pub struct Seeding(pub u32);
 impl<T: SeedableNoiseType> NoiseOp<T> for Seeding {
     type Output = Seeded<T>;
 
+    #[inline]
     fn get(&self, input: T) -> Self::Output {
         Seeded {
             meta: input.generate_seed(self.0),
@@ -58,6 +59,7 @@ impl<T: SeedableNoiseType> NoiseOp<T> for Seeding {
 macro_rules! impl_seedable {
     ($dt:path, $white:path, $uint:ident) => {
         impl SeedableNoiseType for $dt {
+            #[inline]
             fn generate_seed(&self, seed: u32) -> u32 {
                 $white(seed as $uint).get(*self) as u32
             }

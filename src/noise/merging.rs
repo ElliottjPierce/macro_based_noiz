@@ -15,7 +15,6 @@ use super::{
     NoiseOp,
     NoiseType,
     norm::UNorm,
-    seeded::Seeded,
 };
 
 /// Allows the noise type to be merged
@@ -64,6 +63,7 @@ pub trait SizedMergeable<const N: usize> {
 impl<I, M, const N: usize, T: Merger<I, M>> SizedMerger<I, M, N> for T {
     type Output = <T as Merger<I, M>>::Output;
 
+    #[inline]
     fn merge_sized(&self, vals: [I; N], meta: &M) -> Self::Output {
         self.merge(vals, meta)
     }
@@ -97,10 +97,12 @@ pub trait WeightFactorer<I> {
 impl<I, T: WeightFactorer<I>> WeightFactorer<I> for &T {
     type Output = T::Output;
 
+    #[inline]
     fn weight_of(&self, value: &I) -> f32 {
         T::weight_of(self, value)
     }
 
+    #[inline]
     fn weigh_value(&self, value: I, relative_weight: f32) -> Self::Output {
         T::weigh_value(self, value, relative_weight)
     }
@@ -109,29 +111,19 @@ impl<I, T: WeightFactorer<I>> WeightFactorer<I> for &T {
 impl<I, T: Orderer<I>> Orderer<I> for &T {
     type OrderingOutput = T::OrderingOutput;
 
+    #[inline]
     fn ordering_of(&self, value: &I) -> f32 {
         T::ordering_of(self, value)
     }
 
+    #[inline]
     fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
         T::relative_ordering(self, ordering)
     }
 }
 
-/// A [`Merger`] that operates on [`Seeded`] values by passing them to an inner [`Merger`] of type
-/// `T`.
-pub struct MergeWithoutSeed<T>(pub T);
-
-impl<I: NoiseType, M, T: Merger<I, M>> Merger<Seeded<I>, M> for MergeWithoutSeed<T> {
-    type Output = T::Output;
-
-    fn merge<const N: usize>(&self, vals: [Seeded<I>; N], meta: &M) -> Self::Output {
-        self.0.merge(vals.map(|v| v.value), meta)
-    }
-}
-
 /// A merger that selects the value with the least weight.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct Min<T>(pub T);
 
 impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Min<T> {
@@ -154,7 +146,7 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Min<T> {
 }
 
 /// A merger that selects the weight of the value with the least weight.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct MinOrder<T>(pub T);
 
 impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MinOrder<T> {
@@ -175,7 +167,7 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MinOrder<T> {
 }
 
 /// A merger that selects the value with the greatest weight.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct Max<T>(pub T);
 
 impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Max<T> {
@@ -198,7 +190,7 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Max<T> {
 }
 
 /// A merger that selects the weight of the value with the greatest weight.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct MaxOrder<T>(pub T);
 
 impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MaxOrder<T> {
@@ -254,8 +246,9 @@ impl<I: NoiseType + Default, M, T: WeightFactorer<I>> Merger<I, M> for Weighted<
     }
 }
 
-/// A [`WeightFactorer`] that leverages an [`Orderer`] of type `O` to weigh values based on some
-/// distance. Those weights are then applied to the noise output of the [`NoiseOp`] `N`.
+/// A [`WeightFactorer`] that leverages an [`Orderer`] of type `O` to weigh values based on their
+/// order. Those weights are then applied to the noise output of the [`NoiseOp`] `N`.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct OrderingWeight<O, N, const INVERTED: bool = true> {
     /// The [`Orderer`]
     pub orderer: O,
@@ -271,6 +264,7 @@ where
 {
     type Output = <N::Output as Mul<f32>>::Output;
 
+    #[inline]
     fn weight_of(&self, value: &I) -> f32 {
         let standard = self
             .orderer
@@ -283,13 +277,14 @@ where
         .adapt()
     }
 
+    #[inline]
     fn weigh_value(&self, value: I, relative_weight: f32) -> Self::Output {
         self.noise.get(value) * relative_weight
     }
 }
 
 /// A type that can merge in a noise operation, anything that can be merged by M.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Merged<M>(pub M);
 
 impl<I: Mergeable, M: Merger<I::Part, I::Meta>> NoiseOp<I> for Merged<M> {

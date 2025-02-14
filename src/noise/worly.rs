@@ -80,6 +80,7 @@ impl<T> Worly<T> {
 }
 
 /// A [`WorlySource`] based on an [`Orderer`] that outputs a [`UNorm`]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct DistanceWorly<T>(pub MinOrder<T>);
 
 /// easily implements worly for different inputs
