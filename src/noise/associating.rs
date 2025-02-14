@@ -83,6 +83,19 @@ impl<T: NoiseType, M: NoiseType> NoiseOp<Associated<T, M>> for MetaOf {
     }
 }
 
+/// A [`NoiseOp`] that takes only the value from a [`Associated`] value.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct ValueOf;
+
+impl<T: NoiseType, M: NoiseType> NoiseOp<Associated<T, M>> for ValueOf {
+    type Output = T;
+
+    #[inline]
+    fn get(&self, input: Associated<T, M>) -> Self::Output {
+        input.value
+    }
+}
+
 /// A [`NoiseOp`] that maps an [`Associated`] value by its value.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct MapValue<N>(pub N);
