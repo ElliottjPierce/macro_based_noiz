@@ -3,6 +3,7 @@
 use bevy_math::{
     Mat2,
     Vec2,
+    VectorSpace,
 };
 
 use super::{
@@ -103,16 +104,21 @@ impl LerpLocatable for CellularResult<[Vec2; 4]> {
         let i = self.value[0] - self.value[2];
         let j = self.value[0] - self.value[1];
         let corner_if_parallel = i + j;
-        let c = corner_if_parallel - p + self.value[3]; // shifts the corner of the quadralateral to make it a parallelagram
-        // the parallelagram
-        let align_i = p.normalize_or_zero().dot(i.normalize());
-        let align_j = p.normalize_or_zero().dot(j.normalize());
-        let p = p - (c * (1.0 - align_i) * (1.0 - align_j));
+        let quad_to_prallel = corner_if_parallel - p + self.value[3]; // shifts the corner of the quadralateral to make it a parallelagram
+        let corner = p - self.value[3];
+
+        // parallelagram
         let square_to_parallelagram = Mat2::from_cols(i, j);
-        // the unit square
         let parallelagram_to_square = square_to_parallelagram.inverse();
-        let p = parallelagram_to_square * p;
-        let [x, y] = p.to_array();
+        let p_in_square = parallelagram_to_square * p;
+        let furthest_outside_of_square = parallelagram_to_square * corner;
+
+        // the unit square
+        let re_bounder = Vec2::ONE - furthest_outside_of_square;
+        let p_final = p_in_square / furthest_outside_of_square;
+        // p_in_square + re_bounder * (p_in_square / furthest_outside_of_square).element_product();
+        // let [x, y] = p_final.to_array();
+        let [x, y] = p_in_square.clamp(Vec2::ZERO, Vec2::ONE).to_array();
 
         // let nx = norm_length_of_a_along_opposite(self.value[0], self.value[1]);
         // let px = norm_length_of_a_along_opposite(self.value[2], self.value[3]);

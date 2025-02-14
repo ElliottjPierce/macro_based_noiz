@@ -79,7 +79,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WorlyValueNoise;
+type NoiseUsed = ValueNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -112,44 +112,6 @@ noise_fn! {
         noise GridNoise = GridNoise::new_period(period),
         noise Lerp = Lerp,
         noise MapValue<Parallel<Seeding>> = MapValue(Parallel(Seeding(seed))),
-        noise MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf)),
-        noise MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new())),
-        noise Smooth<Cubic> = Smooth(Cubic),
-    }
-}
-
-noise_fn! {
-    pub struct TestNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise GridCorners = GridCorners,
-        noise Parallel<Seeding> = Parallel(Seeding(seed)),
-        noise Cellular = Cellular(Nudge::full()),
-        noise Lerp = Lerp,
-        morph |input| -> f32 {
-            input.meta[0]
-        },
-    }
-}
-
-noise_fn! {
-    pub struct Tmp for GridPoint2 = () {
-        morph |input| -> Seeded<GridPoint2> {
-            Seeded {
-                meta: if (input.base.x & 1) ^ (input.base.y & 1) > 0 { u32::MAX } else { 0 },
-                value: input,
-            }
-        },
-    }
-}
-
-noise_fn! {
-    pub struct WorlyValueNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise GridCorners = GridCorners,
-        // noise Parallel<Seeding> = Parallel(Seeding(seed)),
-        noise Parallel<Tmp> = Parallel(Tmp::new()),
-        noise Cellular = Cellular(Nudge::new(1.0)),
-        noise Lerp = Lerp,
         noise MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf)),
         noise MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new())),
         noise Smooth<Cubic> = Smooth(Cubic),
