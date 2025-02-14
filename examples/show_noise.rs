@@ -27,7 +27,10 @@ use noiz::{
         norm::UNorm,
         nudges::Nudge,
         parallel::Parallel,
-        seeded::Seeding,
+        seeded::{
+            Seeded,
+            Seeding,
+        },
         smoothing::{
             Lerp,
             Smooth,
@@ -81,7 +84,7 @@ type NoiseUsed = WorlyValueNoise;
 fn make_noise(image: &mut Image) {
     let width = image.width();
     let height = image.height();
-    let noise = NoiseUsed::new(2345, 20.0);
+    let noise = NoiseUsed::new(2345, 100.0);
 
     for x in 0..width {
         for y in 0..height {
@@ -129,10 +132,22 @@ noise_fn! {
 }
 
 noise_fn! {
+    pub struct Tmp for GridPoint2 = () {
+        morph |input| -> Seeded<GridPoint2> {
+            Seeded {
+                meta: if (input.base.x & 1) ^ (input.base.y & 1) > 0 { u32::MAX } else { 0 },
+                value: input,
+            }
+        },
+    }
+}
+
+noise_fn! {
     pub struct WorlyValueNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
         noise GridCorners = GridCorners,
-        noise Parallel<Seeding> = Parallel(Seeding(seed)),
+        // noise Parallel<Seeding> = Parallel(Seeding(seed)),
+        noise Parallel<Tmp> = Parallel(Tmp::new()),
         noise Cellular = Cellular(Nudge::new(1.0)),
         noise Lerp = Lerp,
         noise MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf)),
@@ -145,5 +160,8 @@ noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
         noise Worly<DistanceWorly<EuclideanDistance>> = Worly::new::<GridPoint2>(Cellular(Nudge::full()), seed),
+        morph |input| -> UNorm {
+            input.inverse()
+        }
     }
 }

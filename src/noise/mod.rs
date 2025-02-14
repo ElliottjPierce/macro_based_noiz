@@ -264,8 +264,7 @@ macro_rules! noise_build {
                             let $morph_i = input;
                             $func
                         },
-                        ($($data_b),*),
-                        std::marker::PhantomData
+                        (),
                     )
                 }
             ),

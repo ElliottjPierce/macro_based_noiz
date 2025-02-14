@@ -72,10 +72,15 @@ impl_nudge!(GridPoint3, 8, as_vec3);
 impl_nudge!(GridPoint4, 16, as_vec4);
 
 fn norm_length_of_a_along_opposite(a: Vec2, b: Vec2) -> f32 {
-    // let opposite = a - b;
-    // a.dot(opposite).max(0.0) * opposite.length_recip()
+    let opposite = a - b;
+    a.dot(opposite).max(0.0) * opposite.length_recip()
 
-    a.length_squared() / (a.length_squared() + b.length_squared())
+    // let opposite = a - b;
+    // if a.dot(opposite) < 0.0 {
+    //     return 0.0;
+    // }
+
+    // a.length() / (a.length() + b.length())
 
     // let opposite = (a + b).normalize();
     // a.dot(opposite) / (a.dot(opposite) + b.dot(opposite))

@@ -17,7 +17,7 @@ use super::{
         GridPoint3,
         GridPoint4,
     },
-    norm::SNorm,
+    norm::UNorm,
     seeded::Seeded,
     white::White32,
 };
@@ -33,7 +33,7 @@ impl Nudge {
     /// Creates a new [`Nudge`] with this range. Each point will be shifted by ± half this range.
     pub fn new(range: f32) -> Self {
         Self {
-            multiplier: range.clamp(-1.0, 1.0) * 0.5,
+            multiplier: range.clamp(0.0, 1.0) * 0.5,
         }
     }
 
@@ -69,7 +69,7 @@ macro_rules! impl_nudge {
                 let raw_shift = input
                     .value
                     .to_array()
-                    .map(|v| White32(input.meta).get(v).adapt::<SNorm>().adapt());
+                    .map(|v| White32(input.meta).get(v).adapt::<UNorm>().adapt());
                 let shift = <$vec>::from_array(raw_shift) * self.multiplier;
                 Seeded {
                     value: shift,

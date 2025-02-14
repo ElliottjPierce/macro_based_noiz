@@ -121,7 +121,7 @@ macro_rules! impl_worly {
         impl WorlyInitializer<$point, EuclideanDistance> for () {
             #[inline]
             fn init(self, cellular: &Cellular) -> EuclideanDistance {
-                let max_component = cellular.0.max_nudge() + 0.5;
+                let max_component = cellular.0.max_nudge();
                 EuclideanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)).sqrt(),
                 }
@@ -131,7 +131,7 @@ macro_rules! impl_worly {
         impl WorlyInitializer<$point, ManhatanDistance> for () {
             #[inline]
             fn init(self, cellular: &Cellular) -> ManhatanDistance {
-                let max_component = cellular.0.max_nudge() + 0.5;
+                let max_component = cellular.0.max_nudge();
                 ManhatanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)),
                 }
