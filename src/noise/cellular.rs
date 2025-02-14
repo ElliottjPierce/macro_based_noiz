@@ -1,6 +1,9 @@
 //! This module allows Cellular noise to be created
 
-use bevy_math::Vec2;
+use bevy_math::{
+    Mat2,
+    Vec2,
+};
 
 use super::{
     NoiseOp,
@@ -72,8 +75,8 @@ impl_nudge!(GridPoint3, 8, as_vec3);
 impl_nudge!(GridPoint4, 16, as_vec4);
 
 fn norm_length_of_a_along_opposite(a: Vec2, b: Vec2) -> f32 {
-    let opposite = a - b;
-    a.dot(opposite).max(0.0) * opposite.length_recip()
+    let opposite = b - a;
+    b.dot(opposite).max(0.0) * opposite.length_recip()
 
     // let opposite = a - b;
     // if a.dot(opposite) < 0.0 {
@@ -93,16 +96,34 @@ impl LerpLocatable for CellularResult<[Vec2; 4]> {
 
     #[inline]
     fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
-        let nx = norm_length_of_a_along_opposite(self.value[0], self.value[1]);
-        let px = norm_length_of_a_along_opposite(self.value[2], self.value[3]);
-        let ny = norm_length_of_a_along_opposite(self.value[0], self.value[2]);
-        let py = norm_length_of_a_along_opposite(self.value[1], self.value[3]);
+        // derived from  https://math.stackexchange.com/questions/169176/2d-transformation-matrix-to-make-a-trapezoid-out-of-a-rectangle/863702#863702
 
-        let dx = px - nx;
-        let dy = py - ny;
-        let skew = 1.0 / (1.0 - dy * dx);
-        let x = (ny + dy * nx) * skew;
-        let y = (nx + dx * ny) * skew;
+        // the quadralateral
+        let p = self.value[0];
+        let i = self.value[0] - self.value[2];
+        let j = self.value[0] - self.value[1];
+        let corner_if_parallel = i + j;
+        let c = corner_if_parallel - p + self.value[3]; // shifts the corner of the quadralateral to make it a parallelagram
+        // the parallelagram
+        let align_i = p.normalize_or_zero().dot(i.normalize());
+        let align_j = p.normalize_or_zero().dot(j.normalize());
+        let p = p - (c * (1.0 - align_i) * (1.0 - align_j));
+        let square_to_parallelagram = Mat2::from_cols(i, j);
+        // the unit square
+        let parallelagram_to_square = square_to_parallelagram.inverse();
+        let p = parallelagram_to_square * p;
+        let [x, y] = p.to_array();
+
+        // let nx = norm_length_of_a_along_opposite(self.value[0], self.value[1]);
+        // let px = norm_length_of_a_along_opposite(self.value[2], self.value[3]);
+        // let ny = norm_length_of_a_along_opposite(self.value[2], self.value[0]);
+        // let py = norm_length_of_a_along_opposite(self.value[3], self.value[1]);
+
+        // let dx = px - nx;
+        // let dy = py - ny;
+        // let skew = 1.0 / (1.0 - dy * dx);
+        // let x = (ny + dy * nx) * skew;
+        // let y = (nx + dx * ny) * skew;
 
         Associated {
             value: self.value,
