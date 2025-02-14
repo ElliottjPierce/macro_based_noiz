@@ -19,12 +19,12 @@ use super::{
 
 /// Offsets grid values for distance-based noise
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Cellular(pub Nudge);
+pub struct Voronoi(pub Nudge);
 
 /// Stores a result of a [`Cellular`] noise
-pub type CellularResult<T> = Associated<T, Cellular>;
+pub type VoronoiGraph<T> = Associated<T, Voronoi>;
 
-impl Cellular {
+impl Voronoi {
     /// constructs a new [`Cellular`] based on its [`Nudge`].
     #[inline]
     pub fn new(nudge: Nudge) -> Self {
@@ -32,8 +32,8 @@ impl Cellular {
     }
 }
 
-impl<T: NoiseType, const K: usize> Mergeable for CellularResult<[T; K]> {
-    type Meta = Cellular;
+impl<T: NoiseType, const K: usize> Mergeable for VoronoiGraph<[T; K]> {
+    type Meta = Voronoi;
     type Part = T;
 
     #[inline]
@@ -45,8 +45,8 @@ impl<T: NoiseType, const K: usize> Mergeable for CellularResult<[T; K]> {
 /// easily implements nudging for different types
 macro_rules! impl_nudge {
     ($point:path, $d:literal, $u2f:ident) => {
-        impl NoiseOp<[Seeded<$point>; $d]> for Cellular {
-            type Output = CellularResult<[Seeded<$point>; $d]>;
+        impl NoiseOp<[Seeded<$point>; $d]> for Voronoi {
+            type Output = VoronoiGraph<[Seeded<$point>; $d]>;
 
             #[inline]
             fn get(&self, mut input: [Seeded<$point>; $d]) -> Self::Output {
@@ -55,7 +55,7 @@ macro_rules! impl_nudge {
                     let relative_shift = -((c.value.base % 2).$u2f()) * grid_shift; // we have to flip the offset every other cell.
                     c.value.offset += relative_shift;
                 }
-                CellularResult {
+                VoronoiGraph {
                     meta: *self,
                     value: input,
                 }

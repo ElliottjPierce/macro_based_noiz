@@ -9,10 +9,6 @@ use bevy_math::{
 use super::{
     NoiseOp,
     NoiseType,
-    cellular::{
-        Cellular,
-        CellularResult,
-    },
     grid::{
         GridPoint2,
         GridPoint3,
@@ -31,26 +27,27 @@ use super::{
         Seeded,
         Seeding,
     },
+    voronoi::{
+        Voronoi,
+        VoronoiGraph,
+    },
 };
 
 /// Initializes a particular kind of worly noise. The `I` describes the expected input point type.
 pub trait WorlyInitializer<I: NoiseType, T>: Sized {
     /// Creates a new `T` noise based on this [`Cellular`].
-    fn init(self, cellular: &Cellular) -> T;
+    fn init(self, cellular: &Voronoi) -> T;
 }
 
 /// Describes a source of Worly noise as a [`NoiseOp`] for [`CellularResult`].
-pub trait WorlySource<I: NoiseType, const D: usize>:
-    NoiseOp<CellularResult<[Seeded<I>; D]>>
-{
-}
+pub trait WorlySource<I: NoiseType, const D: usize>: NoiseOp<VoronoiGraph<[Seeded<I>; D]>> {}
 
 /// Worly noise is defined as any kind of noise derived from [`Cellular`] noise via a
 /// [`WorlyNoiseSource`] as `T`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Worly<T> {
     seeder: Seeding,
-    cellular: Cellular,
+    cellular: Voronoi,
     source: T,
 }
 
@@ -58,7 +55,7 @@ impl<T> Worly<T> {
     /// creates a new [`Worly`] from the initializer and seed
     #[inline]
     pub fn from_initializer<I: NoiseType>(
-        cellular: Cellular,
+        cellular: Voronoi,
         seed: u32,
         initializer: impl WorlyInitializer<I, T>,
     ) -> Self {
@@ -71,7 +68,7 @@ impl<T> Worly<T> {
 
     /// creates a new [`Worly`] from [`Cellular`] with a seed
     #[inline]
-    pub fn new<I: NoiseType>(cellular: Cellular, seed: u32) -> Self
+    pub fn new<I: NoiseType>(cellular: Voronoi, seed: u32) -> Self
     where
         (): WorlyInitializer<I, T>,
     {
@@ -103,14 +100,14 @@ macro_rules! impl_worly {
         }
 
         impl<T: Orderer<$vec, OrderingOutput = UNorm>>
-            NoiseOp<CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>> for DistanceWorly<T>
+            NoiseOp<VoronoiGraph<[Seeded<$point>; { 2 << ($d - 1) }]>> for DistanceWorly<T>
         {
             type Output = UNorm;
 
             #[inline]
             fn get(
                 &self,
-                input: CellularResult<[Seeded<$point>; { 2 << ($d - 1) }]>,
+                input: VoronoiGraph<[Seeded<$point>; { 2 << ($d - 1) }]>,
             ) -> Self::Output {
                 input
                     .map(|points| points.map(|point| point.value.offset))
@@ -120,7 +117,7 @@ macro_rules! impl_worly {
 
         impl WorlyInitializer<$point, EuclideanDistance> for () {
             #[inline]
-            fn init(self, cellular: &Cellular) -> EuclideanDistance {
+            fn init(self, cellular: &Voronoi) -> EuclideanDistance {
                 let max_component = cellular.0.max_nudge();
                 EuclideanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)).sqrt(),
@@ -130,7 +127,7 @@ macro_rules! impl_worly {
 
         impl WorlyInitializer<$point, ManhatanDistance> for () {
             #[inline]
-            fn init(self, cellular: &Cellular) -> ManhatanDistance {
+            fn init(self, cellular: &Voronoi) -> ManhatanDistance {
                 let max_component = cellular.0.max_nudge();
                 ManhatanDistance {
                     inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)),
@@ -140,7 +137,7 @@ macro_rules! impl_worly {
 
         impl WorlyInitializer<$point, DistanceWorly<EuclideanDistance>> for () {
             #[inline]
-            fn init(self, cellular: &Cellular) -> DistanceWorly<EuclideanDistance> {
+            fn init(self, cellular: &Voronoi) -> DistanceWorly<EuclideanDistance> {
                 DistanceWorly(MinOrder(<Self as WorlyInitializer<
                     $point,
                     EuclideanDistance,
@@ -150,7 +147,7 @@ macro_rules! impl_worly {
 
         impl WorlyInitializer<$point, DistanceWorly<ManhatanDistance>> for () {
             #[inline]
-            fn init(self, cellular: &Cellular) -> DistanceWorly<ManhatanDistance> {
+            fn init(self, cellular: &Voronoi) -> DistanceWorly<ManhatanDistance> {
                 DistanceWorly(MinOrder(<Self as WorlyInitializer<
                     $point,
                     ManhatanDistance,

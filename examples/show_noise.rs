@@ -15,7 +15,6 @@ use noiz::{
             MapValue,
             MetaOf,
         },
-        cellular::Cellular,
         conversions::Adapter,
         grid::{
             GridNoise,
@@ -31,6 +30,7 @@ use noiz::{
             Lerp,
             Smooth,
         },
+        voronoi::Voronoi,
         worly::{
             DistanceWorly,
             Worly,
@@ -117,7 +117,7 @@ noise_fn! {
 noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Worly<DistanceWorly<EuclideanDistance>> = Worly::new::<GridPoint2>(Cellular(Nudge::full()), seed),
+        noise Worly<DistanceWorly<EuclideanDistance>> = Worly::new::<GridPoint2>(Voronoi(Nudge::full()), seed),
         morph |input| -> UNorm {
             input.inverse()
         }
