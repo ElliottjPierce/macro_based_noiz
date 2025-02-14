@@ -18,7 +18,6 @@ use noiz::{
         cellular::Cellular,
         conversions::Adapter,
         grid::{
-            GridCorners,
             GridNoise,
             GridPoint2,
         },
@@ -27,10 +26,7 @@ use noiz::{
         norm::UNorm,
         nudges::Nudge,
         parallel::Parallel,
-        seeded::{
-            Seeded,
-            Seeding,
-        },
+        seeded::Seeding,
         smoothing::{
             Lerp,
             Smooth,
