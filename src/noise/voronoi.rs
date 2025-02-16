@@ -18,17 +18,42 @@ use super::{
 };
 
 /// Offsets grid values for distance-based noise
+///
+/// ## FAST_APPROX
+///
+/// If this is true, the noise will be approximated instead of being fully calculated.
+///
+/// ### When False (default)
+///
+/// Normal Voronoi noise samples all the surrounding cells around the cell where the point falls.
+/// In 1d that's 3 tiles, 2d = 9 tiles, kd = 3^k tiles. This allows complete freedom with where each
+/// point is shifted. However, it can leave some performance on the table.
+///
+/// ### When True
+///
+/// When true this restricts the cells checked to only the cell's corners, so kd = 2^k. Much nicer!
+/// However, to prevent ugly seams from the blind spots this introduces, we have to be a bit more
+/// aggressive with the noise. This can produce sharper, less appealing results, but it can do so
+/// more quickly. Further, this limited [`VoronoiGraph`] has less functionality because of the blind
+/// spots, so while it can work with most distance-based noise, it is limited in other aspects.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Voronoi(pub Nudge<true>);
+pub struct Voronoi<const FAST_APPROX: bool = false>(Nudge<false>);
 
-/// Stores a result of a [`Cellular`] noise
-pub type VoronoiGraph<T> = Associated<T, Voronoi>;
+/// Stores a result of a [`Voronoi`] noise
+pub type VoronoiGraph<T, const FAST_APPROX: bool = false> = Associated<T, Voronoi<FAST_APPROX>>;
 
-impl Voronoi {
-    /// constructs a new [`Cellular`] based on its [`Nudge`].
+impl<const FAST_APPROX: bool> Voronoi<FAST_APPROX> {
+    /// constructs a new [`Voronoi`] with the maximum allowed nudging.
     #[inline]
-    pub fn new(nudge: Nudge<true>) -> Self {
-        Self(nudge)
+    pub fn full() -> Self {
+        Self(Nudge::full_leashed())
+    }
+
+    /// constructs a new [`Voronoi`] with the a particular nudging range.
+    /// The range will be forsed into 0..=1.
+    #[inline]
+    pub fn new(range: f32) -> Self {
+        Self(Nudge::new_leashed(range))
     }
 }
 
@@ -45,8 +70,8 @@ impl<T: NoiseType, const K: usize> Mergeable for VoronoiGraph<[T; K]> {
 /// easily implements nudging for different types
 macro_rules! impl_nudge {
     ($point:path, $d:literal, $u2f:ident) => {
-        impl NoiseOp<[Seeded<$point>; $d]> for Voronoi {
-            type Output = VoronoiGraph<[Seeded<$point>; $d]>;
+        impl NoiseOp<[Seeded<$point>; $d]> for Voronoi<true> {
+            type Output = VoronoiGraph<[Seeded<$point>; $d], true>;
 
             #[inline]
             fn get(&self, mut input: [Seeded<$point>; $d]) -> Self::Output {

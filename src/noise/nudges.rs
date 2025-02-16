@@ -37,14 +37,14 @@ impl<const RESTRICT_POSITIVE: bool> Nudge<RESTRICT_POSITIVE> {
     /// Points that are nudged will still be in the same order. For example, if integer points a and
     /// b are nudged and a > b, a' > b' (just by a different amount).
     pub fn new_leashed(range: f32) -> Self {
-        Self::new_magnitude(range.clamp(0.0, 1.0) * 0.5)
+        Self::new_magnitude(range.abs().clamp(0.0, 1.0) * 0.5)
     }
 
     /// Creates a new [`Nudge`] with this range. Each point will be shifted by this range directly.
     /// Points that are nudged may not still be in the same order. For example, if integer points a
     /// and b are nudged and a > b, a' < b' may be true.
     pub fn new_raw(range: f32) -> Self {
-        Self::new_magnitude(range.clamp(0.0, 1.0))
+        Self::new_magnitude(range.abs().clamp(0.0, 1.0))
     }
 
     /// Creates a new leashed [`Nudge`] with this range. Each point will be shifted by up to this
