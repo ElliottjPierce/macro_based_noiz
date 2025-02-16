@@ -27,7 +27,7 @@ use super::{
 
 /// Offsets a grid point randomly, with respect to its surroundings.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Nudge<const RESTRICT_POSITIVE: bool> {
+pub struct Nudge<const RESTRICT_POSITIVE: bool = false> {
     /// the amount the grid point can move
     multiplier: f32,
 }
