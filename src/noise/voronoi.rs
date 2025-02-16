@@ -37,6 +37,12 @@ impl Voronoi {
     pub fn new(range: f32) -> Self {
         Self(Nudge::new_leashed(range))
     }
+
+    /// Gets the [`Voronoi`]'s [`Nudge`].
+    #[inline]
+    pub fn get_nudge(&self) -> &Nudge {
+        &self.0
+    }
 }
 
 impl<T: NoiseType, const K: usize> Mergeable for VoronoiGraph<[T; K]> {

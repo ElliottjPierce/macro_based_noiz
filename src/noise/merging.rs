@@ -359,7 +359,7 @@ macro_rules! impl_distances {
 
             #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
-                value.length_squared()
+                value.abs().element_sum()
             }
 
             #[inline]

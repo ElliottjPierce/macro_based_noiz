@@ -1,5 +1,7 @@
 //! Allows [`Cellular`] noise to be converted into more useful things.
 
+use std::marker::PhantomData;
+
 use bevy_math::{
     Vec2,
     Vec3,
@@ -8,7 +10,6 @@ use bevy_math::{
 
 use super::{
     NoiseOp,
-    NoiseType,
     grid::{
         GridPoint2,
         GridPoint3,
@@ -17,7 +18,7 @@ use super::{
     merging::{
         EuclideanDistance,
         ManhatanDistance,
-        Mergeable,
+        Merger,
         MinOrder,
         Orderer,
     },
@@ -33,130 +34,168 @@ use super::{
     },
 };
 
-/// Initializes a particular kind of worly noise. The `I` describes the expected input point type.
-pub trait WorlyInitializer<I: NoiseType, T>: Sized {
-    /// Creates a new `T` noise based on this [`Cellular`].
-    fn init(self, cellular: &Voronoi) -> T;
-}
+/// Describes a source of Worly noise with a [`NoiseOp`] for [`VoronoiGraph`].
+pub trait WorlySource<const DIMENSIONS: u8, const APPROX: bool> {
+    /// The type of noise
+    type Noise;
 
-/// Describes a source of Worly noise as a [`NoiseOp`] for [`CellularResult`].
-pub trait WorlySource<I: NoiseType, const D: usize>: NoiseOp<VoronoiGraph<[Seeded<I>; D]>> {}
+    /// Creates the noise itself
+    fn build_noise(self, voronoi: &Voronoi) -> Self::Noise;
+}
 
 /// Worly noise is defined as any kind of noise derived from [`Cellular`] noise via a
 /// [`WorlyNoiseSource`] as `T`.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Worly<T> {
+pub struct Worly<
+    const DIMENSIONS: u8,
+    S: WorlySource<DIMENSIONS, APPROX>,
+    const APPROX: bool = false,
+> {
     seeder: Seeding,
-    cellular: Voronoi,
-    source: T,
+    voronoi: Voronoi,
+    source: S::Noise,
 }
 
-impl<T> Worly<T> {
-    /// creates a new [`Worly`] from the initializer and seed
+impl<const DIMENSIONS: u8, const APPROX: bool, S: WorlySource<DIMENSIONS, APPROX>>
+    Worly<DIMENSIONS, S, APPROX>
+{
+    /// creates a new [`Worly`] from [`Voronoi`] with a seed and a noise source.
     #[inline]
-    pub fn from_initializer<I: NoiseType>(
-        cellular: Voronoi,
-        seed: u32,
-        initializer: impl WorlyInitializer<I, T>,
-    ) -> Self {
+    pub fn new_with_noise(voronoi: Voronoi, seed: u32, noise: S) -> Self {
         Self {
-            source: initializer.init(&cellular),
-            cellular,
             seeder: Seeding(seed),
+            source: noise.build_noise(&voronoi),
+            voronoi,
         }
     }
+}
 
-    /// creates a new [`Worly`] from [`Cellular`] with a seed
+impl<const DIMENSIONS: u8, const APPROX: bool, T> Worly<DIMENSIONS, ImplicitWorlySource<T>, APPROX>
+where
+    ImplicitWorlySource<T>: WorlySource<DIMENSIONS, APPROX>,
+{
+    /// creates a new [`Worly`] from [`Voronoi`] with a seed.
     #[inline]
-    pub fn new<I: NoiseType>(cellular: Voronoi, seed: u32) -> Self
-    where
-        (): WorlyInitializer<I, T>,
-    {
-        Self::from_initializer(cellular, seed, ())
+    pub fn new(voronoi: Voronoi, seed: u32) -> Self {
+        Self {
+            seeder: Seeding(seed),
+            source: ImplicitWorlySource::<T>(PhantomData).build_noise(&voronoi),
+            voronoi,
+        }
     }
 }
 
-/// A [`WorlySource`] based on an [`Orderer`] that outputs a [`UNorm`]
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
-pub struct DistanceWorly<T>(pub MinOrder<T>);
+/// Allows for standard, distance-based worly noise.
+pub struct DistanceWorly<T>(T);
+
+/// A general purpose [`WorlySource`] that doesn't have any fields.
+pub struct ImplicitWorlySource<T>(pub PhantomData<T>);
 
 /// easily implements worly for different inputs
 macro_rules! impl_worly {
-    ($point:path, $vec:path, $d:literal) => {
-        impl<T: WorlySource<$point, { 2 << ($d - 1) }>> NoiseOp<$point> for Worly<T> {
-            type Output = T::Output;
+    ($point:path, $vec:path, $d:literal, $d_2:literal, $d_3:literal) => {
+        impl<S: WorlySource<$d, true>> NoiseOp<$point> for Worly<$d, S, true>
+        where
+            S::Noise: NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>,
+        {
+            type Output = <S::Noise as NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>>::Output;
 
             #[inline]
             fn get(&self, input: $point) -> Self::Output {
-                let corners = Parallel(self.seeder).get(input.corners());
-                let cellular = self.cellular.get(corners);
-                self.source.get(cellular)
+                let points = Parallel(self.seeder).get(input.corners());
+                let voronoi = self.voronoi.get(points);
+                self.source.get(voronoi)
             }
         }
 
-        impl<T: Orderer<$vec, OrderingOutput = UNorm>> WorlySource<$point, { 2 << ($d - 1) }>
-            for DistanceWorly<T>
+        impl<S: WorlySource<$d, false>> NoiseOp<$point> for Worly<$d, S, false>
+        where
+            S::Noise: NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>,
         {
+            type Output = <S::Noise as NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>>::Output;
+
+            #[inline]
+            fn get(&self, input: $point) -> Self::Output {
+                let points = Parallel(self.seeder).get(input.surroundings());
+                let voronoi = self.voronoi.get(points);
+                self.source.get(voronoi)
+            }
         }
 
-        impl<T: Orderer<$vec, OrderingOutput = UNorm>>
-            NoiseOp<VoronoiGraph<[Seeded<$point>; { 2 << ($d - 1) }]>> for DistanceWorly<T>
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>
+            for DistanceWorly<O>
         {
             type Output = UNorm;
 
             #[inline]
-            fn get(
-                &self,
-                input: VoronoiGraph<[Seeded<$point>; { 2 << ($d - 1) }]>,
-            ) -> Self::Output {
-                input
-                    .map(|points| points.map(|point| point.value.offset))
-                    .perform_merge(&self.0)
+            fn get(&self, input: VoronoiGraph<[Seeded<$point>; $d_2]>) -> Self::Output {
+                let points = input.value.map(|point| point.value.offset);
+                MinOrder(&self.0).merge(points, &())
             }
         }
 
-        impl WorlyInitializer<$point, EuclideanDistance> for () {
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>
+            for DistanceWorly<O>
+        {
+            type Output = UNorm;
+
             #[inline]
-            fn init(self, cellular: &Voronoi) -> EuclideanDistance {
-                let max_component = cellular.0.max_nudge();
-                EuclideanDistance {
-                    inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)).sqrt(),
-                }
+            fn get(&self, input: VoronoiGraph<[Seeded<$point>; $d_3]>) -> Self::Output {
+                let points = input.value.map(|point| point.value.offset);
+                MinOrder(&self.0).merge(points, &())
             }
         }
 
-        impl WorlyInitializer<$point, ManhatanDistance> for () {
-            #[inline]
-            fn init(self, cellular: &Voronoi) -> ManhatanDistance {
-                let max_component = cellular.0.max_nudge();
-                ManhatanDistance {
-                    inv_max_expected: 1.0 / (max_component * max_component * ($d as f32)),
-                }
+        impl WorlySource<$d, true> for ImplicitWorlySource<EuclideanDistance> {
+            type Noise = DistanceWorly<EuclideanDistance>;
+
+            fn build_noise(self, voronoi: &Voronoi) -> Self::Noise {
+                let max_displacement = voronoi.get_nudge().max_nudge();
+                let max_dist = (max_displacement * max_displacement * ($d as f32)).sqrt();
+                DistanceWorly(EuclideanDistance {
+                    inv_max_expected: 1.0 / max_dist,
+                })
             }
         }
 
-        impl WorlyInitializer<$point, DistanceWorly<EuclideanDistance>> for () {
-            #[inline]
-            fn init(self, cellular: &Voronoi) -> DistanceWorly<EuclideanDistance> {
-                DistanceWorly(MinOrder(<Self as WorlyInitializer<
-                    $point,
-                    EuclideanDistance,
-                >>::init(self, cellular)))
+        impl WorlySource<$d, false> for ImplicitWorlySource<EuclideanDistance> {
+            type Noise = DistanceWorly<EuclideanDistance>;
+
+            fn build_noise(self, voronoi: &Voronoi) -> Self::Noise {
+                let max_displacement = voronoi.get_nudge().max_nudge() + 0.5;
+                let max_dist = (max_displacement * max_displacement * ($d as f32)).sqrt();
+                DistanceWorly(EuclideanDistance {
+                    inv_max_expected: 1.0 / max_dist,
+                })
             }
         }
 
-        impl WorlyInitializer<$point, DistanceWorly<ManhatanDistance>> for () {
-            #[inline]
-            fn init(self, cellular: &Voronoi) -> DistanceWorly<ManhatanDistance> {
-                DistanceWorly(MinOrder(<Self as WorlyInitializer<
-                    $point,
-                    ManhatanDistance,
-                >>::init(self, cellular)))
+        impl WorlySource<$d, true> for ImplicitWorlySource<ManhatanDistance> {
+            type Noise = DistanceWorly<ManhatanDistance>;
+
+            fn build_noise(self, voronoi: &Voronoi) -> Self::Noise {
+                let max_displacement = voronoi.get_nudge().max_nudge();
+                let max_dist = max_displacement * ($d as f32);
+                DistanceWorly(ManhatanDistance {
+                    inv_max_expected: 1.0 / max_dist,
+                })
+            }
+        }
+
+        impl WorlySource<$d, false> for ImplicitWorlySource<ManhatanDistance> {
+            type Noise = DistanceWorly<ManhatanDistance>;
+
+            fn build_noise(self, voronoi: &Voronoi) -> Self::Noise {
+                let max_displacement = voronoi.get_nudge().max_nudge() + 0.5;
+                let max_dist = max_displacement * ($d as f32);
+                DistanceWorly(ManhatanDistance {
+                    inv_max_expected: 1.0 / max_dist,
+                })
             }
         }
     };
 }
 
-impl_worly!(GridPoint2, Vec2, 2);
-impl_worly!(GridPoint3, Vec3, 3);
-impl_worly!(GridPoint4, Vec4, 4);
+impl_worly!(GridPoint2, Vec2, 2, 4, 9);
+impl_worly!(GridPoint3, Vec3, 3, 8, 27);
+impl_worly!(GridPoint4, Vec4, 4, 16, 81);
