@@ -145,11 +145,94 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Min<T> {
     }
 }
 
+/// A merger that selects the index of the value with the least weight.
+/// If you try to merge on an empty array, this will return zero.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct MinIndex<T>(pub T);
+
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MinIndex<T> {
+    type Output = usize;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut ordering_number = f32::INFINITY;
+        let mut result = 0;
+        for (index, val) in vals.into_iter().enumerate() {
+            let weight = self.0.ordering_of(&val);
+            if weight < ordering_number {
+                ordering_number = weight;
+                result = index;
+            }
+        }
+
+        result
+    }
+}
+
+/// A merger that selects the indices of the 2 values with the least weights.
+/// If you try to merge on an array shorter than 2, this will return zeros, where data is missing.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct MinIndices<T>(pub T);
+
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MinIndices<T> {
+    type Output = [usize; 2];
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut ordering_numbers = (f32::INFINITY, f32::INFINITY);
+        let mut results = (0, 0);
+
+        for (index, val) in vals.into_iter().enumerate() {
+            let weight = self.0.ordering_of(&val);
+
+            if weight < ordering_numbers.0 {
+                ordering_numbers.1 = ordering_numbers.0;
+                results.1 = results.0;
+                ordering_numbers.0 = weight;
+                results.0 = index;
+            } else if weight < ordering_numbers.1 {
+                ordering_numbers.1 = weight;
+                results.1 = index;
+            }
+        }
+
+        [results.0, results.1]
+    }
+}
+
+/// A merger that selects the weights of the 2 values with the least weights.
+/// If you try to merge on an array shorter than 2, this will return [`f32::INFINITY`], where data
+/// is missing.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct MinOrders<T>(pub T);
+
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MinOrders<T> {
+    type Output = [T::OrderingOutput; 2];
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut ordering_numbers = (f32::INFINITY, f32::INFINITY);
+
+        for val in vals {
+            let weight = self.0.ordering_of(&val);
+
+            if weight < ordering_numbers.0 {
+                ordering_numbers.1 = ordering_numbers.0;
+                ordering_numbers.0 = weight;
+            } else if weight < ordering_numbers.1 {
+                ordering_numbers.1 = weight;
+            }
+        }
+
+        [ordering_numbers.0, ordering_numbers.1].map(|v| self.0.relative_ordering(v))
+    }
+}
+
 /// A merger that selects the weight of the value with the least weight.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct MinOrder<T>(pub T);
 
-impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MinOrder<T> {
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MinOrder<T> {
     type Output = T::OrderingOutput;
 
     #[inline]
@@ -189,11 +272,94 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Max<T> {
     }
 }
 
+/// A merger that selects the index of the value with the greatest weight.
+/// If you try to merge on an empty array, this will return zero.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct MaxIndex<T>(pub T);
+
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxIndex<T> {
+    type Output = usize;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut ordering_number = f32::NEG_INFINITY;
+        let mut result = 0;
+        for (index, val) in vals.into_iter().enumerate() {
+            let weight = self.0.ordering_of(&val);
+            if weight > ordering_number {
+                ordering_number = weight;
+                result = index;
+            }
+        }
+
+        result
+    }
+}
+
+/// A merger that selects the indices of the 2 values with the greatest weights.
+/// If you try to merge on an array shorter than 2, this will return zeros, where data is missing.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct MaxIndices<T>(pub T);
+
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxIndices<T> {
+    type Output = [usize; 2];
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut ordering_numbers = (f32::NEG_INFINITY, f32::NEG_INFINITY);
+        let mut results = (0, 0);
+
+        for (index, val) in vals.into_iter().enumerate() {
+            let weight = self.0.ordering_of(&val);
+
+            if weight > ordering_numbers.0 {
+                ordering_numbers.1 = ordering_numbers.0;
+                results.1 = results.0;
+                ordering_numbers.0 = weight;
+                results.0 = index;
+            } else if weight > ordering_numbers.1 {
+                ordering_numbers.1 = weight;
+                results.1 = index;
+            }
+        }
+
+        [results.0, results.1]
+    }
+}
+
+/// A merger that selects the weights of the 2 values with the greatest weights.
+/// If you try to merge on an array shorter than 2, this will return [`f32::NEG_INFINITY`], where
+/// data is missing.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct MaxOrders<T>(pub T);
+
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxOrders<T> {
+    type Output = [T::OrderingOutput; 2];
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut ordering_numbers = (f32::NEG_INFINITY, f32::NEG_INFINITY);
+
+        for val in vals {
+            let weight = self.0.ordering_of(&val);
+
+            if weight > ordering_numbers.0 {
+                ordering_numbers.1 = ordering_numbers.0;
+                ordering_numbers.0 = weight;
+            } else if weight > ordering_numbers.1 {
+                ordering_numbers.1 = weight;
+            }
+        }
+
+        [ordering_numbers.0, ordering_numbers.1].map(|v| self.0.relative_ordering(v))
+    }
+}
+
 /// A merger that selects the weight of the value with the greatest weight.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct MaxOrder<T>(pub T);
 
-impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MaxOrder<T> {
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxOrder<T> {
     type Output = T::OrderingOutput;
 
     #[inline]
@@ -207,6 +373,30 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MaxOrder<T> {
         }
 
         self.0.relative_ordering(ordering_number)
+    }
+}
+
+/// A merger that averages the weights of all values. This will return 0 if there are no values
+/// being merged.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct AverageOrders<T>(pub T);
+
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for AverageOrders<T> {
+    type Output = T::OrderingOutput;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let len = vals.len();
+        if len == 0 {
+            return self.0.relative_ordering(0.0);
+        }
+
+        let mut total = 0.0;
+        for val in vals {
+            total += self.0.ordering_of(&val);
+        }
+
+        self.0.relative_ordering(total / (len as f32))
     }
 }
 
@@ -338,6 +528,13 @@ pub struct ManhatanDistance {
     pub inv_max_expected: f32,
 }
 
+/// A [`Orderer`] that evenly combines [`EuclideanDistance`] and [`ManhatanDistance`]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HybridDistance {
+    /// represents the inverse of the maximum expected evaluation of this distance.
+    pub inv_max_expected: f32,
+}
+
 macro_rules! impl_distances {
     ($t:path) => {
         impl Orderer<$t> for EuclideanDistance {
@@ -359,7 +556,22 @@ macro_rules! impl_distances {
 
             #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
-                value.length_squared()
+                value.abs().element_sum()
+            }
+
+            #[inline]
+            fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
+                UNorm::new_clamped(ordering * self.inv_max_expected)
+            }
+        }
+
+        // inspired by https://github.com/Auburn/FastNoiseLite/blob/master/Rust/src/lib.rs#L1825
+        impl Orderer<$t> for HybridDistance {
+            type OrderingOutput = UNorm;
+
+            #[inline]
+            fn ordering_of(&self, value: &$t) -> f32 {
+                value.length_squared() + value.abs().element_sum()
             }
 
             #[inline]

@@ -37,7 +37,6 @@ use bevy_math::{
 use conversions::NoiseConverter;
 
 pub mod associating;
-pub mod cellular;
 pub mod conversions;
 pub mod grid;
 pub mod interpolating;
@@ -48,8 +47,8 @@ pub mod nudges;
 pub mod parallel;
 pub mod seeded;
 pub mod smoothing;
+pub mod voronoi;
 pub mod white;
-pub mod worly;
 
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.
 pub trait NoiseOp<I> {

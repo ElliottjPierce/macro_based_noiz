@@ -17,41 +17,62 @@ use super::{
         GridPoint3,
         GridPoint4,
     },
-    norm::UNorm,
+    norm::{
+        SNorm,
+        UNorm,
+    },
     seeded::Seeded,
     white::White32,
 };
 
 /// Offsets a grid point randomly, with respect to its surroundings.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Nudge {
+pub struct Nudge<const RESTRICT_POSITIVE: bool = false> {
     /// the amount the grid point can move
     multiplier: f32,
 }
 
-impl Nudge {
-    /// Creates a new [`Nudge`] with this range. Each point will be shifted by ± half this range.
-    pub fn new(range: f32) -> Self {
-        Self {
-            multiplier: range.clamp(0.0, 1.0) * 0.5,
-        }
+impl<const RESTRICT_POSITIVE: bool> Nudge<RESTRICT_POSITIVE> {
+    /// Creates a new [`Nudge`] with this range. Each point will be shifted by half this range.
+    /// Points that are nudged will still be in the same order. For example, if integer points a and
+    /// b are nudged and a > b, a' > b' (just by a different amount).
+    pub fn new_leashed(range: f32) -> Self {
+        Self::new_magnitude(range.abs().clamp(0.0, 1.0) * 0.5)
     }
 
-    /// Creates a new [`Nudge`] with this full 1.0 range. Each point will be shifted by ±0.5.
-    pub fn full() -> Self {
-        Self::new(1.0)
+    /// Creates a new [`Nudge`] with this range. Each point will be shifted by this range directly.
+    /// Points that are nudged may not still be in the same order. For example, if integer points a
+    /// and b are nudged and a > b, a' < b' may be true.
+    pub fn new_raw(range: f32) -> Self {
+        Self::new_magnitude(range.abs().clamp(0.0, 1.0))
+    }
+
+    /// Creates a new leashed [`Nudge`] with this range. Each point will be shifted by up to this
+    /// amount with no checks. Use this carefully.
+    pub fn new_magnitude(range: f32) -> Self {
+        Self { multiplier: range }
+    }
+
+    /// Creates a new leashed [`Nudge`] with this full 1.0 range.
+    pub fn full_leashed() -> Self {
+        Self::new_leashed(1.0)
+    }
+
+    /// Creates a new raw [`Nudge`] with this full 1.0 range.
+    pub fn full_raw() -> Self {
+        Self::new_raw(1.0)
     }
 
     /// the maximum amount a point will be nudged
     pub fn max_nudge(&self) -> f32 {
-        self.multiplier.abs()
+        self.multiplier
     }
 }
 
 /// easily implements nudging for different types
 macro_rules! impl_nudge {
     ($vec:path, $uvec:path, $point:path, $d:literal, $u2f:ident) => {
-        impl NoiseOp<Seeded<$point>> for Nudge {
+        impl<const RESTRICT_POSITIVE: bool> NoiseOp<Seeded<$point>> for Nudge<RESTRICT_POSITIVE> {
             type Output = Seeded<$point>;
 
             #[inline]
@@ -61,15 +82,19 @@ macro_rules! impl_nudge {
             }
         }
 
-        impl NoiseOp<Seeded<$uvec>> for Nudge {
+        impl<const RESTRICT_POSITIVE: bool> NoiseOp<Seeded<$uvec>> for Nudge<RESTRICT_POSITIVE> {
             type Output = Seeded<$vec>;
 
             #[inline]
             fn get(&self, input: Seeded<$uvec>) -> Self::Output {
-                let raw_shift = input
-                    .value
-                    .to_array()
-                    .map(|v| White32(input.meta).get(v).adapt::<UNorm>().adapt());
+                let raw_shift = input.value.to_array().map(|v| {
+                    let seed = White32(input.meta).get(v);
+                    if RESTRICT_POSITIVE {
+                        seed.adapt::<UNorm>().adapt()
+                    } else {
+                        seed.adapt::<SNorm>().adapt()
+                    }
+                });
                 let shift = <$vec>::from_array(raw_shift) * self.multiplier;
                 Seeded {
                     value: shift,

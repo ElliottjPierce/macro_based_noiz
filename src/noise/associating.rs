@@ -4,6 +4,10 @@ use super::{
     NoiseOp,
     NoiseType,
     conversions::NoiseConverter,
+    merging::{
+        Mergeable,
+        Merger,
+    },
 };
 
 /// Represents a type that has been given a some metadata `M`
@@ -13,6 +17,16 @@ pub struct Associated<T: NoiseType, M> {
     pub value: T,
     /// the metadata for the value
     pub meta: M,
+}
+
+impl<T: NoiseType, E, const K: usize> Mergeable for Associated<[T; K], E> {
+    type Meta = E;
+    type Part = T;
+
+    #[inline]
+    fn perform_merge<M: Merger<Self::Part, Self::Meta>>(self, merger: &M) -> M::Output {
+        merger.merge(self.value, &self.meta)
+    }
 }
 
 impl<T: NoiseType, M> NoiseType for Associated<T, M> {}

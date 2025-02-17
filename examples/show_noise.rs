@@ -15,25 +15,25 @@ use noiz::{
             MapValue,
             MetaOf,
         },
-        cellular::Cellular,
         conversions::Adapter,
-        grid::{
-            GridNoise,
-            GridPoint2,
-        },
+        grid::GridNoise,
         interpolating::Cubic,
-        merging::EuclideanDistance,
+        merging::{
+            EuclideanDistance,
+            ManhatanDistance,
+        },
         norm::UNorm,
-        nudges::Nudge,
         parallel::Parallel,
         seeded::Seeding,
         smoothing::{
             Lerp,
             Smooth,
         },
-        worly::{
-            DistanceWorly,
+        voronoi::{
+            Cellular,
+            Voronoi,
             Worly,
+            WorlyMode,
         },
     },
     noise_fn,
@@ -75,7 +75,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = ValueNoise;
+type NoiseUsed = WorlyNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -115,9 +115,18 @@ noise_fn! {
 }
 
 noise_fn! {
+    pub struct CellularNoise for Vec2 = (seed: u32, period: f32) {
+        noise GridNoise = GridNoise::new_period(period),
+        noise Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), seed, Cellular::default()),
+        noise MetaOf = MetaOf,
+        noise Adapter<(u32, UNorm, f32), f32> = Adapter::new(),
+    }
+}
+
+noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Worly<DistanceWorly<EuclideanDistance>> = Worly::new::<GridPoint2>(Cellular(Nudge::full()), seed),
+        noise Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio)),
         morph |input| -> UNorm {
             input.inverse()
         }
