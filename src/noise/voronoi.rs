@@ -71,10 +71,10 @@ impl<const DIMENSIONS: u8, const APPROX: bool, S: VoronoiSource<DIMENSIONS, APPR
 }
 
 /// Allows for standard, distance-based worly noise.
-pub struct Worly<T>(T);
+pub struct WorlyNoise<T>(T);
 
 /// A [`VoronoiSource`] for [`Worly`] noise.
-pub struct WorlySource<T> {
+pub struct Worly<T> {
     /// marker data
     pub marker: PhantomData<T>,
     /// This a a multiplier for the expected maximum length of a voronoi sphere.
@@ -83,7 +83,7 @@ pub struct WorlySource<T> {
     pub expected_length_multiplier: f32,
 }
 
-impl<T> Default for WorlySource<T> {
+impl<T> Default for Worly<T> {
     fn default() -> Self {
         Self {
             marker: PhantomData,
@@ -92,7 +92,7 @@ impl<T> Default for WorlySource<T> {
     }
 }
 
-impl<T> WorlySource<T> {
+impl<T> Worly<T> {
     /// Clams the absolute value of this factor as [`WorlySource::expected_length_multiplier`].
     pub fn shrunk_by(srkinging_factor: f32) -> Self {
         Self {
@@ -160,7 +160,7 @@ macro_rules! impl_voronoi {
         }
 
         impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>
-            for Worly<O>
+            for WorlyNoise<O>
         {
             type Output = UNorm;
 
@@ -172,7 +172,7 @@ macro_rules! impl_voronoi {
         }
 
         impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>
-            for Worly<O>
+            for WorlyNoise<O>
         {
             type Output = UNorm;
 
@@ -183,51 +183,51 @@ macro_rules! impl_voronoi {
             }
         }
 
-        impl VoronoiSource<$d, true> for WorlySource<EuclideanDistance> {
-            type Noise = Worly<EuclideanDistance>;
+        impl VoronoiSource<$d, true> for Worly<EuclideanDistance> {
+            type Noise = WorlyNoise<EuclideanDistance>;
 
             fn build_noise(self, voronoi: &Nudge) -> Self::Noise {
                 let max_displacement = (voronoi.max_nudge()) * self.expected_length_multiplier;
                 let max_dist = (max_displacement * max_displacement * ($d as f32)).sqrt();
-                Worly(EuclideanDistance {
+                WorlyNoise(EuclideanDistance {
                     inv_max_expected: 1.0 / max_dist,
                 })
             }
         }
 
-        impl VoronoiSource<$d, false> for WorlySource<EuclideanDistance> {
-            type Noise = Worly<EuclideanDistance>;
+        impl VoronoiSource<$d, false> for Worly<EuclideanDistance> {
+            type Noise = WorlyNoise<EuclideanDistance>;
 
             fn build_noise(self, voronoi: &Nudge) -> Self::Noise {
                 let max_displacement =
                     (voronoi.max_nudge() + 0.5) * self.expected_length_multiplier;
                 let max_dist = (max_displacement * max_displacement * ($d as f32)).sqrt();
-                Worly(EuclideanDistance {
+                WorlyNoise(EuclideanDistance {
                     inv_max_expected: 1.0 / max_dist,
                 })
             }
         }
 
-        impl VoronoiSource<$d, true> for WorlySource<ManhatanDistance> {
-            type Noise = Worly<ManhatanDistance>;
+        impl VoronoiSource<$d, true> for Worly<ManhatanDistance> {
+            type Noise = WorlyNoise<ManhatanDistance>;
 
             fn build_noise(self, voronoi: &Nudge) -> Self::Noise {
                 let max_displacement = (voronoi.max_nudge()) * self.expected_length_multiplier;
                 let max_dist = max_displacement * ($d as f32);
-                Worly(ManhatanDistance {
+                WorlyNoise(ManhatanDistance {
                     inv_max_expected: 1.0 / max_dist,
                 })
             }
         }
 
-        impl VoronoiSource<$d, false> for WorlySource<ManhatanDistance> {
-            type Noise = Worly<ManhatanDistance>;
+        impl VoronoiSource<$d, false> for Worly<ManhatanDistance> {
+            type Noise = WorlyNoise<ManhatanDistance>;
 
             fn build_noise(self, voronoi: &Nudge) -> Self::Noise {
                 let max_displacement =
                     (voronoi.max_nudge() + 0.5) * self.expected_length_multiplier;
                 let max_dist = max_displacement * ($d as f32);
-                Worly(ManhatanDistance {
+                WorlyNoise(ManhatanDistance {
                     inv_max_expected: 1.0 / max_dist,
                 })
             }
