@@ -135,7 +135,25 @@ noise_fn! {
 }
 
 noise_op! {
-    pub struct MyNoise for Vec2 = struct MyNoiseArgs {seed: u32, period: f32}
+    /// More comment
+    pub struct MyNoise for Vec2 =
+    /// More Yay
+    pub(crate) struct MyNoiseArgs {seed: u32, period: f32}
     impl
-    data my_data: u32 = 5
+    data
+    /// This is a comment
+    #[allow(unused)] my_data: u32 = 5;
+    data more_data: f32 = period
+}
+
+fn test() {
+    let x = MyNoise {
+        my_data: 5,
+        more_data: 0.0,
+    };
+
+    let y = MyNoiseArgs {
+        seed: 0,
+        period: 0.0,
+    };
 }

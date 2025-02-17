@@ -2,6 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::{
+    ToTokens,
     format_ident,
     quote,
 };
@@ -59,15 +60,33 @@ impl Parse for NoiseDefinition {
 
         _ = input.parse::<Token![impl]>()?;
         let operations = Punctuated::<Operation, Token![;]>::parse_separated_nonempty(input)?;
-        // for op in operations.iter() {
-        //     op.store_fields(&mut noise.data);
-        // }
+        for op in operations.iter() {
+            op.store_fields(&mut noise.data);
+        }
         Ok(Self {
             noise,
             input: input_types,
             args,
             operations: Default::default(),
         })
+    }
+}
+
+impl ToTokens for NoiseDefinition {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let NoiseDefinition {
+            noise,
+            input,
+            args,
+            operations,
+        } = self;
+        let operations = operations.iter();
+
+        tokens.extend(quote! {
+            #noise
+
+            #args
+        });
     }
 }
 
@@ -94,6 +113,24 @@ impl Parse for FullStruct {
             attributes,
             data,
         })
+    }
+}
+
+impl ToTokens for FullStruct {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let FullStruct {
+            name,
+            visibility,
+            attributes,
+            data,
+        } = self;
+        let data = data.iter();
+        tokens.extend(quote! {
+            #(#attributes)*
+            #visibility struct #name {
+                #(#data,)*
+            }
+        });
     }
 }
 
@@ -138,20 +175,6 @@ struct ConstructableField {
 #[proc_macro]
 pub fn noise_op(input: TokenStream) -> TokenStream {
     let noise = parse_macro_input!(input as NoiseDefinition);
-    quote! {}.into()
-}
-
-fn parse_many_with<T>(input: ParseStream, parse: fn(&ParseStream) -> Result<T>) -> Vec<T> {
-    let mut result = Vec::new();
-    loop {
-        match parse(&input) {
-            Ok(val) => result.push(val),
-            Err(_) => break,
-        }
-    }
-    result
-}
-
-fn parse_many<T: Parse>(input: ParseStream) -> Vec<T> {
-    parse_many_with(input, |input| input.parse::<T>())
+    println!("field len {}", noise.noise.data.len());
+    quote! {#noise}.into()
 }
