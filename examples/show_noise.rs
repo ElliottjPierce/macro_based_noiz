@@ -135,11 +135,6 @@ noise_fn! {
 }
 
 noise_op! {
-    pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio)),
-        morph |input| -> UNorm {
-            input.inverse()
-        }
-    }
+    pub struct MyNoise for Vec2 = struct MyNoiseArgs {seed: u32, period: f32}
+    impl
 }

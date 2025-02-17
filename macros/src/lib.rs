@@ -1,35 +1,27 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use proc_macro2::{
-    Span,
-    TokenStream as TokenStream2,
-};
 use quote::{
     format_ident,
     quote,
 };
 use syn::{
     Attribute,
-    Data,
-    DataStruct,
+    Error,
     Expr,
     Field,
-    Fields,
     Ident,
     Result,
     Token,
     Type,
-    TypeParam,
     Visibility,
-    bracketed,
+    braced,
     parse::{
         Parse,
         ParseStream,
     },
     parse_macro_input,
     parse_quote,
-    punctuated::Punctuated,
     token,
 };
 
@@ -48,7 +40,7 @@ struct NoiseDefinition {
 
 impl Parse for NoiseDefinition {
     fn parse(input: ParseStream) -> Result<Self> {
-        let noise = {
+        let mut noise = {
             let attributes = Attribute::parse_outer(input)?;
             let visibility = input.parse()?;
             _ = input.parse::<Token![struct]>()?;
@@ -64,11 +56,17 @@ impl Parse for NoiseDefinition {
         let input_types = input.parse()?;
         _ = input.parse::<Token![=]>()?;
         let args = input.parse()?;
+
+        _ = input.parse::<Token![impl]>()?;
+        let operations = parse_many::<Operation>(input);
+        for op in &operations {
+            op.store_fields(&mut noise.data);
+        }
         Ok(Self {
             noise,
             input: input_types,
             args,
-            operations: parse_many(input),
+            operations,
         })
     }
 }
@@ -87,7 +85,7 @@ impl Parse for FullStruct {
         _ = input.parse::<Token![struct]>()?;
         let name = input.parse()?;
         let fields;
-        bracketed!(fields in input);
+        braced!(fields in input);
         let data = parse_many_with(&fields, |input| Field::parse_named(input));
         Ok(Self {
             name,
@@ -105,6 +103,16 @@ enum Operation {
     // Morph,
 }
 
+impl Operation {
+    fn store_fields(&self, fields: &mut Vec<Field>) {
+        match self {
+            Operation::Data(constructable_field) => {
+                fields.push(constructable_field.field.clone());
+            }
+        }
+    }
+}
+
 impl Parse for Operation {
     fn parse(input: ParseStream) -> Result<Self> {
         let peeker = input.lookahead1();
@@ -115,7 +123,7 @@ impl Parse for Operation {
             let constructor = input.parse()?;
             Ok(Self::Data(ConstructableField { field, constructor }))
         } else {
-            panic!("Unable to parse a noise operation. Expected a key word like 'data'.");
+            Err(input.error("Unable to parse a noise operation. Expected a key word like 'data'."))
         }
     }
 }
@@ -127,8 +135,8 @@ struct ConstructableField {
 
 /// Creates a noise operation.
 #[proc_macro]
-pub fn noise_op(_item: TokenStream) -> TokenStream {
-    println!("Yay");
+pub fn noise_op(input: TokenStream) -> TokenStream {
+    let noise = parse_macro_input!(input as NoiseDefinition);
     quote! {}.into()
 }
 
