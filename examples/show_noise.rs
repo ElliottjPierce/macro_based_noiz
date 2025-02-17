@@ -137,4 +137,5 @@ noise_fn! {
 noise_op! {
     pub struct MyNoise for Vec2 = struct MyNoiseArgs {seed: u32, period: f32}
     impl
+    data my_data: u32 = 5
 }

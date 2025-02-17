@@ -7,7 +7,6 @@ use quote::{
 };
 use syn::{
     Attribute,
-    Error,
     Expr,
     Field,
     Ident,
@@ -22,6 +21,7 @@ use syn::{
     },
     parse_macro_input,
     parse_quote,
+    punctuated::Punctuated,
     token,
 };
 
@@ -35,7 +35,7 @@ struct NoiseDefinition {
     noise: FullStruct,
     input: Type,
     args: FullStruct,
-    operations: Vec<Operation>,
+    operations: Punctuated<Operation, Token![;]>,
 }
 
 impl Parse for NoiseDefinition {
@@ -49,7 +49,7 @@ impl Parse for NoiseDefinition {
                 name,
                 visibility,
                 attributes,
-                data: Vec::new(),
+                data: Default::default(),
             }
         };
         _ = input.parse::<Token![for]>()?;
@@ -58,15 +58,15 @@ impl Parse for NoiseDefinition {
         let args = input.parse()?;
 
         _ = input.parse::<Token![impl]>()?;
-        let operations = parse_many::<Operation>(input);
-        for op in &operations {
-            op.store_fields(&mut noise.data);
-        }
+        let operations = Punctuated::<Operation, Token![;]>::parse_separated_nonempty(input)?;
+        // for op in operations.iter() {
+        //     op.store_fields(&mut noise.data);
+        // }
         Ok(Self {
             noise,
             input: input_types,
             args,
-            operations,
+            operations: Default::default(),
         })
     }
 }
@@ -75,7 +75,7 @@ struct FullStruct {
     name: Ident,
     visibility: Visibility,
     attributes: Vec<Attribute>,
-    data: Vec<Field>,
+    data: Punctuated<Field, Token![,]>,
 }
 
 impl Parse for FullStruct {
@@ -86,7 +86,8 @@ impl Parse for FullStruct {
         let name = input.parse()?;
         let fields;
         braced!(fields in input);
-        let data = parse_many_with(&fields, |input| Field::parse_named(input));
+        let data =
+            Punctuated::parse_separated_nonempty_with(&fields, |input| Field::parse_named(input))?;
         Ok(Self {
             name,
             visibility,
@@ -104,7 +105,7 @@ enum Operation {
 }
 
 impl Operation {
-    fn store_fields(&self, fields: &mut Vec<Field>) {
+    fn store_fields(&self, fields: &mut Punctuated<Field, Token![,]>) {
         match self {
             Operation::Data(constructable_field) => {
                 fields.push(constructable_field.field.clone());
