@@ -386,6 +386,13 @@ pub struct ManhatanDistance {
     pub inv_max_expected: f32,
 }
 
+/// A [`Orderer`] that evenly combines [`EuclideanDistance`] and [`ManhatanDistance`]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HybridDistance {
+    /// represents the inverse of the maximum expected evaluation of this distance.
+    pub inv_max_expected: f32,
+}
+
 macro_rules! impl_distances {
     ($t:path) => {
         impl Orderer<$t> for EuclideanDistance {
@@ -408,6 +415,21 @@ macro_rules! impl_distances {
             #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
                 value.abs().element_sum()
+            }
+
+            #[inline]
+            fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
+                UNorm::new_clamped(ordering * self.inv_max_expected)
+            }
+        }
+
+        // inspired by https://github.com/Auburn/FastNoiseLite/blob/master/Rust/src/lib.rs#L1825
+        impl Orderer<$t> for HybridDistance {
+            type OrderingOutput = UNorm;
+
+            #[inline]
+            fn ordering_of(&self, value: &$t) -> f32 {
+                value.length_squared() + value.abs().element_sum()
             }
 
             #[inline]

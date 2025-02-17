@@ -18,6 +18,7 @@ use super::{
     },
     merging::{
         EuclideanDistance,
+        HybridDistance,
         ManhatanDistance,
         Merger,
         MinIndex,
@@ -236,6 +237,23 @@ macro_rules! impl_voronoi {
             }
         }
 
+        impl<const APPROX: bool> VoronoiSource<$d, APPROX> for Worly<HybridDistance> {
+            type Noise = WorlyNoise<HybridDistance>;
+
+            fn build_noise(self, max_nudge: f32) -> Self::Noise {
+                let max_displacement = max_nudge * self.expected_length_multiplier;
+                let max_dist = if APPROX {
+                    // a negative cell could be at the same spot on all axies but the cell's offset.
+                    max_displacement * max_displacement + max_displacement
+                } else {
+                    (max_displacement * max_displacement + max_displacement) * ($d as f32)
+                };
+                WorlyNoise(HybridDistance {
+                    inv_max_expected: 1.0 / max_dist,
+                })
+            }
+        }
+
         // cellular
 
         // we can't generalize CellularNoise's array length since length of 0 is unsafe.
@@ -280,6 +298,16 @@ macro_rules! impl_voronoi {
 
             fn build_noise(self, _max_nudge: f32) -> Self::Noise {
                 CellularNoise(ManhatanDistance {
+                    inv_max_expected: 0.0,
+                })
+            }
+        }
+
+        impl<const APPROX: bool> VoronoiSource<$d, APPROX> for Cellular<HybridDistance> {
+            type Noise = CellularNoise<HybridDistance>;
+
+            fn build_noise(self, _max_nudge: f32) -> Self::Noise {
+                CellularNoise(HybridDistance {
                     inv_max_expected: 0.0,
                 })
             }
