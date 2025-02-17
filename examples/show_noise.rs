@@ -28,8 +28,8 @@ use noiz::{
             Smooth,
         },
         voronoi::{
-            ImplicitWorlySource,
             Voronoi,
+            WorlySource,
         },
     },
     noise_fn,
@@ -113,7 +113,7 @@ noise_fn! {
 noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Voronoi<2, ImplicitWorlySource<EuclideanDistance>, true> = Voronoi::new(Nudge::new_leashed(1.0), seed),
+        noise Voronoi<2, WorlySource<EuclideanDistance>, true> = Voronoi::new(Nudge::new_leashed(1.0), seed, WorlySource::default()),
         morph |input| -> UNorm {
             input.inverse()
         }
