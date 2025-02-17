@@ -156,4 +156,9 @@ fn test() {
         seed: 0,
         period: 0.0,
     };
+
+    let x = MyNoise::new(MyNoiseArgs {
+        seed: 52,
+        period: 10.0,
+    });
 }

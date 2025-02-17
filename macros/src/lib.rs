@@ -67,7 +67,7 @@ impl Parse for NoiseDefinition {
             noise,
             input: input_types,
             args,
-            operations: Default::default(),
+            operations,
         })
     }
 }
@@ -80,12 +80,31 @@ impl ToTokens for NoiseDefinition {
             args,
             operations,
         } = self;
-        let operations = operations.iter();
+        let count = operations.iter().count();
+        let operations = operations.iter().map(Operation::quote_construction);
+        let noise_name = &noise.name;
+        let args_name = &args.name;
+        let noise_fields = noise.filed_names().into_iter();
+        let args_fields = args.filed_names().into_iter();
 
         tokens.extend(quote! {
             #noise
 
             #args
+
+            impl #noise_name {
+                pub fn new(args: #args_name) -> Self {
+                    let #args_name {
+                        #(#args_fields,)*
+                    } = args;
+
+                    #(#operations)*
+
+                    Self {
+                        #(#noise_fields,)*
+                    }
+                }
+            }
         });
     }
 }
@@ -95,6 +114,14 @@ struct FullStruct {
     visibility: Visibility,
     attributes: Vec<Attribute>,
     data: Punctuated<Field, Token![,]>,
+}
+
+impl FullStruct {
+    fn filed_names(&self) -> impl IntoIterator<Item = &Ident> {
+        self.data
+            .iter()
+            .map(|field| field.ident.as_ref().expect("Fields must be named."))
+    }
 }
 
 impl Parse for FullStruct {
@@ -148,6 +175,18 @@ impl Operation {
             }
         }
     }
+
+    fn quote_construction(&self) -> proc_macro2::TokenStream {
+        match self {
+            Operation::Data(ConstructableField { field, constructor }) => {
+                let name = field
+                    .ident
+                    .as_ref()
+                    .expect("Fields must have names in noise operations.");
+                quote! {let #name = #constructor;}
+            }
+        }
+    }
 }
 
 impl Parse for Operation {
@@ -174,6 +213,5 @@ struct ConstructableField {
 #[proc_macro]
 pub fn noise_op(input: TokenStream) -> TokenStream {
     let noise = parse_macro_input!(input as NoiseDefinition);
-    println!("field len {}", noise.noise.data.len());
     quote! {#noise}.into()
 }
