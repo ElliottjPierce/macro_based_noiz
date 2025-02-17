@@ -23,7 +23,6 @@ use noiz::{
             ManhatanDistance,
         },
         norm::UNorm,
-        nudges::Nudge,
         parallel::Parallel,
         seeded::Seeding,
         smoothing::{
@@ -75,7 +74,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = CellularNoise;
+type NoiseUsed = WorlyNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -117,7 +116,7 @@ noise_fn! {
 noise_fn! {
     pub struct CellularNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(Nudge::new_leashed(1.0), seed, Cellular::default()),
+        noise Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), seed, Cellular::default()),
         noise MetaOf = MetaOf,
         noise Adapter<(u32, UNorm, f32), f32> = Adapter::new(),
     }
@@ -126,7 +125,7 @@ noise_fn! {
 noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(Nudge::new_leashed(1.0), seed, Worly::default()),
+        noise Voronoi<2, Worly<EuclideanDistance>, true> = Voronoi::new(1.0, seed, Worly::default()),
         morph |input| -> UNorm {
             input.inverse()
         }
