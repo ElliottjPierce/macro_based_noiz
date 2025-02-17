@@ -145,11 +145,35 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Min<T> {
     }
 }
 
+/// A merger that selects the index of the value with the least weight.
+/// If you try to merge on an empty array, this will return zero.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct MinIndex<T>(pub T);
+
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MinIndex<T> {
+    type Output = usize;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut ordering_number = f32::INFINITY;
+        let mut result = 0;
+        for (index, val) in vals.into_iter().enumerate() {
+            let weight = self.0.ordering_of(&val);
+            if weight < ordering_number {
+                ordering_number = weight;
+                result = index;
+            }
+        }
+
+        result
+    }
+}
+
 /// A merger that selects the weight of the value with the least weight.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct MinOrder<T>(pub T);
 
-impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MinOrder<T> {
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MinOrder<T> {
     type Output = T::OrderingOutput;
 
     #[inline]
@@ -189,11 +213,35 @@ impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for Max<T> {
     }
 }
 
+/// A merger that selects the index of the value with the greatest weight.
+/// If you try to merge on an empty array, this will return zero.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct MaxIndex<T>(pub T);
+
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxIndex<T> {
+    type Output = usize;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut ordering_number = f32::NEG_INFINITY;
+        let mut result = 0;
+        for (index, val) in vals.into_iter().enumerate() {
+            let weight = self.0.ordering_of(&val);
+            if weight > ordering_number {
+                ordering_number = weight;
+                result = index;
+            }
+        }
+
+        result
+    }
+}
+
 /// A merger that selects the weight of the value with the greatest weight.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct MaxOrder<T>(pub T);
 
-impl<I: NoiseType + Default, M, T: Orderer<I>> Merger<I, M> for MaxOrder<T> {
+impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxOrder<T> {
     type Output = T::OrderingOutput;
 
     #[inline]

@@ -18,7 +18,10 @@ use noiz::{
         conversions::Adapter,
         grid::GridNoise,
         interpolating::Cubic,
-        merging::EuclideanDistance,
+        merging::{
+            EuclideanDistance,
+            ManhatanDistance,
+        },
         norm::UNorm,
         nudges::Nudge,
         parallel::Parallel,
@@ -28,6 +31,7 @@ use noiz::{
             Smooth,
         },
         voronoi::{
+            Cellular,
             Voronoi,
             Worly,
         },
@@ -71,7 +75,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WorlyNoise;
+type NoiseUsed = CellularNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -107,6 +111,15 @@ noise_fn! {
         noise MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf)),
         noise MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new())),
         noise Smooth<Cubic> = Smooth(Cubic),
+    }
+}
+
+noise_fn! {
+    pub struct CellularNoise for Vec2 = (seed: u32, period: f32) {
+        noise GridNoise = GridNoise::new_period(period),
+        noise Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(Nudge::new_leashed(1.0), seed, Cellular::default()),
+        noise MetaOf = MetaOf,
+        noise Adapter<(u32, UNorm, f32), f32> = Adapter::new(),
     }
 }
 
