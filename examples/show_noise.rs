@@ -143,7 +143,7 @@ noise_op! {
     data
     /// This is a comment
     #[allow(unused)] my_data: u32 = 5;
-    data more_data: f32 = period
+    data more_data: f32 = period;
 }
 
 fn test() {

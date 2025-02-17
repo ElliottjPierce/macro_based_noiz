@@ -59,7 +59,7 @@ impl Parse for NoiseDefinition {
         let args = input.parse()?;
 
         _ = input.parse::<Token![impl]>()?;
-        let operations = Punctuated::<Operation, Token![;]>::parse_separated_nonempty(input)?;
+        let operations = Punctuated::<Operation, Token![;]>::parse_terminated(input)?;
         for op in operations.iter() {
             op.store_fields(&mut noise.data);
         }
