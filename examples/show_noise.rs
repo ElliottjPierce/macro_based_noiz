@@ -20,16 +20,16 @@ use noiz::{
         interpolating::Cubic,
         merging::EuclideanDistance,
         norm::UNorm,
+        nudges::Nudge,
         parallel::Parallel,
         seeded::Seeding,
         smoothing::{
             Lerp,
             Smooth,
         },
-        voronoi::Voronoi,
-        worly::{
+        voronoi::{
             ImplicitWorlySource,
-            Worly,
+            Voronoi,
         },
     },
     noise_fn,
@@ -113,7 +113,7 @@ noise_fn! {
 noise_fn! {
     pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
         noise GridNoise = GridNoise::new_period(period),
-        noise Worly<2, ImplicitWorlySource<EuclideanDistance>> = Worly::new(Voronoi::full(), seed),
+        noise Voronoi<2, ImplicitWorlySource<EuclideanDistance>, true> = Voronoi::new(Nudge::new_leashed(1.0), seed),
         morph |input| -> UNorm {
             input.inverse()
         }
