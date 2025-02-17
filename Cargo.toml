@@ -7,6 +7,7 @@ edition = "2021"
 rand = "0.8.5"
 rand_core = "0.6.0"
 bevy_math = "0.15.1"
+macros = { path = "macros" }
 
 [dev-dependencies]
 criterion = "0.5.1"
