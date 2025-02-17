@@ -207,7 +207,7 @@ impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MinIndices<T> {
 pub struct MinOrders<T>(pub T);
 
 impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MinOrders<T> {
-    type Output = [f32; 2];
+    type Output = [T::OrderingOutput; 2];
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
@@ -224,7 +224,7 @@ impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MinOrders<T> {
             }
         }
 
-        [ordering_numbers.0, ordering_numbers.1]
+        [ordering_numbers.0, ordering_numbers.1].map(|v| self.0.relative_ordering(v))
     }
 }
 
@@ -334,7 +334,7 @@ impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxIndices<T> {
 pub struct MaxOrders<T>(pub T);
 
 impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxOrders<T> {
-    type Output = [f32; 2];
+    type Output = [T::OrderingOutput; 2];
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
@@ -351,7 +351,7 @@ impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxOrders<T> {
             }
         }
 
-        [ordering_numbers.0, ordering_numbers.1]
+        [ordering_numbers.0, ordering_numbers.1].map(|v| self.0.relative_ordering(v))
     }
 }
 
@@ -376,19 +376,19 @@ impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for MaxOrder<T> {
     }
 }
 
-/// A merger that averages the weights of all values. THis will return 0 if there are no values
+/// A merger that averages the weights of all values. This will return 0 if there are no values
 /// being merged.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct AverageOrders<T>(pub T);
 
 impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for AverageOrders<T> {
-    type Output = f32;
+    type Output = T::OrderingOutput;
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
         let len = vals.len();
         if len == 0 {
-            return 0.0;
+            return self.0.relative_ordering(0.0);
         }
 
         let mut total = 0.0;
@@ -396,7 +396,7 @@ impl<I: NoiseType, M, T: Orderer<I>> Merger<I, M> for AverageOrders<T> {
             total += self.0.ordering_of(&val);
         }
 
-        total / (len as f32)
+        self.0.relative_ordering(total / (len as f32))
     }
 }
 

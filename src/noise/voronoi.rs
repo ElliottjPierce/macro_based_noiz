@@ -10,6 +10,7 @@ use bevy_math::{
 
 use super::{
     NoiseOp,
+    NoiseType,
     associating::Associated,
     grid::{
         GridPoint2,
@@ -23,6 +24,7 @@ use super::{
         Merger,
         MinIndex,
         MinOrder,
+        MinOrders,
         Orderer,
     },
     norm::UNorm,
@@ -82,9 +84,25 @@ impl<const DIMENSIONS: u8, const APPROX: bool, S: VoronoiSource<DIMENSIONS, APPR
     }
 }
 
+/// Defines how [`WorlyNoise`] should behave when delivering the final distance.
+#[derive(Debug, Clone, Copy, Default)]
+pub enum WorlyMode {
+    /// Uses the nearst distance.
+    #[default]
+    Nearet,
+    /// Subtracts the nearst distance from the second nearest.
+    Difference,
+    /// Subtracts the nearst distance and second nearest.
+    Average,
+    /// Multiplies the nearst distance from the second nearest.
+    Product,
+    /// Divides the nearst distance from the second nearest.
+    Ratio,
+}
+
 /// Allows for standard, distance-based worly noise.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct WorlyNoise<T>(T);
+pub struct WorlyNoise<T>(T, WorlyMode);
 
 /// A [`VoronoiSource`] for [`WorlyNoise`].
 #[derive(Debug, Clone, Copy)]
@@ -95,6 +113,8 @@ pub struct Worly<T> {
     /// 1.0 is the default. Infreasing this too much can lead to articacts.
     /// Decreasing this can mave the voronoi spheres more issolated.
     pub expected_length_multiplier: f32,
+    /// Defines the [`WorlyMode`] this noise will use.
+    pub mode: WorlyMode,
 }
 
 /// Allows simple, nearest neighbor cellular noise
@@ -116,6 +136,7 @@ impl<T> Default for Worly<T> {
         Self {
             marker: PhantomData,
             expected_length_multiplier: 1.0,
+            mode: WorlyMode::default(),
         }
     }
 }
@@ -126,6 +147,7 @@ impl<T> Worly<T> {
         Self {
             marker: PhantomData,
             expected_length_multiplier: srkinging_factor.abs().clamp(0.0, 1.0),
+            mode: WorlyMode::default(),
         }
     }
 
@@ -136,7 +158,14 @@ impl<T> Worly<T> {
         Self {
             marker: PhantomData,
             expected_length_multiplier: expansion_factor.abs().max(0.0),
+            mode: WorlyMode::default(),
         }
+    }
+
+    /// Sets the [`WorlyMode`] for this noise
+    pub fn with_mode(mut self, mode: WorlyMode) -> Self {
+        self.mode = mode;
+        self
     }
 }
 
@@ -199,7 +228,22 @@ macro_rules! impl_voronoi {
             #[inline]
             fn get(&self, input: VoronoiGraph<[Seeded<$point>; K]>) -> Self::Output {
                 let points = input.value.map(|point| point.value.offset);
-                MinOrder(&self.0).merge(points, &())
+                if let WorlyMode::Nearet = self.1 {
+                    return MinOrder(&self.0).merge(points, &());
+                }
+
+                let [nearest, second_nearest] = MinOrders(&self.0)
+                    .merge(points, &())
+                    .map(|v| v.adapt::<f32>());
+
+                // Inspired by https://github.com/Auburn/FastNoiseLite/blob/683ff0c848538f669240670ceb1c1ff3bb05b777/Rust/src/lib.rs#L1934
+                UNorm::new_clamped(match self.1 {
+                    WorlyMode::Nearet => unreachable!("we just checked for this above."),
+                    WorlyMode::Difference => second_nearest - nearest,
+                    WorlyMode::Average => (second_nearest + nearest) * 0.5,
+                    WorlyMode::Product => second_nearest * nearest,
+                    WorlyMode::Ratio => nearest / second_nearest,
+                })
             }
         }
 
@@ -214,9 +258,12 @@ macro_rules! impl_voronoi {
                 } else {
                     (max_displacement * max_displacement * ($d as f32)).sqrt()
                 };
-                WorlyNoise(EuclideanDistance {
-                    inv_max_expected: 1.0 / max_dist,
-                })
+                WorlyNoise(
+                    EuclideanDistance {
+                        inv_max_expected: 1.0 / max_dist,
+                    },
+                    self.mode,
+                )
             }
         }
 
@@ -231,9 +278,12 @@ macro_rules! impl_voronoi {
                 } else {
                     max_displacement * ($d as f32)
                 };
-                WorlyNoise(ManhatanDistance {
-                    inv_max_expected: 1.0 / max_dist,
-                })
+                WorlyNoise(
+                    ManhatanDistance {
+                        inv_max_expected: 1.0 / max_dist,
+                    },
+                    self.mode,
+                )
             }
         }
 
@@ -248,9 +298,12 @@ macro_rules! impl_voronoi {
                 } else {
                     (max_displacement * max_displacement + max_displacement) * ($d as f32)
                 };
-                WorlyNoise(HybridDistance {
-                    inv_max_expected: 1.0 / max_dist,
-                })
+                WorlyNoise(
+                    HybridDistance {
+                        inv_max_expected: 1.0 / max_dist,
+                    },
+                    self.mode,
+                )
             }
         }
 
