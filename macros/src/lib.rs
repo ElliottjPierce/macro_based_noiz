@@ -105,8 +105,7 @@ impl Parse for FullStruct {
         let name = input.parse()?;
         let fields;
         braced!(fields in input);
-        let data =
-            Punctuated::parse_separated_nonempty_with(&fields, |input| Field::parse_named(input))?;
+        let data = Punctuated::parse_terminated_with(&fields, |input| Field::parse_named(input))?;
         Ok(Self {
             name,
             visibility,

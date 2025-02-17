@@ -138,7 +138,7 @@ noise_op! {
     /// More comment
     pub struct MyNoise for Vec2 =
     /// More Yay
-    pub(crate) struct MyNoiseArgs {seed: u32, period: f32}
+    pub(crate) struct MyNoiseArgs {seed: u32, period: f32,}
     impl
     data
     /// This is a comment
