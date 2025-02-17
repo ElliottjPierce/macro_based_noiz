@@ -86,6 +86,10 @@ pub struct Worly<T> {
     pub expected_length_multiplier: f32,
 }
 
+/// Allows simple, nearest neighbor cellular noise
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CellularNoise<T>(T);
+
 /// A [`VoronoiSource`] for [`CellularNoise`].
 #[derive(Debug, Clone, Copy)]
 pub struct Cellular<T>(pub PhantomData<T>);
@@ -95,10 +99,6 @@ impl<T> Default for Cellular<T> {
         Self(PhantomData)
     }
 }
-
-/// Allows simple, nearest neighbor cellular noise
-#[derive(Debug, Clone, Copy, Default)]
-pub struct CellularNoise<T>(T);
 
 impl<T> Default for Worly<T> {
     fn default() -> Self {
