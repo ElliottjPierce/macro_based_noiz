@@ -38,7 +38,7 @@ pub trait VoronoiSource<const DIMENSIONS: u8, const APPROX: bool> {
     type Noise;
 
     /// Creates the noise itself
-    fn build_noise(self, voronoi: &Nudge) -> Self::Noise;
+    fn build_noise(self, max_nudge: f32) -> Self::Noise;
 }
 
 /// Worly noise is defined as any kind of noise derived from [`Cellular`] noise via a
@@ -50,23 +50,23 @@ pub struct Voronoi<
     const APPROX: bool = false,
 > {
     seeder: Seeding,
-    nudge: Nudge,
+    nudge: Nudge<APPROX>,
     source: S::Noise,
 }
 
 /// Stores a result of a [`Voronoi`] noise
-pub type VoronoiGraph<T> = Associated<T, Nudge>;
+pub type VoronoiGraph<T, const APPROX: bool = false> = Associated<T, Nudge<APPROX>>;
 
 impl<const DIMENSIONS: u8, const APPROX: bool, S: VoronoiSource<DIMENSIONS, APPROX>>
     Voronoi<DIMENSIONS, S, APPROX>
 {
-    /// creates a new [`Worly`] from [`Voronoi`] with a seed and a noise source.
+    /// creates a new [`Voronoi`] from [`Nudge`] with a seed and a noise source.
     #[inline]
-    pub fn new(voronoi: Nudge, seed: u32, noise: S) -> Self {
+    pub fn new(nudge: Nudge<APPROX>, seed: u32, noise: S) -> Self {
         Self {
             seeder: Seeding(seed),
-            source: noise.build_noise(&voronoi),
-            nudge: voronoi,
+            source: noise.build_noise(nudge.max_nudge()),
+            nudge,
         }
     }
 }
@@ -136,9 +136,9 @@ macro_rules! impl_voronoi {
 
         impl<S: VoronoiSource<$d, true>> NoiseOp<$point> for Voronoi<$d, S, true>
         where
-            S::Noise: NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>,
+            S::Noise: NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2], true>>,
         {
-            type Output = <S::Noise as NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>>::Output;
+            type Output = <S::Noise as NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2], true>>>::Output;
 
             #[inline]
             fn get(&self, input: $point) -> Self::Output {
@@ -158,9 +158,10 @@ macro_rules! impl_voronoi {
 
         impl<S: VoronoiSource<$d, false>> NoiseOp<$point> for Voronoi<$d, S, false>
         where
-            S::Noise: NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>,
+            S::Noise: NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3], false>>,
         {
-            type Output = <S::Noise as NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>>::Output;
+            type Output =
+                <S::Noise as NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3], false>>>::Output;
 
             #[inline]
             fn get(&self, input: $point) -> Self::Output {
@@ -180,13 +181,13 @@ macro_rules! impl_voronoi {
 
         // worly
 
-        impl<O: Orderer<$vec, OrderingOutput = UNorm>, const K: usize>
-            NoiseOp<VoronoiGraph<[Seeded<$point>; K]>> for WorlyNoise<O>
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>, const K: usize, const APPROX: bool>
+            NoiseOp<VoronoiGraph<[Seeded<$point>; K], APPROX>> for WorlyNoise<O>
         {
             type Output = UNorm;
 
             #[inline]
-            fn get(&self, input: VoronoiGraph<[Seeded<$point>; K]>) -> Self::Output {
+            fn get(&self, input: VoronoiGraph<[Seeded<$point>; K], APPROX>) -> Self::Output {
                 let points = input.value.map(|point| point.value.offset);
                 MinOrder(&self.0).merge(points, &())
             }
@@ -195,9 +196,9 @@ macro_rules! impl_voronoi {
         impl<const APPROX: bool> VoronoiSource<$d, APPROX> for Worly<EuclideanDistance> {
             type Noise = WorlyNoise<EuclideanDistance>;
 
-            fn build_noise(self, voronoi: &Nudge) -> Self::Noise {
-                let max_displacement = (voronoi.max_nudge() + if APPROX { 0.0 } else { 0.5 })
-                    * self.expected_length_multiplier;
+            fn build_noise(self, max_nudge: f32) -> Self::Noise {
+                let max_displacement =
+                    (max_nudge + if APPROX { 0.0 } else { 0.5 }) * self.expected_length_multiplier;
                 let max_dist = (max_displacement * max_displacement * ($d as f32)).sqrt();
                 WorlyNoise(EuclideanDistance {
                     inv_max_expected: 1.0 / max_dist,
@@ -208,9 +209,9 @@ macro_rules! impl_voronoi {
         impl<const APPROX: bool> VoronoiSource<$d, APPROX> for Worly<ManhatanDistance> {
             type Noise = WorlyNoise<ManhatanDistance>;
 
-            fn build_noise(self, voronoi: &Nudge) -> Self::Noise {
-                let max_displacement = (voronoi.max_nudge() + if APPROX { 0.0 } else { 0.5 })
-                    * self.expected_length_multiplier;
+            fn build_noise(self, max_nudge: f32) -> Self::Noise {
+                let max_displacement =
+                    (max_nudge + if APPROX { 0.0 } else { 0.5 }) * self.expected_length_multiplier;
                 let max_dist = max_displacement * ($d as f32);
                 WorlyNoise(ManhatanDistance {
                     inv_max_expected: 1.0 / max_dist,
@@ -221,26 +222,26 @@ macro_rules! impl_voronoi {
         // cellular
 
         // we can't generalize CellularNoise's array length since length of 0 is unsafe.
-        impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>
-            for CellularNoise<O>
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>, const APPROX: bool>
+            NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2], APPROX>> for CellularNoise<O>
         {
             type Output = Seeded<$point>;
 
             #[inline]
-            fn get(&self, input: VoronoiGraph<[Seeded<$point>; $d_2]>) -> Self::Output {
+            fn get(&self, input: VoronoiGraph<[Seeded<$point>; $d_2], APPROX>) -> Self::Output {
                 let points = input.value.clone().map(|point| point.value.offset);
                 let index = MinIndex(&self.0).merge(points, &());
                 input.value[index].clone()
             }
         }
 
-        impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>
-            for CellularNoise<O>
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>, const APPROX: bool>
+            NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3], APPROX>> for CellularNoise<O>
         {
             type Output = Seeded<$point>;
 
             #[inline]
-            fn get(&self, input: VoronoiGraph<[Seeded<$point>; $d_3]>) -> Self::Output {
+            fn get(&self, input: VoronoiGraph<[Seeded<$point>; $d_3], APPROX>) -> Self::Output {
                 let points = input.value.clone().map(|point| point.value.offset);
                 let index = MinIndex(&self.0).merge(points, &());
                 input.value[index].clone()
@@ -250,7 +251,7 @@ macro_rules! impl_voronoi {
         impl<const APPROX: bool> VoronoiSource<$d, APPROX> for Cellular<EuclideanDistance> {
             type Noise = CellularNoise<EuclideanDistance>;
 
-            fn build_noise(self, _voronoi: &Nudge) -> Self::Noise {
+            fn build_noise(self, _max_nudge: f32) -> Self::Noise {
                 CellularNoise(EuclideanDistance {
                     inv_max_expected: 0.0,
                 })
@@ -260,7 +261,7 @@ macro_rules! impl_voronoi {
         impl<const APPROX: bool> VoronoiSource<$d, APPROX> for Cellular<ManhatanDistance> {
             type Noise = CellularNoise<ManhatanDistance>;
 
-            fn build_noise(self, _voronoi: &Nudge) -> Self::Noise {
+            fn build_noise(self, _max_nudge: f32) -> Self::Noise {
                 CellularNoise(ManhatanDistance {
                     inv_max_expected: 0.0,
                 })
