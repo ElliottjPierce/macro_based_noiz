@@ -16,10 +16,7 @@ use noiz::{
             MetaOf,
         },
         conversions::Adapter,
-        grid::{
-            GridNoise,
-            GridPoint2,
-        },
+        grid::GridNoise,
         interpolating::Cubic,
         merging::{
             EuclideanDistance,
@@ -135,28 +132,4 @@ noise_fn! {
             input.inverse()
         }
     }
-}
-
-noise_op! {
-    /// More comment
-    pub struct MyNoise for Vec2 =
-    /// More Yay
-    pub(crate) struct MyNoiseArgs {seed: u32, period: f32,}
-    impl
-    /// My comment
-    #[allow(unused)]
-    pub use custom_data: f32 = period;
-    pub do fist_noise: GridNoise = GridNoise::new_period(period);
-    /// Comments still work
-    do seeding: Seeding = Seeding(seed);
-    #[allow(unused)]
-    let GridPoint2{ base, offset } = input.value;
-    do MetaOf;
-    as UNorm, f32, UNorm;
-    fn (mut x: UNorm) -> [UNorm; 3] {
-        x = UNorm::new_clamped(*custom_data * offset.x);
-        [x, x, x]
-    }
-    for fn () -> f32 {input.adapt()}
-    fn () -> f32 {input[2]}
 }

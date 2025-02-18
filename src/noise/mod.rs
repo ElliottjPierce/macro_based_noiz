@@ -412,49 +412,52 @@ macro_rules! noise_fn {
 
 #[cfg(test)]
 mod tests {
-    use white::White32;
 
-    use super::*;
+    use super::{
+        associating::MetaOf,
+        grid::{
+            GridNoise,
+            GridPoint2,
+        },
+        norm::UNorm,
+        seeded::Seeding,
+        *,
+    };
+    use crate as noiz;
 
-    noise_fn! {
-        /// docs
-        pub struct Test for i32 = (x: u32, y: u32, z: u32) {
-            into u32,
-            noise White32 = {
-                White32(x)
-            },
-            into u32,
-            morph |input| {
-                offset: u32 = z,
-            } -> u32 {
-                let x = *offset;
-                input + x
-            },
-            noise White32 = White32(y),
-            morph |input| -> u32 {
-                input + 2
-            }
+    // this is taken from the docs for noise_op.
+    noise_op! {
+        /// Attributes work!
+        pub struct MyNoise for Vec2 = // declare the name of the noise and what type it is for
+        /// Attributes work!
+        pub(crate) struct MyNoiseArgs {seed: u32, period: f32,} // declare the data that is used to make the noise operation
+        impl // specifies the start of the noise implementation.
+        /// Attributes work!
+        #[allow(unused)]
+        pub use custom_data: f32 = period; // `use` adds custom data to the noise struct. Visibility works too.
+        pub do fist_noise: GridNoise = GridNoise::new_period(period); // 'do' is the same as 'use', but the value participates as a noise operation.
+        /// Attributes work!
+        do Seeding = Seeding(seed); // If you don't give a 'do' a name, it will make one for you.
+        #[allow(unused)]
+        let GridPoint2{ base, offset } = input.value; // 'let' holds a temporary value during the noise calculation.
+        do MetaOf; // If you don't provide a constructor for a 'do' value, the default will be used.
+        as UNorm, f32, UNorm; // 'as' performs a conversion chain through the types listed.
+        fn (mut x: UNorm) -> [UNorm; 3] { // 'fn' performs a custom noise function. You must name the return type.
+            // You can name the parameter and its type if you want.
+            x = UNorm::new_clamped(*custom_data * offset.x); // You can use the values of 'use' 'do' 'let' operations here.
+            [x, x, x] // You can't use return, but whatever value is left here is passed out as the result.
         }
+        for as f32; // 'for' operates on inner values of an array for this operation only. The next operation will be on the resulting mapped array.
+        fn () -> f32 {input[2]} // 'fn' operations don't need to specify their type, and if they don't specify a name, `input` is the default
+        // whatever value is left here is returned for the noise operation.
     }
 
     #[test]
     fn test_noise_fn() {
-        let noise = Test::new(57, 13, 45);
-        let _test_res = noise.sample(40);
-    }
-
-    #[test]
-    fn test_noise_build() {
-        let outer = 34u32;
-        let noise = noise_build! {
-            input = i32,
-            noise Test = {
-                Test::new(4, 12, 12)
-            },
-            noise White32 = {
-                White32(outer)
-            }
-        };
-        let _test_res = noise.get(40);
+        let noise = MyNoise::from(MyNoiseArgs {
+            seed: 12,
+            period: 10.0,
+        });
+        let _test_res = noise.sample(Vec2::ONE);
     }
 }
