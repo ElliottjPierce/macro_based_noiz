@@ -121,6 +121,16 @@ impl ToTokens for NoiseDefinition {
                     input
                 }
             }
+
+            impl noiz::noise::Noise for #noise_name {
+                type Input = #input;
+            }
+
+            impl From<#args_name> for #noise_name {
+                fn from(value: #args_name) -> Self {
+                    Self::new(value)
+                }
+            }
         });
     }
 }
