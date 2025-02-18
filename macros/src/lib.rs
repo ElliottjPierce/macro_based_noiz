@@ -387,7 +387,6 @@ struct ConversionChain {
 }
 
 struct Morph {
-    name: Option<Ident>,
     mutable: bool,
     input_name: Ident,
     input_type: Option<Type>,
@@ -398,7 +397,6 @@ struct Morph {
 impl Parse for Morph {
     fn parse(input: ParseStream) -> Result<Self> {
         _ = input.parse::<Token![fn]>()?;
-        let name = input.parse::<Ident>().ok();
         let (input_name, mutable, input_type) = if input.peek(Paren) {
             let params;
             parenthesized!(params in input);
@@ -417,7 +415,6 @@ impl Parse for Morph {
         };
         _ = input.parse::<Token![->]>()?;
         Ok(Self {
-            name,
             mutable,
             input_name,
             input_type,
