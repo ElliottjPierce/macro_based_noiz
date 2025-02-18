@@ -193,6 +193,37 @@ macro_rules! convertible {
     };
 }
 
+/// Easily implement [`ConversionChain`] for a type
+#[macro_export]
+macro_rules! convert {
+    // reverses moves another type from the front to the back, slowly reversing it.
+    ($val:tt as $t:ident $(,)? $($next:ident),* where $($ready:ident),+) => {
+        $crate::convert!($val as $($next),* where $($ready),+, $t)
+    };
+
+    // typical entry point
+    ($val:tt as $t:ident, $($next:ident),*) => {
+        // starts reversing the types
+        $crate::convert!($val as $($next),* where $t)
+    };
+
+    ($val:tt as where $t:ident, $($next:ident),*) => {
+        {
+            <$t as $crate::noise::conversions::NoiseConverter>::convert(
+                $crate::convert!($val as $($next),* where);
+            )
+        }
+    };
+
+    // just one type to convert
+    ($val:tt as where $t:ident) => {
+        {
+            <$t as $crate::noise::conversions::NoiseConverter>::convert($val)
+        }
+    };
+
+}
+
 #[cfg(test)]
 mod test {
     use crate::noise::NoiseType;
@@ -205,4 +236,9 @@ mod test {
 
     convertible!(Foo1 = Foo2, |mut _tmp| Foo2);
     convertible!(Foo2 = Foo1, |_tmp| Foo1);
+
+    #[test]
+    fn macro_tests() {
+        let x = convert!(Foo1 as Foo2, Foo2, Foo1);
+    }
 }
