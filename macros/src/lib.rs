@@ -35,7 +35,7 @@ struct NoiseDefinition {
     noise: FullStruct,
     input: Type,
     args: FullStruct,
-    operations: Punctuated<Operation, Token![;]>,
+    operations: Vec<Operation>,
 }
 
 impl Parse for NoiseDefinition {
@@ -62,24 +62,19 @@ impl Parse for NoiseDefinition {
         _ = input.parse::<Token![impl]>()?;
         let mut noise_ops = 0u32;
 
-        let operations = {
-            let mut punctuated = Punctuated::new();
-
-            loop {
-                if input.is_empty() {
-                    break;
-                }
-                let value = Operation::parse(input, &mut noise_ops)?;
-                punctuated.push_value(value);
-                if input.is_empty() {
-                    break;
-                }
-                let punct = input.parse()?;
-                punctuated.push_punct(punct);
+        let mut operations = Vec::new();
+        loop {
+            if input.is_empty() {
+                break;
             }
-
-            punctuated
-        };
+            let value = Operation::parse(input, &mut noise_ops)?;
+            let needs_semi_colon =
+                !matches!(&value, Operation::Hold(_) | Operation::Morph(_)) && !input.is_empty();
+            operations.push(value);
+            if needs_semi_colon || input.peek(Token![;]) {
+                _ = input.parse::<Token![;]>()?;
+            }
+        }
         for op in operations.iter() {
             op.store_fields(&mut noise.data);
         }

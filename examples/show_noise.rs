@@ -28,10 +28,7 @@ use noiz::{
         noise_op,
         norm::UNorm,
         parallel::Parallel,
-        seeded::{
-            Seeded,
-            Seeding,
-        },
+        seeded::Seeding,
         smoothing::{
             Lerp,
             Smooth,
@@ -153,23 +150,11 @@ noise_op! {
     /// Comments still work
     do seeding: Seeding = Seeding(seed);
     #[allow(unused)]
-    let GridPoint2{ base, offset } = input.value;;
+    let GridPoint2{ base, offset } = input.value;
     do MetaOf;
     as UNorm, f32, UNorm;
     fn (mut x: UNorm) -> UNorm {
         x = UNorm::new_clamped(*custom_data * offset.x);
         x
-    };
-}
-
-fn test() {
-    let y = MyNoiseArgs {
-        seed: 0,
-        period: 0.0,
-    };
-
-    let x = MyNoise::new(MyNoiseArgs {
-        seed: 52,
-        period: 10.0,
-    });
+    }
 }
