@@ -26,6 +26,7 @@ use syn::{
     parse_macro_input,
     parse_quote,
     punctuated::Punctuated,
+    token::Paren,
 };
 
 struct NoiseDefinition {
@@ -261,6 +262,14 @@ impl Operation {
             Operation::Morph(morph) => {
                 let block = &morph.block;
                 let input_name = &morph.input_name;
+                if morph
+                    .input_type
+                    .as_ref()
+                    .is_some_and(|input_type| input_type.ne(source_type))
+                {
+                    panic!("Morph block has different input type that what is passed into it.")
+                }
+
                 *source_type = morph.output.clone();
 
                 quote! {
@@ -375,6 +384,7 @@ struct ConversionChain {
 struct Morph {
     name: Option<Ident>,
     input_name: Ident,
+    input_type: Option<Type>,
     output: Type,
     block: Block,
 }
@@ -383,15 +393,26 @@ impl Parse for Morph {
     fn parse(input: ParseStream) -> Result<Self> {
         _ = input.parse::<Token![fn]>()?;
         let name = input.parse::<Ident>().ok();
-        let params;
-        parenthesized!(params in input);
-        let input_name = params
-            .parse()
-            .unwrap_or_else(|_| Ident::new("input", params.span()));
+        let (input_name, input_type) = if input.peek(Paren) {
+            let params;
+            parenthesized!(params in input);
+            let input_name = params
+                .parse()
+                .unwrap_or_else(|_| Ident::new("input", params.span()));
+            let input_type = if params.peek(Token![:]) {
+                Some(params.parse::<Type>()?)
+            } else {
+                None
+            };
+            (input_name, input_type)
+        } else {
+            (Ident::new("input", input.span()), None)
+        };
         _ = input.parse::<Token![->]>()?;
         Ok(Self {
             name,
             input_name,
+            input_type,
             output: input.parse()?,
             block: input.parse()?,
         })
