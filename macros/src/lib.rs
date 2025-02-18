@@ -68,8 +68,7 @@ impl Parse for NoiseDefinition {
                 break;
             }
             let value = Operation::parse(input, &mut noise_ops)?;
-            let needs_semi_colon =
-                !matches!(&value, Operation::Hold(_) | Operation::Morph(_)) && !input.is_empty();
+            let needs_semi_colon = value.needs_following_semi_colon() && !input.is_empty();
             operations.push(value);
             if needs_semi_colon || input.peek(Token![;]) {
                 _ = input.parse::<Token![;]>()?;
@@ -205,18 +204,28 @@ impl ToTokens for FullStruct {
 }
 
 enum Operation {
-    Noise(ConstructableField<Token![do]>),
     Data(ConstructableField<Token![use]>),
+    Noise(ConstructableField<Token![do]>),
     Convert(ConversionChain),
     Morph(Morph),
     Hold(Local),
+    Parallel(Box<Operation>),
 }
 
 impl Operation {
+    fn needs_following_semi_colon(&self) -> bool {
+        match self {
+            Operation::Noise(_) | Operation::Convert(_) | Operation::Data(_) => true,
+            Operation::Morph(_) | Operation::Hold(_) => false,
+            Operation::Parallel(op) => op.needs_following_semi_colon(),
+        }
+    }
+
     fn store_fields(&self, fields: &mut Punctuated<Field, Token![,]>) {
         match self {
             Operation::Data(field) => fields.push(field.field()),
             Operation::Noise(field) => fields.push(field.field()),
+            Operation::Parallel(op) => op.store_fields(fields),
             _ => {}
         }
     }
@@ -233,6 +242,7 @@ impl Operation {
                 let constructor = &field.constructor;
                 quote! {let #name = #constructor;}
             }
+            Operation::Parallel(op) => op.quote_construction(),
             _ => quote! {},
         }
     }
@@ -282,6 +292,19 @@ impl Operation {
                 }
             }
             Operation::Hold(local) => local.to_token_stream(),
+            Operation::Parallel(op) => {
+                let Type::Array(inner) = source_type else {
+                    panic!("Parallel ('for') operations can only be done on arrays.");
+                };
+
+                let op_code = op.quote_noise(&mut inner.elem);
+                quote! {
+                    let input: #source_type = input.map(|input| {
+                        #op_code
+                        input
+                    });
+                }
+            }
         }
     }
 
@@ -296,12 +319,14 @@ impl Operation {
             Ok(Self::Convert(ConversionChain { conversions }))
         } else if let Ok(op) = input.parse::<Morph>() {
             Ok(Self::Morph(op))
+        } else if let Ok(_is_parallel) = input.parse::<Token![for]>() {
+            Ok(Self::Parallel(Box::new(Self::parse(input, noise_amount)?)))
         } else if let Ok(Stmt::Local(op)) = input.parse::<Stmt>() {
             Ok(Self::Hold(op))
         } else {
             Err(input.error(
                 "Unable to parse a noise operation. Expected a noise key word like 'let', 'do', \
-                 'as', or 'morph'.",
+                 'as', 'use', 'for', or 'morph'.",
             ))
         }
     }

@@ -153,8 +153,10 @@ noise_op! {
     let GridPoint2{ base, offset } = input.value;
     do MetaOf;
     as UNorm, f32, UNorm;
-    fn (mut x: UNorm) -> UNorm {
+    fn (mut x: UNorm) -> [UNorm; 3] {
         x = UNorm::new_clamped(*custom_data * offset.x);
-        x
+        [x, x, x]
     }
+    for fn () -> f32 {input.adapt()}
+    fn () -> f32 {input[2]}
 }
