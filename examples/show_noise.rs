@@ -152,10 +152,12 @@ noise_op! {
     do fist_noise: GridNoise = GridNoise::new_period(period);
     /// Comments still work
     do seeding: Seeding = Seeding(seed);
+    #[allow(unused)]
+    let GridPoint2{ base, offset } = input.value;;
     do MetaOf;
     as UNorm, f32, UNorm;
     fn (mut x: UNorm) -> UNorm {
-        x = UNorm::new_clamped(*custom_data);
+        x = UNorm::new_clamped(*custom_data * offset.x);
         x
     };
 }

@@ -12,7 +12,9 @@ use syn::{
     Field,
     FieldMutability,
     Ident,
+    Local,
     Result,
+    Stmt,
     Token,
     Type,
     Visibility,
@@ -212,6 +214,7 @@ enum Operation {
     Data(ConstructableField<Token![use]>),
     Convert(ConversionChain),
     Morph(Morph),
+    Hold(Local),
 }
 
 impl Operation {
@@ -219,7 +222,7 @@ impl Operation {
         match self {
             Operation::Data(field) => fields.push(field.field()),
             Operation::Noise(field) => fields.push(field.field()),
-            Operation::Convert(_) | Operation::Morph(_) => {}
+            _ => {}
         }
     }
 
@@ -235,7 +238,7 @@ impl Operation {
                 let constructor = &field.constructor;
                 quote! {let #name = #constructor;}
             }
-            Operation::Convert(_) | Operation::Morph(_) => quote! {},
+            _ => quote! {},
         }
     }
 
@@ -283,6 +286,7 @@ impl Operation {
                     let input: #source_type  = #block;
                 }
             }
+            Operation::Hold(local) => local.to_token_stream(),
         }
     }
 
@@ -297,6 +301,8 @@ impl Operation {
             Ok(Self::Convert(ConversionChain { conversions }))
         } else if let Ok(op) = input.parse::<Morph>() {
             Ok(Self::Morph(op))
+        } else if let Ok(Stmt::Local(op)) = input.parse::<Stmt>() {
+            Ok(Self::Hold(op))
         } else {
             Err(input.error(
                 "Unable to parse a noise operation. Expected a noise key word like 'let', 'do', \
