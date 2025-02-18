@@ -145,8 +145,8 @@ noise_op! {
     impl
     /// My comment
     #[allow(unused)]
-    use custom_data: f32 = period;
-    do fist_noise: GridNoise = GridNoise::new_period(period);
+    pub use custom_data: f32 = period;
+    pub do fist_noise: GridNoise = GridNoise::new_period(period);
     /// Comments still work
     do seeding: Seeding = Seeding(seed);
     #[allow(unused)]

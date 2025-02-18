@@ -334,9 +334,9 @@ impl Operation {
 
 struct ConstructableField<K: Parse> {
     attrs: Vec<Attribute>,
+    vis: Visibility,
     #[expect(unused, reason = "This makes it easier to parse.")]
     key_word: K,
-    vis: Visibility,
     ident: Ident,
     colon: Token![:],
     ty: Type,
@@ -361,8 +361,8 @@ impl<K: Parse> ConstructableField<K> {
         Ok((
             Self {
                 attrs: Attribute::parse_outer(input)?,
-                key_word: input.parse()?,
                 vis: input.parse()?,
+                key_word: input.parse()?,
                 ident: input.parse()?,
                 colon: input.parse()?,
                 ty: input.parse()?,
@@ -380,8 +380,8 @@ impl<K: Parse> ConstructableField<K> {
         Ok((
             Self {
                 attrs: Attribute::parse_outer(input)?,
-                key_word: input.parse()?,
                 vis: input.parse()?,
+                key_word: input.parse()?,
                 ident: Ident::new(&format!("val{ident_hint}"), input.span()),
                 colon: Default::default(),
                 ty: input.parse()?,
