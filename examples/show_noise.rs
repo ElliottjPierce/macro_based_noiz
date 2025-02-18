@@ -142,7 +142,7 @@ noise_fn! {
 
 noise_op! {
     /// More comment
-    pub struct MyNoise for Vec2 -> u32 =
+    pub struct MyNoise for Vec2 -> UNorm =
     /// More Yay
     pub(crate) struct MyNoiseArgs {seed: u32, period: f32,}
     impl
@@ -153,6 +153,7 @@ noise_op! {
     do fist_noise: GridNoise = GridNoise::new_period(period);
     do seeding: Seeding = Seeding(seed);
     do MetaOf;
+    as UNorm, f32, UNorm;
 }
 
 fn test() {

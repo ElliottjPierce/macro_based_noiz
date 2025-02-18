@@ -207,7 +207,7 @@ impl ToTokens for FullStruct {
 enum Operation {
     Noise(ConstructableField<Token![do]>),
     Data(ConstructableField<Token![let]>),
-    // Convert,
+    Convert(ConversionChain),
     // Morph,
 }
 
@@ -216,6 +216,7 @@ impl Operation {
         match self {
             Operation::Data(field) => fields.push(field.field()),
             Operation::Noise(field) => fields.push(field.field()),
+            Operation::Convert(_) => {}
         }
     }
 
@@ -231,6 +232,7 @@ impl Operation {
                 let constructor = &field.constructor;
                 quote! {let #name = #constructor;}
             }
+            Operation::Convert(_) => quote! {},
         }
     }
 
@@ -243,6 +245,12 @@ impl Operation {
                 let name = &field.ident;
                 quote! {let input = #name.get(input); }
             }
+            Operation::Convert(conversions) => {
+                let conversions = conversions.conversions.iter();
+                quote! {
+                    #(let input = input.adapt::<#conversions>();)*
+                }
+            }
         }
     }
 
@@ -252,6 +260,9 @@ impl Operation {
             Ok(Self::Data(op))
         } else if let Ok(op) = ConstructableField::<Token![do]>::parse(input, *noise_amount) {
             Ok(Self::Noise(op))
+        } else if let Ok(_is_converter) = input.parse::<Token![as]>() {
+            let conversions = Punctuated::parse_separated_nonempty(input)?;
+            Ok(Self::Convert(ConversionChain { conversions }))
         } else {
             Err(input.error(
                 "Unable to parse a noise operation. Expected a noise key word like 'let', 'do'.",
@@ -335,6 +346,10 @@ impl<K: Parse> ConstructableField<K> {
                 Ok(result)
             })
     }
+}
+
+struct ConversionChain {
+    conversions: Punctuated<Type, Token![,]>,
 }
 
 /// Creates a noise operation.
