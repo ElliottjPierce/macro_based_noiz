@@ -76,7 +76,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WorlyNoise;
+type NoiseUsed = WhiteNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -95,13 +95,14 @@ fn make_noise(image: &mut Image) {
     }
 }
 
-noise_fn! {
-    pub struct WhiteNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise Seeding = Seeding(seed),
-        noise MetaOf = MetaOf,
-        into UNorm
-    }
+noise_op! {
+    pub struct WhiteNoise for Vec2 =
+    pub struct WhiteArgs { seed: u32, period: f32 }
+    impl
+    do GridNoise = GridNoise::new_period(period);
+    do Seeding = Seeding(seed);
+    do MetaOf;
+    as UNorm
 }
 
 noise_fn! {

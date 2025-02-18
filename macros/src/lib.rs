@@ -98,7 +98,8 @@ impl ToTokens for NoiseDefinition {
         let noise_name = &noise.name;
         let args_name = &args.name;
         let noise_fields = noise.filed_names().into_iter().collect::<Vec<_>>();
-        let args_fields = args.filed_names().into_iter();
+        let args_fields = args.filed_names().into_iter().collect::<Vec<_>>();
+        let args_params = args.filed_names_and_types();
 
         let mut noise_impl = Vec::new();
         let mut last_type = input.clone();
@@ -112,11 +113,7 @@ impl ToTokens for NoiseDefinition {
             #args
 
             impl #noise_name  {
-                pub fn new(args: #args_name) -> Self {
-                    let #args_name {
-                        #(#args_fields,)*
-                    } = args;
-
+                pub fn new(#args_params) -> Self {
                     #(#creation)*
 
                     Self {
@@ -145,7 +142,10 @@ impl ToTokens for NoiseDefinition {
 
             impl From<#args_name> for #noise_name {
                 fn from(value: #args_name) -> Self {
-                    Self::new(value)
+                    let #args_name {
+                        #(#args_fields,)*
+                    } = value;
+                    Self::new(#(#args_fields,)*)
                 }
             }
         });
@@ -164,6 +164,15 @@ impl FullStruct {
         self.data
             .iter()
             .map(|field| field.ident.as_ref().expect("Fields must be named."))
+    }
+
+    fn filed_names_and_types(&self) -> proc_macro2::TokenStream {
+        let params = self.data.iter().map(|field| {
+            let name = field.ident.as_ref().expect("Fields must be named.");
+            let ty = &field.ty;
+            quote! {#name: #ty}
+        });
+        quote! { #(#params),* }
     }
 }
 
