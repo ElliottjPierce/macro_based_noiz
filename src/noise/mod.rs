@@ -52,6 +52,8 @@ pub mod white;
 
 pub use macros::noise_op;
 
+pub use crate::__convert as convert;
+
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.
 pub trait NoiseOp<I> {
     /// represents the output of a noise function

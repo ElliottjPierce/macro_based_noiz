@@ -5,7 +5,9 @@ use std::marker::PhantomData;
 use super::{
     NoiseOp,
     NoiseType,
+    convert,
 };
+pub use crate::__convertible as convertible;
 
 /// A trait to perform conversions
 pub trait NoiseConverter<O: NoiseType> {
@@ -76,7 +78,7 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        crate::convert!(source => I, C9, CF, O)
+        convert!(source => I, C9, CF, O)
     }
 }
 
@@ -92,7 +94,7 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        crate::convert!(source => I, C8, C9, CF, O)
+        convert!(source => I, C8, C9, CF, O)
     }
 }
 
@@ -109,7 +111,7 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        crate::convert!(source => I, C7, C8, C9, CF, O)
+        convert!(source => I, C7, C8, C9, CF, O)
     }
 }
 
@@ -127,7 +129,7 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        crate::convert!(source => I, C6, C7, C8, C9, CF, O)
+        convert!(source => I, C6, C7, C8, C9, CF, O)
     }
 }
 
@@ -146,15 +148,16 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        crate::convert!(source => I, C5, C6, C7, C8, C9, CF, O)
+        convert!(source => I, C5, C6, C7, C8, C9, CF, O)
     }
 }
 
-/// Easily implement [`ConversionChain`] for a type
+/// Easily implement [`NoiseConverter`] for a type
+#[doc(hidden)]
 #[macro_export]
-macro_rules! convertible {
+macro_rules! __convertible {
     ($type:path = $out:path, | mut $name:ident | $converter:expr) => {
-        $crate::convertible!($type = $out, |$name| {
+        $crate::noise::conversions::convertible!($type = $out, |$name| {
             let mut $name = $name;
             $converter
         });
@@ -174,22 +177,23 @@ macro_rules! convertible {
 }
 
 /// Easily convert one [`NoiseType`] to another
+#[doc(hidden)]
 #[macro_export]
-macro_rules! convert {
+macro_rules! __convert {
     ($val:expr => $t:ty $(,)?) => {
         $crate::noise::NoiseType::adapt::<$t>($val)
     };
 
     ($val:expr => $($next:ty),+) => {
-        $crate::convert!($crate::noise::NoiseType::adapt::< $crate::convert!(type $($next),+) >($val) =>| $($next),+ )
+        $crate::noise::convert!($crate::noise::NoiseType::adapt::< $crate::noise::convert!(type $($next),+) >($val) =>| $($next),+ )
     };
 
     ($val:expr =>| $t:ty, $f:ty $(,)?) => {
-        $crate::noise::conversions::noise_convert::<$t, $f, _>($crate::convert!($val => <$t as $crate::noise::conversions::NoiseConverter<$f>>::Input ))
+        $crate::noise::conversions::noise_convert::<$t, $f, _>($crate::noise::convert!($val => <$t as $crate::noise::conversions::NoiseConverter<$f>>::Input ))
     };
 
     ($val:expr =>| $c:ty, $n:ty, $($next:ty),+) => {
-        $crate::convert!($crate::noise::conversions::noise_convert::<$c, $crate::convert!(type $n, $($next),+), _>($val) => $n, $($next),*)
+        $crate::noise::convert!($crate::noise::conversions::noise_convert::<$c, $crate::noise::convert!(type $n, $($next),+), _>($val) => $n, $($next),*)
     };
 
     (type $n:ty $(,)?) => {
@@ -201,7 +205,7 @@ macro_rules! convert {
     };
 
     (type $n:ty, $n1:ty, $($next:ty),+) => {
-        <$n as $crate::noise::conversions::NoiseConverter< $crate::convert!(type $n1, $($next),+) >>::Input
+        <$n as $crate::noise::conversions::NoiseConverter< $crate::noise::convert!(type $n1, $($next),+) >>::Input
     };
 }
 
@@ -212,7 +216,11 @@ pub fn noise_convert<T: NoiseConverter<O, Input = I>, O: NoiseType, I>(val: I) -
 
 #[cfg(test)]
 mod test {
-    use crate::noise::NoiseType;
+    use crate::noise::{
+        NoiseType,
+        conversions::convertible,
+        convert,
+    };
 
     struct Foo1;
     struct Foo2;

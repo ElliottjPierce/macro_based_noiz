@@ -28,8 +28,10 @@ use bevy_math::{
     UVec4,
 };
 
-use super::NoiseType;
-use crate::convertible;
+use super::{
+    NoiseType,
+    conversions::convertible,
+};
 
 /// easily implement mapping for integers
 macro_rules! impl_mapper {

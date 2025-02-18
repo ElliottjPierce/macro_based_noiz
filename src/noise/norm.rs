@@ -2,8 +2,10 @@
 
 use bevy_math::Curve;
 
-use super::NoiseType;
-use crate::convertible;
+use super::{
+    NoiseType,
+    conversions::convertible,
+};
 
 /// A value that stores an f32 in range (-1, 0)∪(0, 1).
 #[derive(Debug, Clone, Copy, PartialEq)]
