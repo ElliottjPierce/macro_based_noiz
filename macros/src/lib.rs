@@ -101,11 +101,16 @@ impl ToTokens for NoiseDefinition {
             operations,
         } = self;
         let creation = operations.iter().map(Operation::quote_construction);
-        let noise_impl = operations.iter().map(Operation::quote_noise);
         let noise_name = &noise.name;
         let args_name = &args.name;
         let noise_fields = noise.filed_names().into_iter().collect::<Vec<_>>();
         let args_fields = args.filed_names().into_iter();
+
+        let mut noise_impl = Vec::new();
+        let mut last_type = input.clone();
+        for op in operations.iter() {
+            noise_impl.push(op.quote_noise(&mut last_type));
+        }
 
         tokens.extend(quote! {
             #noise
@@ -236,16 +241,19 @@ impl Operation {
         }
     }
 
-    fn quote_noise(&self) -> proc_macro2::TokenStream {
+    fn quote_noise(&self, source_type: &mut Type) -> proc_macro2::TokenStream {
         match self {
             Operation::Data(_) => {
                 quote! {}
             }
             Operation::Noise(field) => {
+                let noise_type = &field.ty;
+                *source_type = parse_quote!(<#noise_type as NoiseOp<#source_type>>::Output);
                 let name = &field.ident;
                 quote! {let input = #name.get(input); }
             }
             Operation::Convert(conversions) => {
+                *source_type = conversions.conversions.last().unwrap().clone();
                 let conversions = conversions.conversions.iter();
                 quote! {
                     #(let input = input.adapt::<#conversions>();)*
