@@ -16,7 +16,10 @@ use noiz::{
             MetaOf,
         },
         conversions::Adapter,
-        grid::GridNoise,
+        grid::{
+            GridNoise,
+            GridPoint2,
+        },
         interpolating::Cubic,
         merging::{
             EuclideanDistance,
@@ -25,7 +28,10 @@ use noiz::{
         noise_op,
         norm::UNorm,
         parallel::Parallel,
-        seeded::Seeding,
+        seeded::{
+            Seeded,
+            Seeding,
+        },
         smoothing::{
             Lerp,
             Smooth,
@@ -146,7 +152,7 @@ noise_op! {
     let more_data: f32 = period;
     do fist_noise: GridNoise = GridNoise::new_period(period);
     do seeding: Seeding = Seeding(seed);
-    do seed: MetaOf;
+    do MetaOf;
 }
 
 fn test() {

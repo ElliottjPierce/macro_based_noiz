@@ -19,6 +19,7 @@ use syn::{
     parse::{
         Parse,
         ParseStream,
+        discouraged::Speculative,
     },
     parse_macro_input,
     parse_quote,
@@ -57,7 +58,26 @@ impl Parse for NoiseDefinition {
         let args = input.parse()?;
 
         _ = input.parse::<Token![impl]>()?;
-        let operations = Punctuated::<Operation, Token![;]>::parse_terminated(input)?;
+        let mut noise_ops = 0u32;
+
+        let operations = {
+            let mut punctuated = Punctuated::new();
+
+            loop {
+                if input.is_empty() {
+                    break;
+                }
+                let value = Operation::parse(input, &mut noise_ops)?;
+                punctuated.push_value(value);
+                if input.is_empty() {
+                    break;
+                }
+                let punct = input.parse()?;
+                punctuated.push_punct(punct);
+            }
+
+            punctuated
+        };
         for op in operations.iter() {
             op.store_fields(&mut noise.data);
         }
@@ -225,17 +245,17 @@ impl Operation {
             }
         }
     }
-}
 
-impl Parse for Operation {
-    fn parse(input: ParseStream) -> Result<Self> {
-        if let Ok(op) = input.parse::<ConstructableField<Token![let]>>() {
+    fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
+        *noise_amount += 1;
+        if let Ok(op) = ConstructableField::<Token![let]>::parse(input, *noise_amount) {
             Ok(Self::Data(op))
-        } else if let Ok(op) = input.parse::<ConstructableField<Token![do]>>() {
+        } else if let Ok(op) = ConstructableField::<Token![do]>::parse(input, *noise_amount) {
             Ok(Self::Noise(op))
         } else {
-            Err(input
-                .error("Unable to parse a noise operation. Expected a noise key word like 'let'."))
+            Err(input.error(
+                "Unable to parse a noise operation. Expected a noise key word like 'let', 'do'.",
+            ))
         }
     }
 }
@@ -264,22 +284,52 @@ impl<K: Parse> ConstructableField<K> {
             ty: self.ty.clone(),
         }
     }
-}
 
-impl<K: Parse> Parse for ConstructableField<K> {
-    fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Self {
-            attrs: Attribute::parse_outer(input)?,
-            key_word: input.parse()?,
-            vis: input.parse()?,
-            ident: input.parse()?,
-            colon: input.parse()?,
-            ty: input.parse()?,
-            eq: input.parse().unwrap_or_default(),
-            constructor: input
-                .parse()
-                .unwrap_or_else(|_| parse_quote! {Default::default()}),
-        })
+    fn parse_named(input: ParseStream) -> Result<(Self, ParseStream)> {
+        Ok((
+            Self {
+                attrs: Attribute::parse_outer(input)?,
+                key_word: input.parse()?,
+                vis: input.parse()?,
+                ident: input.parse()?,
+                colon: input.parse()?,
+                ty: input.parse()?,
+                eq: input.parse().unwrap_or_default(),
+                constructor: input
+                    .parse()
+                    .unwrap_or_else(|_| parse_quote! {Default::default()}),
+            },
+            input,
+        ))
+    }
+
+    fn parse_unnamed(input: ParseStream, ident_hint: u32) -> Result<(Self, ParseStream)> {
+        Ok((
+            Self {
+                attrs: Attribute::parse_outer(input)?,
+                key_word: input.parse()?,
+                vis: input.parse()?,
+                ident: Ident::new(&format!("val{ident_hint}"), input.span()),
+                colon: Default::default(),
+                ty: input.parse()?,
+                eq: input.parse().unwrap_or_default(),
+                constructor: input
+                    .parse()
+                    .unwrap_or_else(|_| parse_quote! {Default::default()}),
+            },
+            input,
+        ))
+    }
+
+    fn parse(input: ParseStream, ident_hint: u32) -> Result<Self> {
+        let name_fork = input.fork();
+        let unnamed_fork = input.fork();
+        Self::parse_named(&name_fork)
+            .or_else(|_| Self::parse_unnamed(&unnamed_fork, ident_hint))
+            .map(|(result, fork)| {
+                input.advance_to(fork);
+                result
+            })
     }
 }
 
