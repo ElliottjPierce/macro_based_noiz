@@ -10,6 +10,7 @@ use syn::{
     Attribute,
     Expr,
     Field,
+    FieldMutability,
     Ident,
     Result,
     Token,
@@ -188,7 +189,7 @@ impl ToTokens for FullStruct {
 
 enum Operation {
     // Noise,
-    Data(ConstructableField),
+    Data(ConstructableField<key_words::data>),
     // Convert,
     // Morph,
 }
@@ -197,18 +198,23 @@ impl Operation {
     fn store_fields(&self, fields: &mut Punctuated<Field, Token![,]>) {
         match self {
             Operation::Data(constructable_field) => {
-                fields.push(constructable_field.field.clone());
+                fields.push(Field {
+                    attrs: constructable_field.attrs.clone(),
+                    vis: constructable_field.vis.clone(),
+                    mutability: FieldMutability::None,
+                    ident: Some(constructable_field.ident.clone()),
+                    colon_token: Some(constructable_field.colon.clone()),
+                    ty: constructable_field.ty.clone(),
+                });
             }
         }
     }
 
     fn quote_construction(&self) -> proc_macro2::TokenStream {
         match self {
-            Operation::Data(ConstructableField { field, constructor }) => {
-                let name = field
-                    .ident
-                    .as_ref()
-                    .expect("Fields must have names in noise operations.");
+            Operation::Data(field) => {
+                let name = &field.ident;
+                let constructor = &field.constructor;
                 quote! {let #name = #constructor;}
             }
         }
@@ -225,22 +231,38 @@ impl Operation {
 
 impl Parse for Operation {
     fn parse(input: ParseStream) -> Result<Self> {
-        let peeker = input.lookahead1();
-        if peeker.peek(key_words::data) {
-            _ = input.parse::<key_words::data>()?;
-            let field = Field::parse_named(input)?;
-            _ = input.parse::<Token![=]>()?;
-            let constructor = input.parse()?;
-            Ok(Self::Data(ConstructableField { field, constructor }))
+        if let Ok(op) = input.parse::<ConstructableField<key_words::data>>() {
+            Ok(Self::Data(op))
         } else {
             Err(input.error("Unable to parse a noise operation. Expected a key word like 'data'."))
         }
     }
 }
 
-struct ConstructableField {
-    field: Field,
+struct ConstructableField<K: Parse> {
+    attrs: Vec<Attribute>,
+    key_word: K,
+    vis: Visibility,
+    ident: Ident,
+    colon: Token![:],
+    ty: Type,
+    eq: Token![=],
     constructor: Expr,
+}
+
+impl<K: Parse> Parse for ConstructableField<K> {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            attrs: Attribute::parse_outer(input)?,
+            key_word: input.parse()?,
+            vis: input.parse()?,
+            ident: input.parse()?,
+            colon: input.parse()?,
+            ty: input.parse()?,
+            eq: input.parse()?,
+            constructor: input.parse()?,
+        })
+    }
 }
 
 /// Creates a noise operation.

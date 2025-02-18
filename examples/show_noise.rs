@@ -140,9 +140,9 @@ noise_op! {
     /// More Yay
     pub(crate) struct MyNoiseArgs {seed: u32, period: f32,}
     impl
-    data
-    /// This is a comment
-    #[allow(unused)] my_data: u32 = 5;
+    /// My comment
+    #[allow(unused)]
+    data my_data: u32 = 5;
     data more_data: f32 = period;
 }
 
