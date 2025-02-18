@@ -209,7 +209,7 @@ impl ToTokens for FullStruct {
 
 enum Operation {
     Noise(ConstructableField<Token![do]>),
-    Data(ConstructableField<Token![let]>),
+    Data(ConstructableField<Token![use]>),
     Convert(ConversionChain),
     Morph(Morph),
 }
@@ -278,6 +278,7 @@ impl Operation {
                     quote! {let #input_name = input;}
                 };
                 quote! {
+                    #[allow(unused)]
                     #input
                     let input: #source_type  = #block;
                 }
@@ -287,7 +288,7 @@ impl Operation {
 
     fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
         *noise_amount += 1;
-        if let Ok(op) = ConstructableField::<Token![let]>::parse(input, *noise_amount) {
+        if let Ok(op) = ConstructableField::<Token![use]>::parse(input, *noise_amount) {
             Ok(Self::Data(op))
         } else if let Ok(op) = ConstructableField::<Token![do]>::parse(input, *noise_amount) {
             Ok(Self::Noise(op))

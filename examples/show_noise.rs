@@ -148,14 +148,14 @@ noise_op! {
     impl
     /// My comment
     #[allow(unused)]
-    let my_data: u32 = 5;
-    let more_data: f32 = period;
+    use custom_data: f32 = period;
     do fist_noise: GridNoise = GridNoise::new_period(period);
+    /// Comments still work
     do seeding: Seeding = Seeding(seed);
     do MetaOf;
     as UNorm, f32, UNorm;
     fn (mut x: UNorm) -> UNorm {
-        x = UNorm::new_clamped(1.0);
+        x = UNorm::new_clamped(*custom_data);
         x
     };
 }
