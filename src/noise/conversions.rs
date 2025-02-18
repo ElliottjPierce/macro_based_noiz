@@ -76,9 +76,6 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        // let source = I::convert(source);
-        // let source = C9::convert(source);
-        // CF::convert(source)
         crate::convert!(source => I, C9, CF, O)
     }
 }
@@ -95,10 +92,7 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        let source = I::convert(source);
-        let source = C8::convert(source);
-        let source = C9::convert(source);
-        CF::convert(source)
+        crate::convert!(source => I, C8, C9, CF, O)
     }
 }
 
@@ -115,11 +109,7 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        let source = I::convert(source);
-        let source = C7::convert(source);
-        let source = C8::convert(source);
-        let source = C9::convert(source);
-        CF::convert(source)
+        crate::convert!(source => I, C7, C8, C9, CF, O)
     }
 }
 
@@ -137,12 +127,7 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        let source = I::convert(source);
-        let source = C6::convert(source);
-        let source = C7::convert(source);
-        let source = C8::convert(source);
-        let source = C9::convert(source);
-        CF::convert(source)
+        crate::convert!(source => I, C6, C7, C8, C9, CF, O)
     }
 }
 
@@ -161,13 +146,7 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        let source = I::convert(source);
-        let source = C5::convert(source);
-        let source = C6::convert(source);
-        let source = C7::convert(source);
-        let source = C8::convert(source);
-        let source = C9::convert(source);
-        CF::convert(source)
+        crate::convert!(source => I, C5, C6, C7, C8, C9, CF, O)
     }
 }
 
@@ -239,19 +218,22 @@ mod test {
     struct Foo2;
     struct Foo3;
     struct Foo4;
+    struct Foo5;
 
     impl NoiseType for Foo1 {}
     impl NoiseType for Foo2 {}
     impl NoiseType for Foo3 {}
     impl NoiseType for Foo4 {}
+    impl NoiseType for Foo5 {}
 
     convertible!(Foo1 = Foo2, |mut _tmp| Foo2);
     convertible!(Foo2 = Foo3, |_tmp| Foo3);
     convertible!(Foo3 = Foo4, |_tmp| Foo4);
-    convertible!(Foo4 = Foo1, |_tmp| Foo1);
+    convertible!(Foo4 = Foo5, |_tmp| Foo5);
+    convertible!(Foo5 = Foo1, |_tmp| Foo1);
 
     #[test]
     fn macro_tests() {
-        let _x = convert!(Foo1 => Foo2, Foo3, Foo4);
+        let _x = convert!(Foo1 => Foo1, Foo2, Foo3, Foo3, Foo4, Foo5, Foo1, Foo1, Foo2);
     }
 }
