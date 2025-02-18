@@ -399,7 +399,7 @@ impl Parse for Morph {
             let input_name = params
                 .parse()
                 .unwrap_or_else(|_| Ident::new("input", params.span()));
-            let input_type = if params.peek(Token![:]) {
+            let input_type = if params.parse::<Token![:]>().is_ok() {
                 Some(params.parse::<Type>()?)
             } else {
                 None
