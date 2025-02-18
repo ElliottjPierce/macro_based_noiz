@@ -196,8 +196,12 @@ macro_rules! convertible {
 /// Easily convert one [`NoiseType`] to another
 #[macro_export]
 macro_rules! convert {
-    ($val:tt as $($t:ident),*) => {
-        $val $(.adapt::<$t>())*
+    ($val:tt as $t:ident $(,)?) => {
+        $crate::noise::NoiseType::adapt::<$t>($val)
+    };
+
+    ($val:tt as $t:ident, $($next:ident),*) => {
+        $crate::noise::NoiseType::adapt::<$t>($crate::convert!($val as $($next),*))
     };
 }
 
@@ -216,6 +220,6 @@ mod test {
 
     #[test]
     fn macro_tests() {
-        let x = convert!(Foo1 as Foo2, Foo2, Foo1);
+        let _x = convert!(Foo1 as Foo2, Foo2, Foo1);
     }
 }
