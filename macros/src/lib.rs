@@ -285,7 +285,7 @@ impl<K: Parse> ConstructableField<K> {
         }
     }
 
-    fn parse_named(input: ParseStream) -> Result<(Self, ParseStream)> {
+    fn parse_named_no_constructor(input: ParseStream) -> Result<(Self, ParseStream)> {
         Ok((
             Self {
                 attrs: Attribute::parse_outer(input)?,
@@ -294,16 +294,17 @@ impl<K: Parse> ConstructableField<K> {
                 ident: input.parse()?,
                 colon: input.parse()?,
                 ty: input.parse()?,
-                eq: input.parse().unwrap_or_default(),
-                constructor: input
-                    .parse()
-                    .unwrap_or_else(|_| parse_quote! {Default::default()}),
+                eq: Default::default(),
+                constructor: parse_quote! {Default::default()},
             },
             input,
         ))
     }
 
-    fn parse_unnamed(input: ParseStream, ident_hint: u32) -> Result<(Self, ParseStream)> {
+    fn parse_unnamed_no_constructor(
+        input: ParseStream,
+        ident_hint: u32,
+    ) -> Result<(Self, ParseStream)> {
         Ok((
             Self {
                 attrs: Attribute::parse_outer(input)?,
@@ -312,10 +313,8 @@ impl<K: Parse> ConstructableField<K> {
                 ident: Ident::new(&format!("val{ident_hint}"), input.span()),
                 colon: Default::default(),
                 ty: input.parse()?,
-                eq: input.parse().unwrap_or_default(),
-                constructor: input
-                    .parse()
-                    .unwrap_or_else(|_| parse_quote! {Default::default()}),
+                eq: Default::default(),
+                constructor: parse_quote! {Default::default()},
             },
             input,
         ))
@@ -324,11 +323,16 @@ impl<K: Parse> ConstructableField<K> {
     fn parse(input: ParseStream, ident_hint: u32) -> Result<Self> {
         let name_fork = input.fork();
         let unnamed_fork = input.fork();
-        Self::parse_named(&name_fork)
-            .or_else(|_| Self::parse_unnamed(&unnamed_fork, ident_hint))
-            .map(|(result, fork)| {
+        Self::parse_named_no_constructor(&name_fork)
+            .or_else(|_| Self::parse_unnamed_no_constructor(&unnamed_fork, ident_hint))
+            .and_then(|(mut result, fork)| {
                 input.advance_to(fork);
-                result
+
+                if let Ok(_found_custom_constructor) = input.parse::<Token![=]>() {
+                    result.constructor = input.parse::<Expr>()?;
+                }
+
+                Ok(result)
             })
     }
 }
