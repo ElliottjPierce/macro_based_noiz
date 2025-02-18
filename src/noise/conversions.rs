@@ -193,35 +193,12 @@ macro_rules! convertible {
     };
 }
 
-/// Easily implement [`ConversionChain`] for a type
+/// Easily convert one [`NoiseType`] to another
 #[macro_export]
 macro_rules! convert {
-    // reverses moves another type from the front to the back, slowly reversing it.
-    ($val:tt as $t:ident $(,)? $($next:ident),* where $($ready:ident),+) => {
-        $crate::convert!($val as $($next),* where $($ready),+, $t)
+    ($val:tt as $($t:ident),*) => {
+        $val $(.adapt::<$t>())*
     };
-
-    // typical entry point
-    ($val:tt as $t:ident, $($next:ident),*) => {
-        // starts reversing the types
-        $crate::convert!($val as $($next),* where $t)
-    };
-
-    ($val:tt as where $t:ident, $($next:ident),*) => {
-        {
-            <$t as $crate::noise::conversions::NoiseConverter>::convert(
-                $crate::convert!($val as $($next),* where);
-            )
-        }
-    };
-
-    // just one type to convert
-    ($val:tt as where $t:ident) => {
-        {
-            <$t as $crate::noise::conversions::NoiseConverter>::convert($val)
-        }
-    };
-
 }
 
 #[cfg(test)]
