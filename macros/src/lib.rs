@@ -272,8 +272,13 @@ impl Operation {
 
                 *source_type = morph.output.clone();
 
+                let input = if morph.mutable {
+                    quote! {let mut #input_name = input;}
+                } else {
+                    quote! {let #input_name = input;}
+                };
                 quote! {
-                    let #input_name = input;
+                    #input
                     let input: #source_type  = #block;
                 }
             }
@@ -383,6 +388,7 @@ struct ConversionChain {
 
 struct Morph {
     name: Option<Ident>,
+    mutable: bool,
     input_name: Ident,
     input_type: Option<Type>,
     output: Type,
@@ -393,9 +399,10 @@ impl Parse for Morph {
     fn parse(input: ParseStream) -> Result<Self> {
         _ = input.parse::<Token![fn]>()?;
         let name = input.parse::<Ident>().ok();
-        let (input_name, input_type) = if input.peek(Paren) {
+        let (input_name, mutable, input_type) = if input.peek(Paren) {
             let params;
             parenthesized!(params in input);
+            let mutable = params.parse::<Token![mut]>().is_ok();
             let input_name = params
                 .parse()
                 .unwrap_or_else(|_| Ident::new("input", params.span()));
@@ -404,13 +411,14 @@ impl Parse for Morph {
             } else {
                 None
             };
-            (input_name, input_type)
+            (input_name, mutable, input_type)
         } else {
-            (Ident::new("input", input.span()), None)
+            (Ident::new("input", input.span()), false, None)
         };
         _ = input.parse::<Token![->]>()?;
         Ok(Self {
             name,
+            mutable,
             input_name,
             input_type,
             output: input.parse()?,
