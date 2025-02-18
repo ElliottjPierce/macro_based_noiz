@@ -3,7 +3,6 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::{
     ToTokens,
-    format_ident,
     quote,
 };
 use syn::{
@@ -22,9 +21,7 @@ use syn::{
         ParseStream,
     },
     parse_macro_input,
-    parse_quote,
     punctuated::Punctuated,
-    token,
 };
 
 struct NoiseDefinition {
@@ -236,11 +233,13 @@ impl Parse for Operation {
 
 struct ConstructableField<K: Parse> {
     attrs: Vec<Attribute>,
+    #[expect(unused, reason = "This makes it easier to parse.")]
     key_word: K,
     vis: Visibility,
     ident: Ident,
     colon: Token![:],
     ty: Type,
+    #[expect(unused, reason = "This makes it easier to parse.")]
     eq: Token![=],
     constructor: Expr,
 }
