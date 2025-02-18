@@ -154,6 +154,9 @@ noise_op! {
     do seeding: Seeding = Seeding(seed);
     do MetaOf;
     as UNorm, f32, UNorm;
+    fn -> UNorm {
+        input
+    };
 }
 
 fn test() {

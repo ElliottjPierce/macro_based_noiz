@@ -7,6 +7,7 @@ use quote::{
 };
 use syn::{
     Attribute,
+    Block,
     Expr,
     Field,
     FieldMutability,
@@ -16,6 +17,7 @@ use syn::{
     Type,
     Visibility,
     braced,
+    parenthesized,
     parse::{
         Parse,
         ParseStream,
@@ -208,7 +210,7 @@ enum Operation {
     Noise(ConstructableField<Token![do]>),
     Data(ConstructableField<Token![let]>),
     Convert(ConversionChain),
-    // Morph,
+    Morph(Morph),
 }
 
 impl Operation {
@@ -216,7 +218,7 @@ impl Operation {
         match self {
             Operation::Data(field) => fields.push(field.field()),
             Operation::Noise(field) => fields.push(field.field()),
-            Operation::Convert(_) => {}
+            Operation::Convert(_) | Operation::Morph(_) => {}
         }
     }
 
@@ -232,7 +234,7 @@ impl Operation {
                 let constructor = &field.constructor;
                 quote! {let #name = #constructor;}
             }
-            Operation::Convert(_) => quote! {},
+            Operation::Convert(_) | Operation::Morph(_) => quote! {},
         }
     }
 
@@ -243,15 +245,27 @@ impl Operation {
             }
             Operation::Noise(field) => {
                 let noise_type = &field.ty;
-                *source_type = parse_quote!(<#noise_type as NoiseOp<#source_type>>::Output);
+                *source_type =
+                    parse_quote!(<#noise_type as noiz::noise::NoiseOp<#source_type>>::Output);
                 let name = &field.ident;
-                quote! {let input = #name.get(input); }
+                quote! {let input: #source_type = #name.get(input); }
             }
             Operation::Convert(conversions) => {
                 *source_type = conversions.conversions.last().unwrap().clone();
                 let conversions = conversions.conversions.iter();
                 quote! {
                     #(let input = input.adapt::<#conversions>();)*
+                    let input: #source_type = input;
+                }
+            }
+            Operation::Morph(morph) => {
+                let block = &morph.block;
+                let input_name = &morph.input_name;
+                *source_type = morph.output.clone();
+
+                quote! {
+                    let #input_name = input;
+                    let input: #source_type  = #block;
                 }
             }
         }
@@ -266,9 +280,12 @@ impl Operation {
         } else if let Ok(_is_converter) = input.parse::<Token![as]>() {
             let conversions = Punctuated::parse_separated_nonempty(input)?;
             Ok(Self::Convert(ConversionChain { conversions }))
+        } else if let Ok(op) = input.parse::<Morph>() {
+            Ok(Self::Morph(op))
         } else {
             Err(input.error(
-                "Unable to parse a noise operation. Expected a noise key word like 'let', 'do'.",
+                "Unable to parse a noise operation. Expected a noise key word like 'let', 'do', \
+                 'as', or 'morph'.",
             ))
         }
     }
@@ -353,6 +370,32 @@ impl<K: Parse> ConstructableField<K> {
 
 struct ConversionChain {
     conversions: Punctuated<Type, Token![,]>,
+}
+
+struct Morph {
+    name: Option<Ident>,
+    input_name: Ident,
+    output: Type,
+    block: Block,
+}
+
+impl Parse for Morph {
+    fn parse(input: ParseStream) -> Result<Self> {
+        _ = input.parse::<Token![fn]>()?;
+        let name = input.parse::<Ident>().ok();
+        let params;
+        parenthesized!(params in input);
+        let input_name = params
+            .parse()
+            .unwrap_or_else(|_| Ident::new("input", params.span()));
+        _ = input.parse::<Token![->]>()?;
+        Ok(Self {
+            name,
+            input_name,
+            output: input.parse()?,
+            block: input.parse()?,
+        })
+    }
 }
 
 /// Creates a noise operation.
