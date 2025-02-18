@@ -16,7 +16,10 @@ use noiz::{
             MetaOf,
         },
         conversions::Adapter,
-        grid::GridNoise,
+        grid::{
+            GridNoise,
+            GridPoint2,
+        },
         interpolating::Cubic,
         merging::{
             EuclideanDistance,
@@ -136,7 +139,7 @@ noise_fn! {
 
 noise_op! {
     /// More comment
-    pub struct MyNoise for Vec2 -> Vec2 =
+    pub struct MyNoise for Vec2 -> GridPoint2 =
     /// More Yay
     pub(crate) struct MyNoiseArgs {seed: u32, period: f32,}
     impl
@@ -144,14 +147,10 @@ noise_op! {
     #[allow(unused)]
     let my_data: u32 = 5;
     let more_data: f32 = period;
+    do fist_noise: GridNoise = GridNoise::new_period(period);
 }
 
 fn test() {
-    let x = MyNoise {
-        my_data: 5,
-        more_data: 0.0,
-    };
-
     let y = MyNoiseArgs {
         seed: 0,
         period: 0.0,

@@ -83,7 +83,7 @@ impl ToTokens for NoiseDefinition {
         let noise_impl = operations.iter().map(Operation::quote_noise);
         let noise_name = &noise.name;
         let args_name = &args.name;
-        let noise_fields = noise.filed_names().into_iter();
+        let noise_fields = noise.filed_names().into_iter().collect::<Vec<_>>();
         let args_fields = args.filed_names().into_iter();
 
         tokens.extend(quote! {
@@ -109,7 +109,12 @@ impl ToTokens for NoiseDefinition {
                 type Output = #output;
 
                 fn get(&self, input: #input) -> Self::Output{
+                    let Self {
+                        #(#noise_fields,)*
+                    } = self;
+
                     #(#noise_impl)*
+
                     input
                 }
             }
@@ -179,7 +184,7 @@ impl ToTokens for FullStruct {
 }
 
 enum Operation {
-    // Noise,
+    Noise(ConstructableField<Token![do]>),
     Data(ConstructableField<Token![let]>),
     // Convert,
     // Morph,
@@ -188,22 +193,19 @@ enum Operation {
 impl Operation {
     fn store_fields(&self, fields: &mut Punctuated<Field, Token![,]>) {
         match self {
-            Operation::Data(constructable_field) => {
-                fields.push(Field {
-                    attrs: constructable_field.attrs.clone(),
-                    vis: constructable_field.vis.clone(),
-                    mutability: FieldMutability::None,
-                    ident: Some(constructable_field.ident.clone()),
-                    colon_token: Some(constructable_field.colon.clone()),
-                    ty: constructable_field.ty.clone(),
-                });
-            }
+            Operation::Data(field) => fields.push(field.field()),
+            Operation::Noise(field) => fields.push(field.field()),
         }
     }
 
     fn quote_construction(&self) -> proc_macro2::TokenStream {
         match self {
             Operation::Data(field) => {
+                let name = &field.ident;
+                let constructor = &field.constructor;
+                quote! {let #name = #constructor;}
+            }
+            Operation::Noise(field) => {
                 let name = &field.ident;
                 let constructor = &field.constructor;
                 quote! {let #name = #constructor;}
@@ -216,6 +218,10 @@ impl Operation {
             Operation::Data(_) => {
                 quote! {}
             }
+            Operation::Noise(field) => {
+                let name = &field.ident;
+                quote! {let input = #name.get(input); }
+            }
         }
     }
 }
@@ -224,6 +230,8 @@ impl Parse for Operation {
     fn parse(input: ParseStream) -> Result<Self> {
         if let Ok(op) = input.parse::<ConstructableField<Token![let]>>() {
             Ok(Self::Data(op))
+        } else if let Ok(op) = input.parse::<ConstructableField<Token![do]>>() {
+            Ok(Self::Noise(op))
         } else {
             Err(input
                 .error("Unable to parse a noise operation. Expected a noise key word like 'let'."))
@@ -242,6 +250,19 @@ struct ConstructableField<K: Parse> {
     #[expect(unused, reason = "This makes it easier to parse.")]
     eq: Token![=],
     constructor: Expr,
+}
+
+impl<K: Parse> ConstructableField<K> {
+    fn field(&self) -> Field {
+        Field {
+            attrs: self.attrs.clone(),
+            vis: self.vis.clone(),
+            mutability: FieldMutability::None,
+            ident: Some(self.ident.clone()),
+            colon_token: Some(self.colon.clone()),
+            ty: self.ty.clone(),
+        }
+    }
 }
 
 impl<K: Parse> Parse for ConstructableField<K> {
