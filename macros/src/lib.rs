@@ -21,6 +21,7 @@ use syn::{
         ParseStream,
     },
     parse_macro_input,
+    parse_quote,
     punctuated::Punctuated,
 };
 
@@ -274,8 +275,10 @@ impl<K: Parse> Parse for ConstructableField<K> {
             ident: input.parse()?,
             colon: input.parse()?,
             ty: input.parse()?,
-            eq: input.parse()?,
-            constructor: input.parse()?,
+            eq: input.parse().unwrap_or_default(),
+            constructor: input
+                .parse()
+                .unwrap_or_else(|_| parse_quote! {Default::default()}),
         })
     }
 }
