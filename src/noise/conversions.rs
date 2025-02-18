@@ -76,9 +76,10 @@ impl<
 
     #[inline]
     fn convert(source: Self::Input) -> O {
-        let source = I::convert(source);
-        let source = C9::convert(source);
-        CF::convert(source)
+        // let source = I::convert(source);
+        // let source = C9::convert(source);
+        // CF::convert(source)
+        crate::convert!(source => I, C9, CF, O)
     }
 }
 
@@ -196,13 +197,38 @@ macro_rules! convertible {
 /// Easily convert one [`NoiseType`] to another
 #[macro_export]
 macro_rules! convert {
-    ($val:tt as $t:ident $(,)?) => {
+    ($val:expr => $t:ty $(,)?) => {
         $crate::noise::NoiseType::adapt::<$t>($val)
     };
 
-    ($val:tt as $t:ident, $($next:ident),*) => {
-        $crate::noise::NoiseType::adapt::<$t>($crate::convert!($val as $($next),*))
+    ($val:expr => $($next:ty),+) => {
+        $crate::convert!($crate::noise::NoiseType::adapt::< $crate::convert!(type $($next),+) >($val) =>| $($next),+ )
     };
+
+    ($val:expr =>| $t:ty, $f:ty $(,)?) => {
+        $crate::noise::conversions::noise_convert::<$t, $f, _>($crate::convert!($val => <$t as $crate::noise::conversions::NoiseConverter<$f>>::Input ))
+    };
+
+    ($val:expr =>| $c:ty, $n:ty, $($next:ty),+) => {
+        $crate::convert!($crate::noise::conversions::noise_convert::<$c, $crate::convert!(type $n, $($next),+), _>($val) => $n, $($next),*)
+    };
+
+    (type $n:ty $(,)?) => {
+        $n
+    };
+
+    (type $n:ty, $f:ty $(,)?) => {
+        <$n as $crate::noise::conversions::NoiseConverter<$f>>::Input
+    };
+
+    (type $n:ty, $n1:ty, $($next:ty),+) => {
+        <$n as $crate::noise::conversions::NoiseConverter< $crate::convert!(type $n1, $($next),+) >>::Input
+    };
+}
+
+/// Uses `T` to convert a value of `I` to a value of `O`.
+pub fn noise_convert<T: NoiseConverter<O, Input = I>, O: NoiseType, I>(val: I) -> O {
+    T::convert(val)
 }
 
 #[cfg(test)]
@@ -211,15 +237,21 @@ mod test {
 
     struct Foo1;
     struct Foo2;
+    struct Foo3;
+    struct Foo4;
 
     impl NoiseType for Foo1 {}
     impl NoiseType for Foo2 {}
+    impl NoiseType for Foo3 {}
+    impl NoiseType for Foo4 {}
 
     convertible!(Foo1 = Foo2, |mut _tmp| Foo2);
-    convertible!(Foo2 = Foo1, |_tmp| Foo1);
+    convertible!(Foo2 = Foo3, |_tmp| Foo3);
+    convertible!(Foo3 = Foo4, |_tmp| Foo4);
+    convertible!(Foo4 = Foo1, |_tmp| Foo1);
 
     #[test]
     fn macro_tests() {
-        let _x = convert!(Foo1 as Foo2, Foo2, Foo1);
+        let _x = convert!(Foo1 => Foo2, Foo3, Foo4);
     }
 }
