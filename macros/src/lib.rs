@@ -170,7 +170,7 @@ impl FullStruct {
         let params = self.data.iter().map(|field| {
             let name = field.ident.as_ref().expect("Fields must be named.");
             let ty = &field.ty;
-            quote! {#name: #ty}
+            quote! {mut #name: #ty}
         });
         quote! { #(#params),* }
     }
@@ -272,8 +272,7 @@ impl Operation {
                 *source_type = conversions.conversions.last().unwrap().clone();
                 let conversions = conversions.conversions.iter();
                 quote! {
-                    #(let input = input.adapt::<#conversions>();)*
-                    let input: #source_type = input;
+                    let input: #source_type = noiz::noise::convert!(input => #(#conversions),*);
                 }
             }
             Operation::Morph(morph) => {
