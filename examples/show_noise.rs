@@ -7,36 +7,34 @@ use bevy::{
         TextureFormat,
     },
 };
-use noiz::{
-    noise::{
-        Noise,
-        NoiseType,
-        associating::{
-            MapValue,
-            MetaOf,
-        },
-        conversions::Adapter,
-        grid::GridNoise,
-        interpolating::Cubic,
-        merging::{
-            EuclideanDistance,
-            ManhatanDistance,
-        },
-        norm::UNorm,
-        parallel::Parallel,
-        seeded::Seeding,
-        smoothing::{
-            Lerp,
-            Smooth,
-        },
-        voronoi::{
-            Cellular,
-            Voronoi,
-            Worly,
-            WorlyMode,
-        },
+use noiz::noise::{
+    Noise,
+    NoiseType,
+    associating::{
+        MapValue,
+        MetaOf,
     },
-    noise_fn,
+    conversions::Adapter,
+    grid::GridNoise,
+    interpolating::Cubic,
+    merging::{
+        EuclideanDistance,
+        ManhatanDistance,
+    },
+    noise_op,
+    norm::UNorm,
+    parallel::Parallel,
+    seeded::Seeding,
+    smoothing::{
+        Lerp,
+        Smooth,
+    },
+    voronoi::{
+        Cellular,
+        Voronoi,
+        Worly,
+        WorlyMode,
+    },
 };
 
 fn main() -> AppExit {
@@ -94,41 +92,46 @@ fn make_noise(image: &mut Image) {
     }
 }
 
-noise_fn! {
-    pub struct WhiteNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise Seeding = Seeding(seed),
-        noise MetaOf = MetaOf,
-        into UNorm
-    }
+noise_op! {
+    pub struct WhiteNoise for Vec2 =
+    pub struct WhiteArgs { seed: u32, period: f32 }
+    impl
+    do GridNoise = GridNoise::new_period(period);
+    do Seeding = Seeding(seed);
+    do MetaOf;
+    as UNorm
 }
 
-noise_fn! {
-    pub struct ValueNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise Lerp = Lerp,
-        noise MapValue<Parallel<Seeding>> = MapValue(Parallel(Seeding(seed))),
-        noise MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf)),
-        noise MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new())),
-        noise Smooth<Cubic> = Smooth(Cubic),
-    }
+noise_op! {
+    pub struct ValueNoise for Vec2 =
+    pub struct ValueArgs { seed: u32, period: f32 }
+    impl
+    do GridNoise = GridNoise::new_period(period);
+    do Lerp = Lerp;
+    do MapValue<Parallel<Seeding>> = MapValue(Parallel(Seeding(seed)));
+    do MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf));
+    #[expect(clippy::type_complexity)]
+    do MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new()));
+    do Smooth<Cubic> = Smooth(Cubic);
 }
 
-noise_fn! {
-    pub struct CellularNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), seed, Cellular::default()),
-        noise MetaOf = MetaOf,
-        noise Adapter<(u32, UNorm, f32), f32> = Adapter::new(),
-    }
+noise_op! {
+    pub struct CellularNoise for Vec2 =
+    pub struct CellularArgs { seed: u32, period: f32 }
+    impl
+    do GridNoise = GridNoise::new_period(period);
+    do Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), seed, Cellular::default());
+    do MetaOf = MetaOf;
+    do Adapter<(u32, UNorm, f32), f32> = Adapter::new();
 }
 
-noise_fn! {
-    pub struct WorlyNoise for Vec2 = (seed: u32, period: f32) {
-        noise GridNoise = GridNoise::new_period(period),
-        noise Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio)),
-        morph |input| -> UNorm {
-            input.inverse()
-        }
+noise_op! {
+    pub struct WorlyNoise for Vec2 =
+    pub struct WorlyArgs { seed: u32, period: f32 }
+    impl
+    do GridNoise = GridNoise::new_period(period);
+    do Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio));
+    fn -> UNorm {
+        input.inverse()
     }
 }

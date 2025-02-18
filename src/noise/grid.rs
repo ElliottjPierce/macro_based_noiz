@@ -19,11 +19,11 @@ use super::{
     NoiseOp,
     NoiseType,
     associating::Associated,
+    conversions::convertible,
     norm::make_nonzero_f32,
     seeded::SeedableNoiseType,
     smoothing::LerpLocatable,
 };
-use crate::convertible;
 
 /// a noise that converts a vector input to a point in a grid
 #[derive(Debug, Clone, PartialEq)]
