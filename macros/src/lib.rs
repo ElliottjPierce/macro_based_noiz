@@ -35,6 +35,7 @@ mod key_words {
 struct NoiseDefinition {
     noise: FullStruct,
     input: Type,
+    output: Type,
     args: FullStruct,
     operations: Punctuated<Operation, Token![;]>,
 }
@@ -53,8 +54,12 @@ impl Parse for NoiseDefinition {
                 data: Default::default(),
             }
         };
+
         _ = input.parse::<Token![for]>()?;
         let input_types = input.parse()?;
+        _ = input.parse::<Token![->]>()?;
+        let output = input.parse()?;
+
         _ = input.parse::<Token![=]>()?;
         let args = input.parse()?;
 
@@ -66,6 +71,7 @@ impl Parse for NoiseDefinition {
         Ok(Self {
             noise,
             input: input_types,
+            output,
             args,
             operations,
         })
@@ -77,11 +83,12 @@ impl ToTokens for NoiseDefinition {
         let NoiseDefinition {
             noise,
             input,
+            output,
             args,
             operations,
         } = self;
-        let count = operations.iter().count();
-        let operations = operations.iter().map(Operation::quote_construction);
+        let creation = operations.iter().map(Operation::quote_construction);
+        let noise_impl = operations.iter().map(Operation::quote_noise);
         let noise_name = &noise.name;
         let args_name = &args.name;
         let noise_fields = noise.filed_names().into_iter();
@@ -92,17 +99,26 @@ impl ToTokens for NoiseDefinition {
 
             #args
 
-            impl #noise_name {
+            impl #noise_name  {
                 pub fn new(args: #args_name) -> Self {
                     let #args_name {
                         #(#args_fields,)*
                     } = args;
 
-                    #(#operations)*
+                    #(#creation)*
 
                     Self {
                         #(#noise_fields,)*
                     }
+                }
+            }
+
+            impl noiz::noise::NoiseOp<#input> for #noise_name {
+                type Output = #output;
+
+                fn get(&self, input: #input) -> Self::Output{
+                    #(#noise_impl)*
+                    input
                 }
             }
         });
@@ -184,6 +200,14 @@ impl Operation {
                     .as_ref()
                     .expect("Fields must have names in noise operations.");
                 quote! {let #name = #constructor;}
+            }
+        }
+    }
+
+    fn quote_noise(&self) -> proc_macro2::TokenStream {
+        match self {
+            Operation::Data(_) => {
+                quote! {}
             }
         }
     }
