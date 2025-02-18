@@ -142,8 +142,8 @@ noise_op! {
     impl
     /// My comment
     #[allow(unused)]
-    data my_data: u32 = 5;
-    data more_data: f32 = period;
+    let my_data: u32 = 5;
+    let more_data: f32 = period;
 }
 
 fn test() {

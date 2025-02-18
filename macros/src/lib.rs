@@ -27,12 +27,6 @@ use syn::{
     token,
 };
 
-mod key_words {
-    use syn::custom_keyword;
-
-    custom_keyword!(data);
-}
-
 struct NoiseDefinition {
     noise: FullStruct,
     input: Type,
@@ -189,7 +183,7 @@ impl ToTokens for FullStruct {
 
 enum Operation {
     // Noise,
-    Data(ConstructableField<key_words::data>),
+    Data(ConstructableField<Token![let]>),
     // Convert,
     // Morph,
 }
@@ -231,10 +225,11 @@ impl Operation {
 
 impl Parse for Operation {
     fn parse(input: ParseStream) -> Result<Self> {
-        if let Ok(op) = input.parse::<ConstructableField<key_words::data>>() {
+        if let Ok(op) = input.parse::<ConstructableField<Token![let]>>() {
             Ok(Self::Data(op))
         } else {
-            Err(input.error("Unable to parse a noise operation. Expected a key word like 'data'."))
+            Err(input
+                .error("Unable to parse a noise operation. Expected a noise key word like 'let'."))
         }
     }
 }
