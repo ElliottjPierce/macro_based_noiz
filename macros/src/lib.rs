@@ -34,7 +34,7 @@ use syn::{
 struct NoiseDefinition {
     noise: FullStruct,
     input: Type,
-    args: FullStruct,
+    source: NoiseSource,
     operations: Vec<Operation>,
 }
 
@@ -57,7 +57,7 @@ impl Parse for NoiseDefinition {
         let input_types = input.parse()?;
 
         _ = input.parse::<Token![=]>()?;
-        let args = input.parse()?;
+        let source = input.parse()?;
 
         _ = input.parse::<Token![impl]>()?;
         let mut noise_ops = 0u32;
@@ -80,7 +80,7 @@ impl Parse for NoiseDefinition {
         Ok(Self {
             noise,
             input: input_types,
-            args,
+            source,
             operations,
         })
     }
@@ -91,15 +91,12 @@ impl ToTokens for NoiseDefinition {
         let NoiseDefinition {
             noise,
             input,
-            args,
+            source,
             operations,
         } = self;
         let creation = operations.iter().map(Operation::quote_construction);
         let noise_name = &noise.name;
-        let args_name = &args.name;
         let noise_fields = noise.filed_names().into_iter().collect::<Vec<_>>();
-        let args_fields = args.filed_names().into_iter().collect::<Vec<_>>();
-        let args_params = args.filed_names_and_types();
 
         let mut noise_impl = Vec::new();
         let mut last_type = input.clone();
@@ -107,20 +104,12 @@ impl ToTokens for NoiseDefinition {
             noise_impl.push(op.quote_noise(&mut last_type));
         }
 
+        let source = source.quote_source(noise_name, creation, noise_fields.iter().copied());
+
         tokens.extend(quote! {
             #noise
 
-            #args
-
-            impl #noise_name  {
-                pub fn new(#args_params) -> Self {
-                    #(#creation)*
-
-                    Self {
-                        #(#noise_fields,)*
-                    }
-                }
-            }
+            #source
 
             impl noiz::noise::NoiseOp<#input> for #noise_name {
                 type Output = #last_type;
@@ -139,16 +128,86 @@ impl ToTokens for NoiseDefinition {
             impl noiz::noise::Noise for #noise_name {
                 type Input = #input;
             }
+        });
+    }
+}
 
-            impl From<#args_name> for #noise_name {
-                fn from(value: #args_name) -> Self {
-                    let #args_name {
-                        #(#args_fields,)*
-                    } = value;
-                    Self::new(#(#args_fields,)*)
+enum NoiseSource {
+    Custom(FullStruct),
+    Existing(Type),
+}
+
+impl NoiseSource {
+    fn quote_source<'b>(
+        &self,
+        noise_name: &Ident,
+        creation: impl Iterator<Item = proc_macro2::TokenStream>,
+        noise_fields: impl Iterator<Item = &'b Ident>,
+    ) -> proc_macro2::TokenStream {
+        match self {
+            NoiseSource::Custom(args) => {
+                let args_name = &args.name;
+                let args_fields = args.filed_names().into_iter().collect::<Vec<_>>();
+                let args_params = args.filed_names_and_types();
+                quote! {
+                    #args
+
+                    impl #noise_name  {
+                        pub fn new(#args_params) -> Self {
+                            #(#creation)*
+
+                            Self {
+                                #(#noise_fields,)*
+                            }
+                        }
+                    }
+
+                    impl From<#args_name> for #noise_name {
+                        fn from(value: #args_name) -> Self {
+                            let #args_name {
+                                #(#args_fields,)*
+                            } = value;
+                            Self::new(#(#args_fields,)*)
+                        }
+                    }
                 }
             }
-        });
+            NoiseSource::Existing(existing) => {
+                quote! {
+
+                    impl #noise_name  {
+                        pub fn new(mut args: #existing) -> Self {
+                            #(#creation)*
+
+                            Self {
+                                #(#noise_fields,)*
+                            }
+                        }
+                    }
+
+                    impl From<#existing> for #noise_name {
+                        fn from(value: #existing) -> Self {
+                            Self::new(value)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Parse for NoiseSource {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if let Ok(custom) = input.parse::<FullStruct>() {
+            Ok(Self::Custom(custom))
+        } else if let Ok(existing) = input.parse::<Type>() {
+            Ok(Self::Existing(existing))
+        } else {
+            panic!(
+                "Unexpected noise source. Must be a non-generic struct declaration or the name of \
+                 another type."
+            );
+        }
     }
 }
 
