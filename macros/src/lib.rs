@@ -436,7 +436,7 @@ impl Operation {
         } else {
             Err(input.error(
                 "Unable to parse a noise operation. Expected a noise key word like 'let', '||', \
-                 'as', 'use', 'for', 'fn', 'const', or 'morph'.",
+                 'as', 'use', 'for', 'fn', 'mut, or 'const'.",
             ))
         }
     }
