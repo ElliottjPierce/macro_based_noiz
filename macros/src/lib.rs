@@ -37,6 +37,7 @@ use syn::{
 struct NoiseDefinition {
     noise: FullStruct,
     input: Type,
+    output: Type,
     source: NoiseSource,
     operations: Vec<Operation>,
 }
@@ -58,6 +59,8 @@ impl Parse for NoiseDefinition {
 
         _ = input.parse::<Token![for]>()?;
         let input_types = input.parse()?;
+        _ = input.parse::<Token![->]>()?;
+        let output = input.parse()?;
 
         _ = input.parse::<Token![=]>()?;
         let source = input.parse()?;
@@ -83,6 +86,7 @@ impl Parse for NoiseDefinition {
         Ok(Self {
             noise,
             input: input_types,
+            output,
             source,
             operations,
         })
@@ -96,6 +100,7 @@ impl ToTokens for NoiseDefinition {
             input,
             source,
             operations,
+            output,
         } = self;
         let creation = operations.iter().map(Operation::quote_construction);
         let noise_name = &noise.name;
@@ -115,7 +120,7 @@ impl ToTokens for NoiseDefinition {
             #source
 
             impl noiz::noise::NoiseOp<#input> for #noise_name {
-                type Output = #last_type;
+                type Output = #output;
 
                 fn get(&self, input: #input) -> Self::Output{
                     let Self {

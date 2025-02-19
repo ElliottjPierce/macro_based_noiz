@@ -101,7 +101,7 @@ fn make_noise(image: &mut Image) {
 }
 
 noise_op! {
-    pub struct WhiteNoise for Vec2 = TestingNoiseInput
+    pub struct WhiteNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
     do GridNoise = GridNoise::new_period(args.period);
     do Seeding = Seeding(args.seed);
@@ -110,7 +110,7 @@ noise_op! {
 }
 
 noise_op! {
-    pub struct ValueNoise for Vec2 = TestingNoiseInput
+    pub struct ValueNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
     do GridNoise = GridNoise::new_period(args.period);
     do Lerp = Lerp;
@@ -119,19 +119,21 @@ noise_op! {
     #[expect(clippy::type_complexity)]
     do MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new()));
     do Smooth<Cubic> = Smooth(Cubic);
+    as UNorm
 }
 
 noise_op! {
-    pub struct CellularNoise for Vec2 = TestingNoiseInput
+    pub struct CellularNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
     do GridNoise = GridNoise::new_period(args.period);
     do Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), args.seed, Cellular::default());
     do MetaOf = MetaOf;
     do Adapter<(u32, UNorm, f32), f32> = Adapter::new();
+    as UNorm
 }
 
 noise_op! {
-    pub struct WorlyNoise for Vec2 = TestingNoiseInput
+    pub struct WorlyNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
     do GridNoise = GridNoise::new_period(args.period);
     do Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, args.seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio));
