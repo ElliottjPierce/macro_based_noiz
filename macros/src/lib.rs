@@ -7,7 +7,6 @@ use quote::{
 };
 use syn::{
     Attribute,
-    Block,
     Expr,
     Field,
     FieldMutability,
@@ -19,7 +18,6 @@ use syn::{
     Type,
     Visibility,
     braced,
-    parenthesized,
     parse::{
         Parse,
         ParseStream,
@@ -28,15 +26,13 @@ use syn::{
     parse_macro_input,
     parse_quote,
     punctuated::Punctuated,
-    token::{
-        Brace,
-        Paren,
-    },
+    token::Brace,
 };
 
 struct NoiseDefinition {
     noise: FullStruct,
     input: Type,
+    output: Type,
     source: NoiseSource,
     operations: Vec<Operation>,
 }
@@ -58,6 +54,8 @@ impl Parse for NoiseDefinition {
 
         _ = input.parse::<Token![for]>()?;
         let input_types = input.parse()?;
+        _ = input.parse::<Token![->]>()?;
+        let output = input.parse()?;
 
         _ = input.parse::<Token![=]>()?;
         let source = input.parse()?;
@@ -83,6 +81,7 @@ impl Parse for NoiseDefinition {
         Ok(Self {
             noise,
             input: input_types,
+            output,
             source,
             operations,
         })
@@ -96,15 +95,15 @@ impl ToTokens for NoiseDefinition {
             input,
             source,
             operations,
+            output,
         } = self;
         let creation = operations.iter().map(Operation::quote_construction);
         let noise_name = &noise.name;
         let noise_fields = noise.filed_names().into_iter().collect::<Vec<_>>();
 
         let mut noise_impl = Vec::new();
-        let mut last_type = input.clone();
         for op in operations.iter() {
-            noise_impl.push(op.quote_noise(&mut last_type));
+            noise_impl.push(op.quote_noise());
         }
 
         let source = source.quote_source(noise_name, creation, noise_fields.iter().copied());
@@ -115,7 +114,7 @@ impl ToTokens for NoiseDefinition {
             #source
 
             impl noiz::noise::NoiseOp<#input> for #noise_name {
-                type Output = #last_type;
+                type Output = #output;
 
                 fn get(&self, input: #input) -> Self::Output{
                     let Self {
@@ -231,8 +230,8 @@ impl Parse for NoiseSource {
             Ok(Self::Existing(existing))
         } else {
             panic!(
-                "Unexpected noise source. Must be a non-generic struct declaration or the name of \
-                 another type."
+                "Unexpected noise source. Must be a non-generic struct declaration, parameter \
+                 names in braces, or the name of another type."
             );
         }
     }
@@ -298,22 +297,30 @@ impl ToTokens for FullStruct {
     }
 }
 
+struct Mapping {
+    operation: Box<Operation>,
+    mapped: Type,
+}
+
 enum Operation {
     Data(ConstructableField<Token![use]>),
-    Noise(ConstructableField<Token![do]>),
+    Noise(ConstructableField<Token![fn]>),
     Convert(ConversionChain),
     Morph(Morph),
     Hold(Local),
     Parallel(Box<Operation>),
     ConstructionVariable(Local),
+    Mapping(Mapping),
 }
 
 impl Operation {
     fn needs_following_semi_colon(&self) -> bool {
         match self {
             Operation::Noise(_) | Operation::Convert(_) | Operation::Data(_) => true,
-            Operation::Morph(_) | Operation::ConstructionVariable(_) | Operation::Hold(_) => false,
+            Operation::ConstructionVariable(_) | Operation::Hold(_) => false,
+            Operation::Morph(morph) => !matches!(&morph.block, Expr::Block(_) | Expr::TryBlock(_)),
             Operation::Parallel(op) => op.needs_following_semi_colon(),
+            Operation::Mapping(mapping) => mapping.operation.needs_following_semi_colon(),
         }
     }
 
@@ -322,6 +329,7 @@ impl Operation {
             Operation::Data(field) => fields.push(field.field()),
             Operation::Noise(field) => fields.push(field.field()),
             Operation::Parallel(op) => op.store_fields(fields),
+            Operation::Mapping(mapping) => mapping.operation.store_fields(fields),
             _ => {}
         }
     }
@@ -340,42 +348,29 @@ impl Operation {
             }
             Operation::ConstructionVariable(binding) => binding.to_token_stream(),
             Operation::Parallel(op) => op.quote_construction(),
+            Operation::Mapping(mapping) => mapping.operation.quote_construction(),
             _ => quote! {},
         }
     }
 
-    fn quote_noise(&self, source_type: &mut Type) -> proc_macro2::TokenStream {
+    fn quote_noise(&self) -> proc_macro2::TokenStream {
         match self {
             Operation::Data(_) | Operation::ConstructionVariable(_) => {
                 quote! {}
             }
             Operation::Noise(field) => {
-                let noise_type = &field.ty;
-                *source_type =
-                    parse_quote!(<#noise_type as noiz::noise::NoiseOp<#source_type>>::Output);
                 let name = &field.ident;
-                quote! {let input: #source_type = #name.get(input); }
+                quote! {let input = #name.get(input); }
             }
             Operation::Convert(conversions) => {
-                *source_type = conversions.conversions.last().unwrap().clone();
                 let conversions = conversions.conversions.iter();
                 quote! {
-                    let input: #source_type = noiz::noise::convert!(input => #(#conversions),*);
+                    let input = noiz::noise::convert!(input => #(#conversions),*);
                 }
             }
             Operation::Morph(morph) => {
                 let block = &morph.block;
                 let input_name = &morph.input_name;
-                if morph
-                    .input_type
-                    .as_ref()
-                    .is_some_and(|input_type| input_type.ne(source_type))
-                {
-                    panic!("Morph block has different input type that what is passed into it.")
-                }
-
-                *source_type = morph.output.clone();
-
                 let input = if morph.mutable {
                     quote! {let mut #input_name = input;}
                 } else {
@@ -384,19 +379,24 @@ impl Operation {
                 quote! {
                     #[allow(unused)]
                     #input
-                    let input: #source_type  = #block;
+                    let input = #block;
                 }
             }
             Operation::Hold(local) => local.to_token_stream(),
             Operation::Parallel(op) => {
-                let Type::Array(inner) = source_type else {
-                    panic!("Parallel ('for') operations can only be done on arrays.");
-                };
-
-                let op_code = op.quote_noise(&mut inner.elem);
+                let op_code = op.quote_noise();
                 quote! {
-                    let input: #source_type = input.map(|input| {
+                    let input = input.map(|input| {
                         #op_code
+                        input
+                    });
+                }
+            }
+            Operation::Mapping(Mapping { operation, mapped }) => {
+                let op = operation.quote_noise();
+                quote! {
+                    let input = noiz::noise::associating::AssociationMapping::<#mapped>::map_association(input, |input| {
+                        #op
                         input
                     });
                 }
@@ -417,11 +417,16 @@ impl Operation {
             }
         } else if let Ok(op) = ConstructableField::<Token![use]>::parse(input, *noise_amount) {
             Ok(Self::Data(op))
-        } else if let Ok(op) = ConstructableField::<Token![do]>::parse(input, *noise_amount) {
+        } else if let Ok(op) = ConstructableField::<Token![fn]>::parse(input, *noise_amount) {
             Ok(Self::Noise(op))
         } else if let Ok(_is_converter) = input.parse::<Token![as]>() {
             let conversions = Punctuated::parse_separated_nonempty(input)?;
             Ok(Self::Convert(ConversionChain { conversions }))
+        } else if let Ok(_is_mapper) = input.parse::<Token![mut]>() {
+            Ok(Self::Mapping(Mapping {
+                mapped: input.parse()?,
+                operation: Box::new(Self::parse(input, noise_amount)?),
+            }))
         } else if let Ok(op) = input.parse::<Morph>() {
             Ok(Self::Morph(op))
         } else if let Ok(_is_parallel) = input.parse::<Token![for]>() {
@@ -430,8 +435,8 @@ impl Operation {
             Ok(Self::Hold(op))
         } else {
             Err(input.error(
-                "Unable to parse a noise operation. Expected a noise key word like 'let', 'do', \
-                 'as', 'use', 'for', 'const', or 'morph'.",
+                "Unable to parse a noise operation. Expected a noise key word like 'let', '||', \
+                 'as', 'use', 'for', 'fn', 'mut, or 'const'.",
             ))
         }
     }
@@ -521,23 +526,24 @@ struct ConversionChain {
 struct Morph {
     mutable: bool,
     input_name: Ident,
+    #[expect(
+        unused,
+        reason = "Helpful for parsing to have this. Helpful for users for little type hints."
+    )]
     input_type: Option<Type>,
-    output: Type,
-    block: Block,
+    block: Expr,
 }
 
 impl Parse for Morph {
     fn parse(input: ParseStream) -> Result<Self> {
-        _ = input.parse::<Token![fn]>()?;
-        let (input_name, mutable, input_type) = if input.peek(Paren) {
-            let params;
-            parenthesized!(params in input);
-            let mutable = params.parse::<Token![mut]>().is_ok();
-            let input_name = params
+        _ = input.parse::<Token![ | ]>()?;
+        let (input_name, mutable, input_type) = if !input.peek(Token![ | ]) {
+            let mutable = input.parse::<Token![mut]>().is_ok();
+            let input_name = input
                 .parse()
-                .unwrap_or_else(|_| Ident::new("input", params.span()));
-            let input_type = if params.parse::<Token![:]>().is_ok() {
-                Some(params.parse::<Type>()?)
+                .unwrap_or_else(|_| Ident::new("input", input.span()));
+            let input_type = if input.parse::<Token![:]>().is_ok() {
+                Some(input.parse::<Type>()?)
             } else {
                 None
             };
@@ -545,12 +551,11 @@ impl Parse for Morph {
         } else {
             (Ident::new("input", input.span()), false, None)
         };
-        _ = input.parse::<Token![->]>()?;
+        _ = input.parse::<Token![ | ]>()?;
         Ok(Self {
             mutable,
             input_name,
             input_type,
-            output: input.parse()?,
             block: input.parse()?,
         })
     }

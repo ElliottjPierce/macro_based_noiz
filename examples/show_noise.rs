@@ -11,10 +11,9 @@ use noiz::noise::{
     Noise,
     NoiseType,
     associating::{
-        MapValue,
         MetaOf,
+        ValueOf,
     },
-    conversions::Adapter,
     grid::GridNoise,
     interpolating::Cubic,
     merging::{
@@ -23,7 +22,6 @@ use noiz::noise::{
     },
     noise_op,
     norm::UNorm,
-    parallel::Parallel,
     seeded::Seeding,
     smoothing::{
         Lerp,
@@ -101,41 +99,39 @@ fn make_noise(image: &mut Image) {
 }
 
 noise_op! {
-    pub struct WhiteNoise for Vec2 = TestingNoiseInput
+    pub struct WhiteNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
-    do GridNoise = GridNoise::new_period(args.period);
-    do Seeding = Seeding(args.seed);
-    do MetaOf;
+    fn GridNoise = GridNoise::new_period(args.period);
+    fn Seeding = Seeding(args.seed);
+    fn MetaOf;
     as UNorm
 }
 
 noise_op! {
-    pub struct ValueNoise for Vec2 = TestingNoiseInput
+    pub struct ValueNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
-    do GridNoise = GridNoise::new_period(args.period);
-    do Lerp = Lerp;
-    do MapValue<Parallel<Seeding>> = MapValue(Parallel(Seeding(args.seed)));
-    do MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf));
-    #[expect(clippy::type_complexity)]
-    do MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new()));
-    do Smooth<Cubic> = Smooth(Cubic);
+    fn GridNoise = GridNoise::new_period(args.period);
+    fn Lerp = Lerp;
+    mut ValueOf for fn Seeding = Seeding(args.seed);
+    mut ValueOf for fn MetaOf;
+    mut ValueOf for as u32, UNorm, f32;
+    fn Smooth<Cubic> = Smooth(Cubic);
+    as UNorm
 }
 
 noise_op! {
-    pub struct CellularNoise for Vec2 = TestingNoiseInput
+    pub struct CellularNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
-    do GridNoise = GridNoise::new_period(args.period);
-    do Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), args.seed, Cellular::default());
-    do MetaOf = MetaOf;
-    do Adapter<(u32, UNorm, f32), f32> = Adapter::new();
+    fn GridNoise = GridNoise::new_period(args.period);
+    fn Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new_default(1.0.adapt(), args.seed);
+    fn MetaOf;
+    as UNorm
 }
 
 noise_op! {
-    pub struct WorlyNoise for Vec2 = TestingNoiseInput
+    pub struct WorlyNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
-    do GridNoise = GridNoise::new_period(args.period);
-    do Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, args.seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio));
-    fn -> UNorm {
-        input.inverse()
-    }
+    fn GridNoise = GridNoise::new_period(args.period);
+    fn Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, args.seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio));
+    || input.inverse();
 }

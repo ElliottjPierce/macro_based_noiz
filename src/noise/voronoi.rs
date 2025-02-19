@@ -77,10 +77,28 @@ impl<const DIMENSIONS: u8, const APPROX: bool, S: VoronoiSource<DIMENSIONS, APPR
         }
     }
 
+    /// creates a new [`Voronoi`] from nudge range with a seed with a default noise source.
+    #[inline]
+    pub fn new_default(range: f32, seed: u32) -> Self
+    where
+        S: Default,
+    {
+        Self::new(range, seed, S::default())
+    }
+
     /// creates a new [`Voronoi`] from a seed and a noise source.
     #[inline]
     pub fn full(seed: u32, noise: S) -> Self {
         Self::new(1.0, seed, noise)
+    }
+
+    /// creates a new [`Voronoi`] from a seed with a default noise source.
+    #[inline]
+    pub fn full_default(seed: u32) -> Self
+    where
+        S: Default,
+    {
+        Self::full(seed, S::default())
     }
 }
 
