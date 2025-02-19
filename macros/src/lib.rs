@@ -26,10 +26,7 @@ use syn::{
     parse_macro_input,
     parse_quote,
     punctuated::Punctuated,
-    token::{
-        Brace,
-        Paren,
-    },
+    token::Brace,
 };
 
 struct NoiseDefinition {
@@ -233,8 +230,8 @@ impl Parse for NoiseSource {
             Ok(Self::Existing(existing))
         } else {
             panic!(
-                "Unexpected noise source. Must be a non-generic struct declaration or the name of \
-                 another type."
+                "Unexpected noise source. Must be a non-generic struct declaration, parameter \
+                 names in braces, or the name of another type."
             );
         }
     }
@@ -517,7 +514,7 @@ struct Morph {
 impl Parse for Morph {
     fn parse(input: ParseStream) -> Result<Self> {
         _ = input.parse::<Token![ | ]>()?;
-        let (input_name, mutable, input_type) = if input.peek(Paren) {
+        let (input_name, mutable, input_type) = if !input.peek(Token![ | ]) {
             let mutable = input.parse::<Token![mut]>().is_ok();
             let input_name = input
                 .parse()
