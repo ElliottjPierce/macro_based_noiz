@@ -107,9 +107,8 @@ impl ToTokens for NoiseDefinition {
         let noise_fields = noise.filed_names().into_iter().collect::<Vec<_>>();
 
         let mut noise_impl = Vec::new();
-        let mut last_type = input.clone();
         for op in operations.iter() {
-            noise_impl.push(op.quote_noise(&mut last_type));
+            noise_impl.push(op.quote_noise());
         }
 
         let source = source.quote_source(noise_name, creation, noise_fields.iter().copied());
@@ -349,38 +348,24 @@ impl Operation {
         }
     }
 
-    fn quote_noise(&self, source_type: &mut Type) -> proc_macro2::TokenStream {
+    fn quote_noise(&self) -> proc_macro2::TokenStream {
         match self {
             Operation::Data(_) | Operation::ConstructionVariable(_) => {
                 quote! {}
             }
             Operation::Noise(field) => {
-                let noise_type = &field.ty;
-                *source_type =
-                    parse_quote!(<#noise_type as noiz::noise::NoiseOp<#source_type>>::Output);
                 let name = &field.ident;
-                quote! {let input: #source_type = #name.get(input); }
+                quote! {let input = #name.get(input); }
             }
             Operation::Convert(conversions) => {
-                *source_type = conversions.conversions.last().unwrap().clone();
                 let conversions = conversions.conversions.iter();
                 quote! {
-                    let input: #source_type = noiz::noise::convert!(input => #(#conversions),*);
+                    let input = noiz::noise::convert!(input => #(#conversions),*);
                 }
             }
             Operation::Morph(morph) => {
                 let block = &morph.block;
                 let input_name = &morph.input_name;
-                if morph
-                    .input_type
-                    .as_ref()
-                    .is_some_and(|input_type| input_type.ne(source_type))
-                {
-                    panic!("Morph block has different input type that what is passed into it.")
-                }
-
-                *source_type = morph.output.clone();
-
                 let input = if morph.mutable {
                     quote! {let mut #input_name = input;}
                 } else {
@@ -389,18 +374,14 @@ impl Operation {
                 quote! {
                     #[allow(unused)]
                     #input
-                    let input: #source_type  = #block;
+                    let input = #block;
                 }
             }
             Operation::Hold(local) => local.to_token_stream(),
             Operation::Parallel(op) => {
-                let Type::Array(inner) = source_type else {
-                    panic!("Parallel ('for') operations can only be done on arrays.");
-                };
-
-                let op_code = op.quote_noise(&mut inner.elem);
+                let op_code = op.quote_noise();
                 quote! {
-                    let input: #source_type = input.map(|input| {
+                    let input = input.map(|input| {
                         #op_code
                         input
                     });
@@ -526,8 +507,11 @@ struct ConversionChain {
 struct Morph {
     mutable: bool,
     input_name: Ident,
+    #[expect(
+        unused,
+        reason = "Helpful for parsing to have this. Helpful for users for little type hints."
+    )]
     input_type: Option<Type>,
-    output: Type,
     block: Block,
 }
 
@@ -550,12 +534,10 @@ impl Parse for Morph {
         } else {
             (Ident::new("input", input.span()), false, None)
         };
-        _ = input.parse::<Token![->]>()?;
         Ok(Self {
             mutable,
             input_name,
             input_type,
-            output: input.parse()?,
             block: input.parse()?,
         })
     }
