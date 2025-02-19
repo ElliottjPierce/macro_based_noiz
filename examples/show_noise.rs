@@ -11,11 +11,9 @@ use noiz::noise::{
     Noise,
     NoiseType,
     associating::{
-        Mapped,
         MetaOf,
         ValueOf,
     },
-    conversions::Adapter,
     grid::GridNoise,
     interpolating::Cubic,
     merging::{
@@ -24,7 +22,6 @@ use noiz::noise::{
     },
     noise_op,
     norm::UNorm,
-    parallel::Parallel,
     seeded::Seeding,
     smoothing::{
         Lerp,
