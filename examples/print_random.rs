@@ -16,7 +16,7 @@ noise_op! {
     /// white noise expressed as SNorms
     pub struct WhiteSNorm for u32 -> SNorm = { gen: &mut impl Rng }
     impl
-    do White32 = White32(gen.next_u32());
+    fn White32 = White32(gen.next_u32());
     as SNorm;
 }
 
@@ -24,7 +24,7 @@ noise_op! {
     /// white noise expressed as UNorms
     pub struct WhiteUNorm for u32 -> UNorm = { gen: &mut impl Rng }
     impl
-    do White32 = White32(gen.next_u32());
+    fn White32 = White32(gen.next_u32());
     as UNorm;
 }
 
@@ -33,11 +33,11 @@ noise_op! {
     pub struct CrazyWhite for u32 -> u32 = { gen: &mut impl Rng, key: u32 }
     impl
     use key: u32 = key;
-    do White32 = White32(gen.next_u32());
-    do White32 = White32(gen.next_u32());
+    fn White32 = White32(gen.next_u32());
+    fn White32 = White32(gen.next_u32());
     || input.wrapping_mul(234085);
     || input.wrapping_mul(*key);
-    do White32 = White32(gen.next_u32());
+    fn White32 = White32(gen.next_u32());
 }
 
 fn main() {

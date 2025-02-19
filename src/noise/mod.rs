@@ -175,12 +175,12 @@ mod tests {
         /// Attributes work!
         #[allow(unused)]
         pub use custom_data: f32 = period; // `use` adds custom data to the noise struct. Visibility works too.
-        pub do fist_noise: GridNoise = GridNoise::new_period(period); // 'do' is the same as 'use', but the value participates as a noise operation.
+        pub fn fist_noise: GridNoise = GridNoise::new_period(period); // 'do' is the same as 'use', but the value participates as a noise operation.
         /// Attributes work!
-        do Seeding = Seeding(seed); // If you don't give a 'do' a name, it will make one for you.
+        fn Seeding = Seeding(seed); // If you don't give a 'do' a name, it will make one for you.
         #[allow(unused)]
         let GridPoint2{ base, offset } = input.value; // 'let' holds a temporary value during the noise calculation.
-        do MetaOf; // If you don't provide a constructor for a 'do' value, the default will be used.
+        fn MetaOf; // If you don't provide a constructor for a 'do' value, the default will be used.
         as UNorm, f32, UNorm; // 'as' performs a conversion chain through the types listed.
         |mut x: UNorm| { // 'fn' performs a custom noise function. You must name the return type.
             // You can name the parameter and its type if you want.

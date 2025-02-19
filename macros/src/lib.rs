@@ -299,7 +299,7 @@ impl ToTokens for FullStruct {
 
 enum Operation {
     Data(ConstructableField<Token![use]>),
-    Noise(ConstructableField<Token![do]>),
+    Noise(ConstructableField<Token![fn]>),
     Convert(ConversionChain),
     Morph(Morph),
     Hold(Local),
@@ -399,7 +399,7 @@ impl Operation {
             }
         } else if let Ok(op) = ConstructableField::<Token![use]>::parse(input, *noise_amount) {
             Ok(Self::Data(op))
-        } else if let Ok(op) = ConstructableField::<Token![do]>::parse(input, *noise_amount) {
+        } else if let Ok(op) = ConstructableField::<Token![fn]>::parse(input, *noise_amount) {
             Ok(Self::Noise(op))
         } else if let Ok(_is_converter) = input.parse::<Token![as]>() {
             let conversions = Punctuated::parse_separated_nonempty(input)?;
@@ -412,8 +412,8 @@ impl Operation {
             Ok(Self::Hold(op))
         } else {
             Err(input.error(
-                "Unable to parse a noise operation. Expected a noise key word like 'let', 'do', \
-                 'as', 'use', 'for', 'const', or 'morph'.",
+                "Unable to parse a noise operation. Expected a noise key word like 'let', '||', \
+                 'as', 'use', 'for', 'fn', 'const', or 'morph'.",
             ))
         }
     }
