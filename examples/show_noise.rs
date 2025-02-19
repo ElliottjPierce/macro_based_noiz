@@ -11,8 +11,9 @@ use noiz::noise::{
     Noise,
     NoiseType,
     associating::{
-        MapValue,
+        Mapped,
         MetaOf,
+        ValueOf,
     },
     conversions::Adapter,
     grid::GridNoise,
@@ -114,10 +115,10 @@ noise_op! {
     impl
     fn GridNoise = GridNoise::new_period(args.period);
     fn Lerp = Lerp;
-    fn MapValue<Parallel<Seeding>> = MapValue(Parallel(Seeding(args.seed)));
-    fn MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf));
+    fn Mapped<ValueOf, Parallel<Seeding>> = Mapped::new(Parallel(Seeding(args.seed)));
+    fn Mapped<ValueOf, Parallel<MetaOf>> = Mapped::new(Parallel(MetaOf));
     #[expect(clippy::type_complexity)]
-    fn MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new()));
+    fn Mapped<ValueOf, Parallel<Adapter<(u32, UNorm, f32), f32>>> = Mapped::new(Parallel(Adapter::new()));
     fn Smooth<Cubic> = Smooth(Cubic);
     as UNorm
 }
@@ -127,7 +128,7 @@ noise_op! {
     impl
     fn GridNoise = GridNoise::new_period(args.period);
     fn Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), args.seed, Cellular::default());
-    fn MetaOf = MetaOf;
+    fn MetaOf;
     fn Adapter<(u32, UNorm, f32), f32> = Adapter::new();
     as UNorm
 }
