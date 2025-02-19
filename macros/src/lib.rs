@@ -28,7 +28,10 @@ use syn::{
     parse_macro_input,
     parse_quote,
     punctuated::Punctuated,
-    token::Paren,
+    token::{
+        Brace,
+        Paren,
+    },
 };
 
 struct NoiseDefinition {
@@ -135,6 +138,7 @@ impl ToTokens for NoiseDefinition {
 enum NoiseSource {
     Custom(FullStruct),
     Existing(Type),
+    RawParams(Punctuated<Field, Token![,]>),
 }
 
 impl NoiseSource {
@@ -192,12 +196,35 @@ impl NoiseSource {
                     }
                 }
             }
+            NoiseSource::RawParams(params) => {
+                let params = params.iter();
+                quote! {
+                    impl #noise_name  {
+                        pub fn new(#(mut #params),*) -> Self {
+                            #(#creation)*
+
+                            Self {
+                                #(#noise_fields,)*
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 impl Parse for NoiseSource {
     fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(Brace) {
+            let outer = input;
+            let input;
+            _ = braced!(input in outer);
+            let params =
+                Punctuated::parse_terminated_with(&input, |input| Field::parse_named(input))?;
+            return Ok(Self::RawParams(params));
+        }
+
         if let Ok(custom) = input.parse::<FullStruct>() {
             Ok(Self::Custom(custom))
         } else if let Ok(existing) = input.parse::<Type>() {
