@@ -305,13 +305,14 @@ enum Operation {
     Morph(Morph),
     Hold(Local),
     Parallel(Box<Operation>),
+    ConstructionVariable(Local),
 }
 
 impl Operation {
     fn needs_following_semi_colon(&self) -> bool {
         match self {
             Operation::Noise(_) | Operation::Convert(_) | Operation::Data(_) => true,
-            Operation::Morph(_) | Operation::Hold(_) => false,
+            Operation::Morph(_) | Operation::ConstructionVariable(_) | Operation::Hold(_) => false,
             Operation::Parallel(op) => op.needs_following_semi_colon(),
         }
     }
@@ -337,6 +338,7 @@ impl Operation {
                 let constructor = &field.constructor;
                 quote! {let #name = #constructor;}
             }
+            Operation::ConstructionVariable(binding) => binding.to_token_stream(),
             Operation::Parallel(op) => op.quote_construction(),
             _ => quote! {},
         }
@@ -344,7 +346,7 @@ impl Operation {
 
     fn quote_noise(&self, source_type: &mut Type) -> proc_macro2::TokenStream {
         match self {
-            Operation::Data(_) => {
+            Operation::Data(_) | Operation::ConstructionVariable(_) => {
                 quote! {}
             }
             Operation::Noise(field) => {
@@ -404,7 +406,16 @@ impl Operation {
 
     fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
         *noise_amount += 1;
-        if let Ok(op) = ConstructableField::<Token![use]>::parse(input, *noise_amount) {
+        if let Ok(_is_construction_variable) = input.parse::<Token![const]>() {
+            match input.parse::<Stmt>() {
+                Ok(Stmt::Local(var)) => Ok(Self::ConstructionVariable(var)),
+                Ok(_) => {
+                    Err(input
+                        .error("Only local bindings are allowed to follow 'const' in a noise_op."))
+                }
+                Err(err) => Err(err),
+            }
+        } else if let Ok(op) = ConstructableField::<Token![use]>::parse(input, *noise_amount) {
             Ok(Self::Data(op))
         } else if let Ok(op) = ConstructableField::<Token![do]>::parse(input, *noise_amount) {
             Ok(Self::Noise(op))
@@ -420,7 +431,7 @@ impl Operation {
         } else {
             Err(input.error(
                 "Unable to parse a noise operation. Expected a noise key word like 'let', 'do', \
-                 'as', 'use', 'for', or 'morph'.",
+                 'as', 'use', 'for', 'const', or 'morph'.",
             ))
         }
     }
