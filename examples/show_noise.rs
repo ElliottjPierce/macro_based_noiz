@@ -75,10 +75,18 @@ fn main() -> AppExit {
 
 type NoiseUsed = WorlyNoise;
 
+pub struct TestingNoiseInput {
+    pub seed: u32,
+    pub period: f32,
+}
+
 fn make_noise(image: &mut Image) {
     let width = image.width();
     let height = image.height();
-    let noise = NoiseUsed::new(2345, 100.0);
+    let noise = NoiseUsed::new(TestingNoiseInput {
+        seed: 9283740,
+        period: 100.0,
+    });
 
     for x in 0..width {
         for y in 0..height {
@@ -93,22 +101,20 @@ fn make_noise(image: &mut Image) {
 }
 
 noise_op! {
-    pub struct WhiteNoise for Vec2 =
-    pub struct WhiteArgs { seed: u32, period: f32 }
+    pub struct WhiteNoise for Vec2 = TestingNoiseInput
     impl
-    do GridNoise = GridNoise::new_period(period);
-    do Seeding = Seeding(seed);
+    do GridNoise = GridNoise::new_period(args.period);
+    do Seeding = Seeding(args.seed);
     do MetaOf;
     as UNorm
 }
 
 noise_op! {
-    pub struct ValueNoise for Vec2 =
-    pub struct ValueArgs { seed: u32, period: f32 }
+    pub struct ValueNoise for Vec2 = TestingNoiseInput
     impl
-    do GridNoise = GridNoise::new_period(period);
+    do GridNoise = GridNoise::new_period(args.period);
     do Lerp = Lerp;
-    do MapValue<Parallel<Seeding>> = MapValue(Parallel(Seeding(seed)));
+    do MapValue<Parallel<Seeding>> = MapValue(Parallel(Seeding(args.seed)));
     do MapValue<Parallel<MetaOf>> = MapValue(Parallel(MetaOf));
     #[expect(clippy::type_complexity)]
     do MapValue<Parallel<Adapter<(u32, UNorm, f32), f32>>> = MapValue(Parallel(Adapter::new()));
@@ -116,21 +122,19 @@ noise_op! {
 }
 
 noise_op! {
-    pub struct CellularNoise for Vec2 =
-    pub struct CellularArgs { seed: u32, period: f32 }
+    pub struct CellularNoise for Vec2 = TestingNoiseInput
     impl
-    do GridNoise = GridNoise::new_period(period);
-    do Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), seed, Cellular::default());
+    do GridNoise = GridNoise::new_period(args.period);
+    do Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), args.seed, Cellular::default());
     do MetaOf = MetaOf;
     do Adapter<(u32, UNorm, f32), f32> = Adapter::new();
 }
 
 noise_op! {
-    pub struct WorlyNoise for Vec2 =
-    pub struct WorlyArgs { seed: u32, period: f32 }
+    pub struct WorlyNoise for Vec2 = TestingNoiseInput
     impl
-    do GridNoise = GridNoise::new_period(period);
-    do Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio));
+    do GridNoise = GridNoise::new_period(args.period);
+    do Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, args.seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio));
     fn -> UNorm {
         input.inverse()
     }

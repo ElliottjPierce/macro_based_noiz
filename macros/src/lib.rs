@@ -28,13 +28,16 @@ use syn::{
     parse_macro_input,
     parse_quote,
     punctuated::Punctuated,
-    token::Paren,
+    token::{
+        Brace,
+        Paren,
+    },
 };
 
 struct NoiseDefinition {
     noise: FullStruct,
     input: Type,
-    args: FullStruct,
+    source: NoiseSource,
     operations: Vec<Operation>,
 }
 
@@ -57,7 +60,7 @@ impl Parse for NoiseDefinition {
         let input_types = input.parse()?;
 
         _ = input.parse::<Token![=]>()?;
-        let args = input.parse()?;
+        let source = input.parse()?;
 
         _ = input.parse::<Token![impl]>()?;
         let mut noise_ops = 0u32;
@@ -80,7 +83,7 @@ impl Parse for NoiseDefinition {
         Ok(Self {
             noise,
             input: input_types,
-            args,
+            source,
             operations,
         })
     }
@@ -91,15 +94,12 @@ impl ToTokens for NoiseDefinition {
         let NoiseDefinition {
             noise,
             input,
-            args,
+            source,
             operations,
         } = self;
         let creation = operations.iter().map(Operation::quote_construction);
         let noise_name = &noise.name;
-        let args_name = &args.name;
         let noise_fields = noise.filed_names().into_iter().collect::<Vec<_>>();
-        let args_fields = args.filed_names().into_iter().collect::<Vec<_>>();
-        let args_params = args.filed_names_and_types();
 
         let mut noise_impl = Vec::new();
         let mut last_type = input.clone();
@@ -107,20 +107,12 @@ impl ToTokens for NoiseDefinition {
             noise_impl.push(op.quote_noise(&mut last_type));
         }
 
+        let source = source.quote_source(noise_name, creation, noise_fields.iter().copied());
+
         tokens.extend(quote! {
             #noise
 
-            #args
-
-            impl #noise_name  {
-                pub fn new(#args_params) -> Self {
-                    #(#creation)*
-
-                    Self {
-                        #(#noise_fields,)*
-                    }
-                }
-            }
+            #source
 
             impl noiz::noise::NoiseOp<#input> for #noise_name {
                 type Output = #last_type;
@@ -139,16 +131,110 @@ impl ToTokens for NoiseDefinition {
             impl noiz::noise::Noise for #noise_name {
                 type Input = #input;
             }
+        });
+    }
+}
 
-            impl From<#args_name> for #noise_name {
-                fn from(value: #args_name) -> Self {
-                    let #args_name {
-                        #(#args_fields,)*
-                    } = value;
-                    Self::new(#(#args_fields,)*)
+enum NoiseSource {
+    Custom(FullStruct),
+    Existing(Type),
+    RawParams(Punctuated<Field, Token![,]>),
+}
+
+impl NoiseSource {
+    fn quote_source<'b>(
+        &self,
+        noise_name: &Ident,
+        creation: impl Iterator<Item = proc_macro2::TokenStream>,
+        noise_fields: impl Iterator<Item = &'b Ident>,
+    ) -> proc_macro2::TokenStream {
+        match self {
+            NoiseSource::Custom(args) => {
+                let args_name = &args.name;
+                let args_fields = args.filed_names().into_iter().collect::<Vec<_>>();
+                let args_params = args.filed_names_and_types();
+                quote! {
+                    #args
+
+                    impl #noise_name  {
+                        pub fn new(#args_params) -> Self {
+                            #(#creation)*
+
+                            Self {
+                                #(#noise_fields,)*
+                            }
+                        }
+                    }
+
+                    impl From<#args_name> for #noise_name {
+                        fn from(value: #args_name) -> Self {
+                            let #args_name {
+                                #(#args_fields,)*
+                            } = value;
+                            Self::new(#(#args_fields,)*)
+                        }
+                    }
                 }
             }
-        });
+            NoiseSource::Existing(existing) => {
+                quote! {
+
+                    impl #noise_name  {
+                        pub fn new(mut args: #existing) -> Self {
+                            #(#creation)*
+
+                            Self {
+                                #(#noise_fields,)*
+                            }
+                        }
+                    }
+
+                    impl From<#existing> for #noise_name {
+                        fn from(value: #existing) -> Self {
+                            Self::new(value)
+                        }
+                    }
+                }
+            }
+            NoiseSource::RawParams(params) => {
+                let params = params.iter();
+                quote! {
+                    impl #noise_name  {
+                        pub fn new(#(mut #params),*) -> Self {
+                            #(#creation)*
+
+                            Self {
+                                #(#noise_fields,)*
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Parse for NoiseSource {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(Brace) {
+            let outer = input;
+            let input;
+            _ = braced!(input in outer);
+            let params =
+                Punctuated::parse_terminated_with(&input, |input| Field::parse_named(input))?;
+            return Ok(Self::RawParams(params));
+        }
+
+        if let Ok(custom) = input.parse::<FullStruct>() {
+            Ok(Self::Custom(custom))
+        } else if let Ok(existing) = input.parse::<Type>() {
+            Ok(Self::Existing(existing))
+        } else {
+            panic!(
+                "Unexpected noise source. Must be a non-generic struct declaration or the name of \
+                 another type."
+            );
+        }
     }
 }
 
@@ -219,13 +305,14 @@ enum Operation {
     Morph(Morph),
     Hold(Local),
     Parallel(Box<Operation>),
+    ConstructionVariable(Local),
 }
 
 impl Operation {
     fn needs_following_semi_colon(&self) -> bool {
         match self {
             Operation::Noise(_) | Operation::Convert(_) | Operation::Data(_) => true,
-            Operation::Morph(_) | Operation::Hold(_) => false,
+            Operation::Morph(_) | Operation::ConstructionVariable(_) | Operation::Hold(_) => false,
             Operation::Parallel(op) => op.needs_following_semi_colon(),
         }
     }
@@ -251,6 +338,7 @@ impl Operation {
                 let constructor = &field.constructor;
                 quote! {let #name = #constructor;}
             }
+            Operation::ConstructionVariable(binding) => binding.to_token_stream(),
             Operation::Parallel(op) => op.quote_construction(),
             _ => quote! {},
         }
@@ -258,7 +346,7 @@ impl Operation {
 
     fn quote_noise(&self, source_type: &mut Type) -> proc_macro2::TokenStream {
         match self {
-            Operation::Data(_) => {
+            Operation::Data(_) | Operation::ConstructionVariable(_) => {
                 quote! {}
             }
             Operation::Noise(field) => {
@@ -318,7 +406,16 @@ impl Operation {
 
     fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
         *noise_amount += 1;
-        if let Ok(op) = ConstructableField::<Token![use]>::parse(input, *noise_amount) {
+        if let Ok(_is_construction_variable) = input.parse::<Token![const]>() {
+            match input.parse::<Stmt>() {
+                Ok(Stmt::Local(var)) => Ok(Self::ConstructionVariable(var)),
+                Ok(_) => {
+                    Err(input
+                        .error("Only local bindings are allowed to follow 'const' in a noise_op."))
+                }
+                Err(err) => Err(err),
+            }
+        } else if let Ok(op) = ConstructableField::<Token![use]>::parse(input, *noise_amount) {
             Ok(Self::Data(op))
         } else if let Ok(op) = ConstructableField::<Token![do]>::parse(input, *noise_amount) {
             Ok(Self::Noise(op))
@@ -334,7 +431,7 @@ impl Operation {
         } else {
             Err(input.error(
                 "Unable to parse a noise operation. Expected a noise key word like 'let', 'do', \
-                 'as', 'use', 'for', or 'morph'.",
+                 'as', 'use', 'for', 'const', or 'morph'.",
             ))
         }
     }

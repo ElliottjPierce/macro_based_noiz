@@ -170,6 +170,9 @@ mod tests {
         /// Attributes work!
         pub(crate) struct MyNoiseArgs {seed: u32, period: f32,} // declare the data that is used to make the noise operation
         impl // specifies the start of the noise implementation.
+        // const let creates a local variable diring construction.
+        #[allow(unused)]
+        const let another_seed = seed + 1;
         /// Attributes work!
         #[allow(unused)]
         pub use custom_data: f32 = period; // `use` adds custom data to the noise struct. Visibility works too.
