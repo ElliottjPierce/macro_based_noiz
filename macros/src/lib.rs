@@ -7,7 +7,6 @@ use quote::{
 };
 use syn::{
     Attribute,
-    Block,
     Expr,
     Field,
     FieldMutability,
@@ -19,7 +18,6 @@ use syn::{
     Type,
     Visibility,
     braced,
-    parenthesized,
     parse::{
         Parse,
         ParseStream,
@@ -316,7 +314,8 @@ impl Operation {
     fn needs_following_semi_colon(&self) -> bool {
         match self {
             Operation::Noise(_) | Operation::Convert(_) | Operation::Data(_) => true,
-            Operation::Morph(_) | Operation::ConstructionVariable(_) | Operation::Hold(_) => false,
+            Operation::ConstructionVariable(_) | Operation::Hold(_) => false,
+            Operation::Morph(morph) => !matches!(&morph.block, Expr::Block(_) | Expr::TryBlock(_)),
             Operation::Parallel(op) => op.needs_following_semi_colon(),
         }
     }
@@ -512,21 +511,19 @@ struct Morph {
         reason = "Helpful for parsing to have this. Helpful for users for little type hints."
     )]
     input_type: Option<Type>,
-    block: Block,
+    block: Expr,
 }
 
 impl Parse for Morph {
     fn parse(input: ParseStream) -> Result<Self> {
-        _ = input.parse::<Token![fn]>()?;
+        _ = input.parse::<Token![ | ]>()?;
         let (input_name, mutable, input_type) = if input.peek(Paren) {
-            let params;
-            parenthesized!(params in input);
-            let mutable = params.parse::<Token![mut]>().is_ok();
-            let input_name = params
+            let mutable = input.parse::<Token![mut]>().is_ok();
+            let input_name = input
                 .parse()
-                .unwrap_or_else(|_| Ident::new("input", params.span()));
-            let input_type = if params.parse::<Token![:]>().is_ok() {
-                Some(params.parse::<Type>()?)
+                .unwrap_or_else(|_| Ident::new("input", input.span()));
+            let input_type = if input.parse::<Token![:]>().is_ok() {
+                Some(input.parse::<Type>()?)
             } else {
                 None
             };
@@ -534,6 +531,7 @@ impl Parse for Morph {
         } else {
             (Ident::new("input", input.span()), false, None)
         };
+        _ = input.parse::<Token![ | ]>()?;
         Ok(Self {
             mutable,
             input_name,

@@ -35,8 +35,8 @@ noise_op! {
     use key: u32 = key;
     do White32 = White32(gen.next_u32());
     do White32 = White32(gen.next_u32());
-    fn {input.wrapping_mul(234085)};
-    fn {input.wrapping_mul(*key)};
+    || input.wrapping_mul(234085);
+    || input.wrapping_mul(*key);
     do White32 = White32(gen.next_u32());
 }
 
