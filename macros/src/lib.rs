@@ -297,6 +297,11 @@ impl ToTokens for FullStruct {
     }
 }
 
+struct Mapping {
+    operation: Box<Operation>,
+    mapped: Type,
+}
+
 enum Operation {
     Data(ConstructableField<Token![use]>),
     Noise(ConstructableField<Token![fn]>),
@@ -305,6 +310,7 @@ enum Operation {
     Hold(Local),
     Parallel(Box<Operation>),
     ConstructionVariable(Local),
+    Mapping(Mapping),
 }
 
 impl Operation {
@@ -314,6 +320,7 @@ impl Operation {
             Operation::ConstructionVariable(_) | Operation::Hold(_) => false,
             Operation::Morph(morph) => !matches!(&morph.block, Expr::Block(_) | Expr::TryBlock(_)),
             Operation::Parallel(op) => op.needs_following_semi_colon(),
+            Operation::Mapping(mapping) => mapping.operation.needs_following_semi_colon(),
         }
     }
 
@@ -322,6 +329,7 @@ impl Operation {
             Operation::Data(field) => fields.push(field.field()),
             Operation::Noise(field) => fields.push(field.field()),
             Operation::Parallel(op) => op.store_fields(fields),
+            Operation::Mapping(mapping) => mapping.operation.store_fields(fields),
             _ => {}
         }
     }
@@ -340,6 +348,7 @@ impl Operation {
             }
             Operation::ConstructionVariable(binding) => binding.to_token_stream(),
             Operation::Parallel(op) => op.quote_construction(),
+            Operation::Mapping(mapping) => mapping.operation.quote_construction(),
             _ => quote! {},
         }
     }
@@ -383,6 +392,15 @@ impl Operation {
                     });
                 }
             }
+            Operation::Mapping(Mapping { operation, mapped }) => {
+                let op = operation.quote_noise();
+                quote! {
+                    let input = noiz::noise::associating::AssociationMapping::<#mapped>::map_association(input, |input| {
+                        #op
+                        input
+                    });
+                }
+            }
         }
     }
 
@@ -404,6 +422,11 @@ impl Operation {
         } else if let Ok(_is_converter) = input.parse::<Token![as]>() {
             let conversions = Punctuated::parse_separated_nonempty(input)?;
             Ok(Self::Convert(ConversionChain { conversions }))
+        } else if let Ok(_is_mapper) = input.parse::<Token![mut]>() {
+            Ok(Self::Mapping(Mapping {
+                mapped: input.parse()?,
+                operation: Box::new(Self::parse(input, noise_amount)?),
+            }))
         } else if let Ok(op) = input.parse::<Morph>() {
             Ok(Self::Morph(op))
         } else if let Ok(_is_parallel) = input.parse::<Token![for]>() {

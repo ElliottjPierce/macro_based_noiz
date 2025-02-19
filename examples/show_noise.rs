@@ -115,10 +115,9 @@ noise_op! {
     impl
     fn GridNoise = GridNoise::new_period(args.period);
     fn Lerp = Lerp;
-    fn Mapped<ValueOf, Parallel<Seeding>> = Mapped::new(Parallel(Seeding(args.seed)));
-    fn Mapped<ValueOf, Parallel<MetaOf>> = Mapped::new(Parallel(MetaOf));
-    #[expect(clippy::type_complexity)]
-    fn Mapped<ValueOf, Parallel<Adapter<(u32, UNorm, f32), f32>>> = Mapped::new(Parallel(Adapter::new()));
+    mut ValueOf for fn Seeding = Seeding(args.seed);
+    mut ValueOf for fn MetaOf;
+    mut ValueOf for as u32, UNorm, f32;
     fn Smooth<Cubic> = Smooth(Cubic);
     as UNorm
 }
@@ -129,7 +128,6 @@ noise_op! {
     fn GridNoise = GridNoise::new_period(args.period);
     fn Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new(1.0.adapt(), args.seed, Cellular::default());
     fn MetaOf;
-    fn Adapter<(u32, UNorm, f32), f32> = Adapter::new();
     as UNorm
 }
 
