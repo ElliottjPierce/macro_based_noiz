@@ -24,7 +24,7 @@ use noiz::noise::{
     norm::UNorm,
     seeded::Seeding,
     smoothing::{
-        Lerp,
+        PrepareLerp,
         Smooth,
     },
     voronoi::{
@@ -111,7 +111,7 @@ noise_op! {
     pub struct ValueNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
     fn GridNoise = GridNoise::new_period(args.period);
-    fn Lerp = Lerp;
+    fn PrepareLerp = PrepareLerp;
     mut ValueOf for fn Seeding = Seeding(args.seed);
     mut ValueOf for fn MetaOf;
     mut ValueOf for as u32, UNorm, f32;
