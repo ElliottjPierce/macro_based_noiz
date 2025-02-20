@@ -8,7 +8,6 @@ use bevy_math::{
     Vec2,
     Vec3,
     Vec4,
-    VectorSpace,
 };
 
 use super::{
@@ -407,25 +406,16 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
             let p = points[0];
             let i = points[0] - points[2];
             let j = points[0] - points[1];
-            let corner_if_parallel = i + j;
-            let quad_to_prallel = corner_if_parallel - p + points[3]; // shifts the corner of the quadralateral to make it a parallelagram
             let corner = p - points[3];
 
             // parallelagram
-
             let square_to_parallelagram = Mat2::from_cols(i, j);
-
             let parallelagram_to_square = square_to_parallelagram.inverse();
-            let p_in_square = parallelagram_to_square * p;
-            let furthest_outside_of_square = parallelagram_to_square * corner;
+            let p_in_parallelagram = parallelagram_to_square * p;
+            let corner_in_parallelagram = parallelagram_to_square * corner;
 
             // the unit square
-            let re_bounder = Vec2::ONE - furthest_outside_of_square;
-            let p_final = p_in_square / furthest_outside_of_square;
-            // p_in_square + re_bounder * (p_in_square /
-            // furthest_outside_of_square).element_product(); let [x, y] =
-            // p_final.to_array();
-            p_in_square.clamp(Vec2::ZERO, Vec2::ONE)
+            p_in_parallelagram / corner_in_parallelagram
         }
 
         let mut corner_to_explore = U8Vec2::ONE;
@@ -457,7 +447,7 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
             if tries_left == 0 {
                 return Associated {
                     value: points,
-                    meta: location.to_array(),
+                    meta: location.clamp(Vec2::ZERO, Vec2::ONE).to_array(),
                 };
             }
         }
