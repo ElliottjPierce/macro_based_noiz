@@ -153,9 +153,9 @@ noise_op! {
     pub struct WorlyValueTestNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
     fn GridNoise = GridNoise::new_period(args.period);
-    fn Voronoi<2, RawVoronoi, false> = Voronoi::new_default(1.0, args.seed);
+    fn Voronoi<2, RawVoronoi, false> = Voronoi::new_default(0.5, args.seed);
     fn PrepareLerp = PrepareLerp;
     fn MetaOf;
-    || input[0];
+    || input[1];
     as UNorm
 }

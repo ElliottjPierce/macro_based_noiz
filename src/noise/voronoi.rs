@@ -436,28 +436,6 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
             let parallelagram_to_square = square_to_parallelagram.inverse();
             let p_in_parallelagram = parallelagram_to_square * p;
 
-            let mut go_again = false;
-            if p_in_parallelagram.x < 0.0 {
-                if corner_to_explore.x > 0 {
-                    corner_to_explore.x -= 1;
-                }
-                go_again = true;
-            }
-            if p_in_parallelagram.y < 0.0 {
-                if corner_to_explore.y > 0 {
-                    corner_to_explore.y -= 1;
-                }
-                go_again = true;
-            }
-            if go_again && tries < 4 {
-                tries += 1;
-                continue;
-            }
-
-            if go_again {
-                println!("Tried too many");
-            }
-
             // the unit square
             let corner_in_parallelagram = parallelagram_to_square * corner;
             let corner_corrective = Vec2::ONE - corner_in_parallelagram;
@@ -465,6 +443,39 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
             let location = p_in_parallelagram
                 + (corner_corrective
                     * (p_in_parallelagram / corner_in_parallelagram).element_product());
+
+            let mut go_again = false;
+            if location.x < 0.0 {
+                if corner_to_explore.x > 0 {
+                    corner_to_explore.x -= 1;
+                }
+                go_again = true;
+            }
+            if location.y < 0.0 {
+                if corner_to_explore.y > 0 {
+                    corner_to_explore.y -= 1;
+                }
+                go_again = true;
+            }
+            if location.x > 1.0 {
+                if corner_to_explore.x < 1 {
+                    corner_to_explore.x += 1;
+                }
+                go_again = true;
+            }
+            if location.y > 1.0 {
+                if corner_to_explore.y < 1 {
+                    corner_to_explore.y += 1;
+                }
+                go_again = true;
+            }
+            if go_again && tries < 4 {
+                tries += 1;
+                continue;
+            }
+            if go_again {
+                println!("Tried too many");
+            }
 
             return Associated {
                 value: raw_points,
