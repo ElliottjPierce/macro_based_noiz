@@ -29,6 +29,7 @@ use noiz::noise::{
     },
     voronoi::{
         Cellular,
+        RawVoronoi,
         Voronoi,
         Worly,
         WorlyMode,
@@ -71,7 +72,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WorlyNoise;
+type NoiseUsed = WorlyValueNoise;
 
 pub struct TestingNoiseInput {
     pub seed: u32,
@@ -123,7 +124,7 @@ noise_op! {
     pub struct CellularNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
     fn GridNoise = GridNoise::new_period(args.period);
-    fn Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new_default(1.0.adapt(), args.seed);
+    fn Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new_default(1.0, args.seed);
     fn MetaOf;
     as UNorm
 }
@@ -134,4 +135,16 @@ noise_op! {
     fn GridNoise = GridNoise::new_period(args.period);
     fn Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, args.seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio));
     || input.inverse();
+}
+
+noise_op! {
+    pub struct WorlyValueNoise for Vec2 -> UNorm = TestingNoiseInput
+    impl
+    fn GridNoise = GridNoise::new_period(args.period);
+    fn Voronoi<2, RawVoronoi, false> = Voronoi::new_default(1.0, args.seed);
+    fn PrepareLerp = PrepareLerp;
+    mut ValueOf for fn MetaOf;
+    mut ValueOf for as u32, UNorm, f32;
+    fn Smooth<Cubic> = Smooth(Cubic);
+    as UNorm
 }

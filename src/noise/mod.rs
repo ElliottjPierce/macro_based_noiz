@@ -99,6 +99,19 @@ where
     }
 }
 
+/// A [`NoiseOp`] that has no affect on the noise.
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub struct IdentityNoise;
+
+impl<T: NoiseType> NoiseOp<T> for IdentityNoise {
+    type Output = T;
+
+    #[inline]
+    fn get(&self, input: T) -> Self::Output {
+        input
+    }
+}
+
 // built in
 impl NoiseType for f32 {}
 impl NoiseType for f64 {}

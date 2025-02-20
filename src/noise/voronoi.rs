@@ -11,6 +11,7 @@ use bevy_math::{
 };
 
 use super::{
+    IdentityNoise,
     NoiseOp,
     NoiseType,
     associating::Associated,
@@ -190,10 +191,22 @@ impl<T> Worly<T> {
     }
 }
 
+/// Gets the [`VoronoiGraph`] out of a [`Voronoi`] noise.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RawVoronoi;
+
+impl<const D: u8> VoronoiSource<D, false> for RawVoronoi {
+    type Noise = IdentityNoise;
+
+    fn build_noise(self, _max_nudge: f32) -> Self::Noise {
+        IdentityNoise
+    }
+}
+
 /// easily implements worly for different inputs
 macro_rules! impl_voronoi {
     ($point:path, $vec:path, $d:literal, $d_2:literal, $d_3:literal) => {
-        // worly
+        // voronoi
 
         impl<S: VoronoiSource<$d, true>> NoiseOp<$point> for Voronoi<$d, S, true>
         where
