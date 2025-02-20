@@ -72,7 +72,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WorlyValueNoise;
+type NoiseUsed = WorlyValueTestNoise;
 
 pub struct TestingNoiseInput {
     pub seed: u32,
@@ -141,10 +141,21 @@ noise_op! {
     pub struct WorlyValueNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
     fn GridNoise = GridNoise::new_period(args.period);
-    fn Voronoi<2, RawVoronoi, false> = Voronoi::new_default(1.0, args.seed);
+    fn Voronoi<2, RawVoronoi, false> = Voronoi::new_default(0.0, args.seed);
     fn PrepareLerp = PrepareLerp;
     mut ValueOf for fn MetaOf;
     mut ValueOf for as u32, UNorm, f32;
     fn Smooth<Cubic> = Smooth(Cubic);
+    as UNorm
+}
+
+noise_op! {
+    pub struct WorlyValueTestNoise for Vec2 -> UNorm = TestingNoiseInput
+    impl
+    fn GridNoise = GridNoise::new_period(args.period);
+    fn Voronoi<2, RawVoronoi, false> = Voronoi::new_default(1.0, args.seed);
+    fn PrepareLerp = PrepareLerp;
+    fn MetaOf;
+    || input[0];
     as UNorm
 }

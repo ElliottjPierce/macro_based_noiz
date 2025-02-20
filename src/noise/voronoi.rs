@@ -3,10 +3,13 @@
 use std::marker::PhantomData;
 
 use bevy_math::{
+    BVec2,
     Mat2,
+    UVec2,
     Vec2,
     Vec3,
     Vec4,
+    VectorSpace,
 };
 
 use super::{
@@ -430,18 +433,43 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
             p_in_parallelagram / corner_in_parallelagram
         }
 
-        let corner_to_explore = (self.value[4].value.offset + Vec2::ONE).as_uvec2();
-        let base_index = corner_to_explore.x * 3 + corner_to_explore.y;
-        let points = [
-            self.value[base_index as usize],
-            self.value[base_index as usize + 1],
-            self.value[base_index as usize + 3],
-            self.value[base_index as usize + 3 + 1],
-        ];
+        let quadrant = self.value[4].value.offset.cmpgt(Vec2::ZERO);
+        let points = match quadrant {
+            BVec2 { x: true, y: true } => {
+                [self.value[4], self.value[5], self.value[7], self.value[8]]
+            }
+            BVec2 { x: true, y: false } => {
+                [self.value[3], self.value[4], self.value[6], self.value[7]]
+            }
+            BVec2 { x: false, y: true } => {
+                [self.value[1], self.value[2], self.value[4], self.value[5]]
+            }
+            BVec2 { x: false, y: false } => {
+                [self.value[0], self.value[1], self.value[3], self.value[4]]
+            }
+        };
+
+        // let corner_to_explore = (self.value[4].value.offset + Vec2::ONE).as_uvec2();
+        // let base_index = corner_to_explore.x * 3 + corner_to_explore.y;
+        // let points = [
+        //     self.value[base_index as usize],
+        //     self.value[base_index as usize + 1],
+        //     self.value[base_index as usize + 3],
+        //     self.value[base_index as usize + 3 + 1],
+        // ];
         let location = prep_vec(points.map(|p| p.value.offset)).clamp(Vec2::ZERO, Vec2::ONE);
+
+        // let tmp_meta = match corner_to_explore {
+        //     UVec2 { x: 0, y: 0 } => 0.0,
+        //     UVec2 { x: 0, y: 1 } => 0.2,
+        //     UVec2 { x: 1, y: 0 } => 0.4,
+        //     UVec2 { x: 1, y: 1 } => 0.6,
+        //     _ => 1.0,
+        // };
 
         Associated {
             value: points,
+            // meta: [tmp_meta, 0.0],
             meta: location.to_array(),
         }
     }
