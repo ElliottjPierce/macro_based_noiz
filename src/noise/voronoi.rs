@@ -435,14 +435,23 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
             let square_to_parallelagram = Mat2::from_cols(i, j);
             let parallelagram_to_square = square_to_parallelagram.inverse();
             let p_in_parallelagram = parallelagram_to_square * p;
+            let corner_in_parallelagram = parallelagram_to_square * corner;
 
             // the unit square
-            let corner_in_parallelagram = parallelagram_to_square * corner;
             let corner_corrective = Vec2::ONE - corner_in_parallelagram;
-
             let location = p_in_parallelagram
                 + (corner_corrective
                     * (p_in_parallelagram / corner_in_parallelagram).element_product());
+            // let difference_to_corner = p_in_parallelagram - corner_in_parallelagram;
+            // let relative_dist_to_corner =
+            //     (1.0 - p_in_parallelagram.element_sum()) / difference_to_corner.element_sum();
+            // let unit_dist_to_corner = 1.0 - 1.0 / relative_dist_to_corner;
+            // let corrective = if p_in_parallelagram.element_sum() > 1.0 {
+            //     unit_dist_to_corner
+            // } else {
+            //     0.0
+            // };
+            // let location = p_in_parallelagram - corner_corrective * corrective;
 
             let mut go_again = false;
             if location.x < 0.0 {
