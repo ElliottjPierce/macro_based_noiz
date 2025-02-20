@@ -430,7 +430,10 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
             let corner_in_parallelagram = parallelagram_to_square * corner;
 
             // the unit square
-            p_in_parallelagram / corner_in_parallelagram
+            let corner_corrective = Vec2::ONE - corner_in_parallelagram;
+            p_in_parallelagram
+                + (corner_corrective
+                    * (p_in_parallelagram / corner_in_parallelagram).element_product())
         }
 
         let quadrant = self.value[4].value.offset.cmpgt(Vec2::ZERO);
