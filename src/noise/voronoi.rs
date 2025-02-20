@@ -3,9 +3,12 @@
 use std::marker::PhantomData;
 
 use bevy_math::{
+    Mat2,
+    U8Vec2,
     Vec2,
     Vec3,
     Vec4,
+    VectorSpace,
 };
 
 use super::{
@@ -391,29 +394,72 @@ impl_voronoi!(GridPoint2, Vec2, 2, 4, 9);
 impl_voronoi!(GridPoint3, Vec3, 3, 8, 27);
 impl_voronoi!(GridPoint4, Vec4, 4, 16, 81);
 
-impl LerpLocatable for VoronoiGraph<[Vec2; 9]> {
-    type Location = [f32; 3];
-
-    type Extents = [Vec2; 9];
-
-    fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
-        todo!()
-    }
-}
-
 impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
-    type Location = [f32; 3];
+    type Location = [f32; 2];
 
-    type Extents = [Seeded<GridPoint2>; 9];
+    type Extents = [Seeded<GridPoint2>; 4];
 
     fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
-        let location = self
-            .map_ref(|points| points.clone().map(|p| p.value.offset))
-            .prepare_lerp()
-            .meta;
-        Associated {
-            value: self.value,
-            meta: location,
+        fn prep_vec(points: [Vec2; 4]) -> Vec2 {
+            // derived from  https://math.stackexchange.com/questions/169176/2d-transformation-matrix-to-make-a-trapezoid-out-of-a-rectangle/863702#863702
+
+            // the quadralateral
+            let p = points[0];
+            let i = points[0] - points[2];
+            let j = points[0] - points[1];
+            let corner_if_parallel = i + j;
+            let quad_to_prallel = corner_if_parallel - p + points[3]; // shifts the corner of the quadralateral to make it a parallelagram
+            let corner = p - points[3];
+
+            // parallelagram
+
+            let square_to_parallelagram = Mat2::from_cols(i, j);
+
+            let parallelagram_to_square = square_to_parallelagram.inverse();
+            let p_in_square = parallelagram_to_square * p;
+            let furthest_outside_of_square = parallelagram_to_square * corner;
+
+            // the unit square
+            let re_bounder = Vec2::ONE - furthest_outside_of_square;
+            let p_final = p_in_square / furthest_outside_of_square;
+            // p_in_square + re_bounder * (p_in_square /
+            // furthest_outside_of_square).element_product(); let [x, y] =
+            // p_final.to_array();
+            p_in_square.clamp(Vec2::ZERO, Vec2::ONE)
+        }
+
+        let mut corner_to_explore = U8Vec2::ONE;
+        let mut tries_left = 3u8;
+        loop {
+            tries_left -= 1;
+            let base_index = corner_to_explore.x * 3 + corner_to_explore.y;
+            let points = [
+                self.value[base_index as usize],
+                self.value[base_index as usize + 1],
+                self.value[base_index as usize + 3],
+                self.value[base_index as usize + 3 + 1],
+            ];
+            let location = prep_vec(points.map(|p| p.value.offset));
+            if location.cmpge(Vec2::ZERO).all() && location.cmple(Vec2::ONE).all() {
+                return Associated {
+                    value: points,
+                    meta: location.to_array(),
+                };
+            }
+
+            if location.x < 0.0 {
+                corner_to_explore.x -= 1;
+            }
+            if location.y < 0.0 {
+                corner_to_explore.y -= 1;
+            }
+
+            if tries_left == 0 {
+                return Associated {
+                    value: points,
+                    meta: location.to_array(),
+                };
+            }
         }
     }
 }

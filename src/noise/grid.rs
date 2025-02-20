@@ -120,7 +120,7 @@ macro_rules! make_grid_point {
         $num_d:literal
     ) => {
         /// represents a point in a grid
-        #[derive(Debug, Default, Clone, PartialEq)]
+        #[derive(Debug, Default, Clone, Copy, PartialEq)]
         pub struct $name {
             /// the corner of the grid cell we are anchored to
             pub base: $uint,
