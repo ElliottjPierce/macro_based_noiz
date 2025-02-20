@@ -33,6 +33,7 @@ use super::{
         Seeded,
         Seeding,
     },
+    smoothing::LerpLocatable,
 };
 
 /// Describes a source of Worly noise with a [`NoiseOp`] for [`VoronoiGraph`].
@@ -389,3 +390,30 @@ macro_rules! impl_voronoi {
 impl_voronoi!(GridPoint2, Vec2, 2, 4, 9);
 impl_voronoi!(GridPoint3, Vec3, 3, 8, 27);
 impl_voronoi!(GridPoint4, Vec4, 4, 16, 81);
+
+impl LerpLocatable for VoronoiGraph<[Vec2; 9]> {
+    type Location = [f32; 3];
+
+    type Extents = [Vec2; 9];
+
+    fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
+        todo!()
+    }
+}
+
+impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
+    type Location = [f32; 3];
+
+    type Extents = [Seeded<GridPoint2>; 9];
+
+    fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
+        let location = self
+            .map_ref(|points| points.clone().map(|p| p.value.offset))
+            .prepare_lerp()
+            .meta;
+        Associated {
+            value: self.value,
+            meta: location,
+        }
+    }
+}
