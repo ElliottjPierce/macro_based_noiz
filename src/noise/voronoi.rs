@@ -3,13 +3,10 @@
 use std::marker::PhantomData;
 
 use bevy_math::{
-    BVec2,
     Mat2,
-    UVec2,
     Vec2,
     Vec3,
     Vec4,
-    VectorSpace,
 };
 
 use super::{
@@ -414,7 +411,18 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
     type Extents = [Seeded<GridPoint2>; 4];
 
     fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
-        fn prep_vec(points: [Vec2; 4]) -> Vec2 {
+        let mut corner_to_explore = (self.value[4].value.offset + Vec2::ONE).as_uvec2();
+        let mut tries = 0u8;
+        loop {
+            let base_index = corner_to_explore.x * 3 + corner_to_explore.y;
+            let raw_points = [
+                self.value[base_index as usize],
+                self.value[base_index as usize + 1],
+                self.value[base_index as usize + 3],
+                self.value[base_index as usize + 3 + 1],
+            ];
+            let points = raw_points.map(|p| p.value.offset);
+
             // derived from  https://math.stackexchange.com/questions/169176/2d-transformation-matrix-to-make-a-trapezoid-out-of-a-rectangle/863702#863702
 
             // the quadralateral
@@ -427,53 +435,41 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
             let square_to_parallelagram = Mat2::from_cols(i, j);
             let parallelagram_to_square = square_to_parallelagram.inverse();
             let p_in_parallelagram = parallelagram_to_square * p;
-            let corner_in_parallelagram = parallelagram_to_square * corner;
+
+            let mut go_again = false;
+            if p_in_parallelagram.x < 0.0 {
+                if corner_to_explore.x > 0 {
+                    corner_to_explore.x -= 1;
+                }
+                go_again = true;
+            }
+            if p_in_parallelagram.y < 0.0 {
+                if corner_to_explore.y > 0 {
+                    corner_to_explore.y -= 1;
+                }
+                go_again = true;
+            }
+            if go_again && tries < 4 {
+                tries += 1;
+                continue;
+            }
+
+            if go_again {
+                println!("Tried too many");
+            }
 
             // the unit square
+            let corner_in_parallelagram = parallelagram_to_square * corner;
             let corner_corrective = Vec2::ONE - corner_in_parallelagram;
-            p_in_parallelagram
+
+            let location = p_in_parallelagram
                 + (corner_corrective
-                    * (p_in_parallelagram / corner_in_parallelagram).element_product())
-        }
+                    * (p_in_parallelagram / corner_in_parallelagram).element_product());
 
-        let quadrant = self.value[4].value.offset.cmpgt(Vec2::ZERO);
-        let points = match quadrant {
-            BVec2 { x: true, y: true } => {
-                [self.value[4], self.value[5], self.value[7], self.value[8]]
-            }
-            BVec2 { x: true, y: false } => {
-                [self.value[3], self.value[4], self.value[6], self.value[7]]
-            }
-            BVec2 { x: false, y: true } => {
-                [self.value[1], self.value[2], self.value[4], self.value[5]]
-            }
-            BVec2 { x: false, y: false } => {
-                [self.value[0], self.value[1], self.value[3], self.value[4]]
-            }
-        };
-
-        // let corner_to_explore = (self.value[4].value.offset + Vec2::ONE).as_uvec2();
-        // let base_index = corner_to_explore.x * 3 + corner_to_explore.y;
-        // let points = [
-        //     self.value[base_index as usize],
-        //     self.value[base_index as usize + 1],
-        //     self.value[base_index as usize + 3],
-        //     self.value[base_index as usize + 3 + 1],
-        // ];
-        let location = prep_vec(points.map(|p| p.value.offset)).clamp(Vec2::ZERO, Vec2::ONE);
-
-        // let tmp_meta = match corner_to_explore {
-        //     UVec2 { x: 0, y: 0 } => 0.0,
-        //     UVec2 { x: 0, y: 1 } => 0.2,
-        //     UVec2 { x: 1, y: 0 } => 0.4,
-        //     UVec2 { x: 1, y: 1 } => 0.6,
-        //     _ => 1.0,
-        // };
-
-        Associated {
-            value: points,
-            // meta: [tmp_meta, 0.0],
-            meta: location.to_array(),
+            return Associated {
+                value: raw_points,
+                meta: location.clamp(Vec2::ZERO, Vec2::ONE).to_array(),
+            };
         }
     }
 }
