@@ -4,7 +4,6 @@ use std::marker::PhantomData;
 
 use bevy_math::{
     Mat2,
-    U8Vec2,
     Vec2,
     Vec3,
     Vec4,
@@ -431,38 +430,19 @@ impl LerpLocatable for VoronoiGraph<[Seeded<GridPoint2>; 9]> {
             p_in_parallelagram / corner_in_parallelagram
         }
 
-        let mut corner_to_explore = U8Vec2::ONE;
-        let mut tries_left = 3u8;
-        loop {
-            tries_left -= 1;
-            let base_index = corner_to_explore.x * 3 + corner_to_explore.y;
-            let points = [
-                self.value[base_index as usize],
-                self.value[base_index as usize + 1],
-                self.value[base_index as usize + 3],
-                self.value[base_index as usize + 3 + 1],
-            ];
-            let location = prep_vec(points.map(|p| p.value.offset));
-            if location.cmpge(Vec2::ZERO).all() && location.cmple(Vec2::ONE).all() {
-                return Associated {
-                    value: points,
-                    meta: location.to_array(),
-                };
-            }
+        let corner_to_explore = (self.value[4].value.offset + Vec2::ONE).as_uvec2();
+        let base_index = corner_to_explore.x * 3 + corner_to_explore.y;
+        let points = [
+            self.value[base_index as usize],
+            self.value[base_index as usize + 1],
+            self.value[base_index as usize + 3],
+            self.value[base_index as usize + 3 + 1],
+        ];
+        let location = prep_vec(points.map(|p| p.value.offset)).clamp(Vec2::ZERO, Vec2::ONE);
 
-            if location.x < 0.0 {
-                corner_to_explore.x -= 1;
-            }
-            if location.y < 0.0 {
-                corner_to_explore.y -= 1;
-            }
-
-            if tries_left == 0 {
-                return Associated {
-                    value: points,
-                    meta: location.clamp(Vec2::ZERO, Vec2::ONE).to_array(),
-                };
-            }
+        Associated {
+            value: points,
+            meta: location.to_array(),
         }
     }
 }
