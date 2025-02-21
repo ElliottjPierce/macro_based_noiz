@@ -249,6 +249,16 @@ impl UNorm {
         Self::new_clamped((self.0 * jumps).fract())
     }
 
+    /// Interpolates from `lo` to `hi`.
+    /// When this is close to 0, the result will be close to `lo`,
+    /// and when this is close to 1, the result will be close to `hi`.
+    ///
+    /// For more general use, see [`Self::remap`].
+    #[inline]
+    pub fn ramp(self, lo: UNorm, hi: UNorm) -> Self {
+        Self(lo.0 + (hi.0 - lo.0) * self.0)
+    }
+
     /// populates a u8 based on this value
     #[inline]
     pub fn fill_u8(self) -> u8 {
