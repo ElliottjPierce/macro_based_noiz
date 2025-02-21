@@ -29,9 +29,9 @@ use noiz::noise::{
     },
     voronoi::{
         Cellular,
+        Ratio,
         Voronoi,
         Worly,
-        WorlyMode,
     },
 };
 
@@ -132,6 +132,6 @@ noise_op! {
     pub struct WorlyNoise for Vec2 -> UNorm = TestingNoiseInput
     impl
     fn GridNoise = GridNoise::new_period(args.period);
-    fn Voronoi<2, Worly<EuclideanDistance>, false> = Voronoi::new(1.0, args.seed, Worly::shrunk_by(0.75).with_mode(WorlyMode::Ratio));
+    fn Voronoi<2, Worly<EuclideanDistance, Ratio>, false> = Voronoi::new(1.0, args.seed, Worly::shrunk_by(0.75));
     || input.inverse();
 }

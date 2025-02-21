@@ -102,29 +102,23 @@ impl<const DIMENSIONS: u8, const APPROX: bool, S: VoronoiSource<DIMENSIONS, APPR
     }
 }
 
-/// Defines how [`WorlyNoise`] should behave when delivering the final distance.
-#[derive(Debug, Clone, Copy, Default)]
-pub enum WorlyMode {
-    /// Uses the nearst distance.
-    #[default]
-    Nearet,
-    /// Subtracts the nearst distance from the second nearest.
-    Difference,
-    /// Subtracts the nearst distance and second nearest.
-    Average,
-    /// Multiplies the nearst distance from the second nearest.
-    Product,
-    /// Divides the nearst distance from the second nearest.
-    Ratio,
+/// Defines a particular mode for `Worly` to operate in.
+pub trait WorlyMode {
+    /// Computes the actual worly result given an orderer and the points.
+    fn compute_worly<const N: usize, T: NoiseType>(
+        &self,
+        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+        points: [T; N],
+    ) -> UNorm;
 }
 
 /// Allows for standard, distance-based worly noise.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct WorlyNoise<T>(T, WorlyMode);
+pub struct WorlyNoise<T, M>(T, M);
 
 /// A [`VoronoiSource`] for [`WorlyNoise`].
 #[derive(Debug, Clone, Copy)]
-pub struct Worly<T> {
+pub struct Worly<T, M> {
     /// marker data
     pub marker: PhantomData<T>,
     /// This a a multiplier for the expected maximum length of a voronoi sphere.
@@ -132,7 +126,103 @@ pub struct Worly<T> {
     /// Decreasing this can mave the voronoi spheres more issolated.
     pub expected_length_multiplier: f32,
     /// Defines the [`WorlyMode`] this noise will use.
-    pub mode: WorlyMode,
+    pub mode: M,
+}
+
+/// A [`WorlyMode`] that uses the nearst distance.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Nearest;
+
+impl WorlyMode for Nearest {
+    fn compute_worly<const N: usize, T: NoiseType>(
+        &self,
+        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+        points: [T; N],
+    ) -> UNorm {
+        MinOrder(orderer).merge(points, &())
+    }
+}
+
+/// A [`WorlyMode`] that uses the second nearst distance.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NextNearest;
+
+impl WorlyMode for NextNearest {
+    fn compute_worly<const N: usize, T: NoiseType>(
+        &self,
+        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+        points: [T; N],
+    ) -> UNorm {
+        MinOrders(orderer).merge(points, &())[1]
+    }
+}
+
+/// A [`WorlyMode`] that subtracts the nearst distance from the second nearest.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Difference;
+
+impl WorlyMode for Difference {
+    fn compute_worly<const N: usize, T: NoiseType>(
+        &self,
+        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+        points: [T; N],
+    ) -> UNorm {
+        let [nearest, next_nearest] = MinOrders(orderer)
+            .merge(points, &())
+            .map(|v| v.adapt::<f32>());
+        UNorm::new_clamped(next_nearest - nearest)
+    }
+}
+
+/// A [`WorlyMode`] that averages the two nearst distances.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Average;
+
+impl WorlyMode for Average {
+    fn compute_worly<const N: usize, T: NoiseType>(
+        &self,
+        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+        points: [T; N],
+    ) -> UNorm {
+        let [nearest, next_nearest] = MinOrders(orderer)
+            .merge(points, &())
+            .map(|v| v.adapt::<f32>());
+        UNorm::new_clamped((next_nearest + nearest) * 0.5)
+    }
+}
+
+/// A [`WorlyMode`] that multiplies the nearst distance from the second nearest.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Product;
+
+impl WorlyMode for Product {
+    fn compute_worly<const N: usize, T: NoiseType>(
+        &self,
+        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+        points: [T; N],
+    ) -> UNorm {
+        let [nearest, next_nearest] = MinOrders(orderer)
+            .merge(points, &())
+            .map(|v| v.adapt::<f32>());
+        UNorm::new_clamped(next_nearest * nearest)
+    }
+}
+
+/// A [`WorlyMode`] that divides the nearst distance by the second nearest.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Ratio;
+
+impl WorlyMode for Ratio {
+    fn compute_worly<const N: usize, T: NoiseType>(
+        &self,
+        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+        points: [T; N],
+    ) -> UNorm {
+        let [nearest, next_nearest] = MinOrders(orderer)
+            .merge(points, &())
+            .map(|v| v.adapt::<f32>());
+        UNorm::new_clamped(nearest / next_nearest)
+    }
 }
 
 /// Allows simple, nearest neighbor cellular noise
@@ -149,23 +239,43 @@ impl<T> Default for Cellular<T> {
     }
 }
 
-impl<T> Default for Worly<T> {
+impl<T, M: Default> Default for Worly<T, M> {
     fn default() -> Self {
         Self {
             marker: PhantomData,
             expected_length_multiplier: 1.0,
-            mode: WorlyMode::default(),
+            mode: M::default(),
         }
     }
 }
 
-impl<T> Worly<T> {
+impl<T, M> Worly<T, M> {
+    /// A version of [`shrunk_by`](Self::shrunk_by) that supplies a mode.
+    pub fn new_shrunk_by(srkinging_factor: f32, mode: M) -> Self {
+        Self {
+            marker: PhantomData,
+            expected_length_multiplier: srkinging_factor.abs().clamp(0.0, 1.0),
+            mode,
+        }
+    }
+
+    /// A version of [`expanded_by`](Self::expanded_by) that supplies a mode.
+    pub fn new_expanded_by(expansion_factor: f32, mode: M) -> Self {
+        Self {
+            marker: PhantomData,
+            expected_length_multiplier: expansion_factor.abs().max(0.0),
+            mode,
+        }
+    }
+}
+
+impl<T, M: Default> Worly<T, M> {
     /// Clams the absolute value of this factor as [`WorlySource::expected_length_multiplier`].
     pub fn shrunk_by(srkinging_factor: f32) -> Self {
         Self {
             marker: PhantomData,
             expected_length_multiplier: srkinging_factor.abs().clamp(0.0, 1.0),
-            mode: WorlyMode::default(),
+            mode: M::default(),
         }
     }
 
@@ -176,12 +286,12 @@ impl<T> Worly<T> {
         Self {
             marker: PhantomData,
             expected_length_multiplier: expansion_factor.abs().max(0.0),
-            mode: WorlyMode::default(),
+            mode: M::default(),
         }
     }
 
     /// Sets the [`WorlyMode`] for this noise
-    pub fn with_mode(mut self, mode: WorlyMode) -> Self {
+    pub fn with_mode(mut self, mode: M) -> Self {
         self.mode = mode;
         self
     }
@@ -238,35 +348,20 @@ macro_rules! impl_voronoi {
 
         // worly
 
-        impl<O: Orderer<$vec, OrderingOutput = UNorm>, const K: usize>
-            NoiseOp<VoronoiGraph<[Seeded<$point>; K]>> for WorlyNoise<O>
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>, M: WorlyMode, const K: usize>
+            NoiseOp<VoronoiGraph<[Seeded<$point>; K]>> for WorlyNoise<O, M>
         {
             type Output = UNorm;
 
             #[inline]
             fn get(&self, input: VoronoiGraph<[Seeded<$point>; K]>) -> Self::Output {
                 let points = input.value.map(|point| point.value.offset);
-                if let WorlyMode::Nearet = self.1 {
-                    return MinOrder(&self.0).merge(points, &());
-                }
-
-                let [nearest, second_nearest] = MinOrders(&self.0)
-                    .merge(points, &())
-                    .map(|v| v.adapt::<f32>());
-
-                // Inspired by https://github.com/Auburn/FastNoiseLite/blob/683ff0c848538f669240670ceb1c1ff3bb05b777/Rust/src/lib.rs#L1934
-                UNorm::new_clamped(match self.1 {
-                    WorlyMode::Nearet => unreachable!("we just checked for this above."),
-                    WorlyMode::Difference => second_nearest - nearest,
-                    WorlyMode::Average => (second_nearest + nearest) * 0.5,
-                    WorlyMode::Product => second_nearest * nearest,
-                    WorlyMode::Ratio => nearest / second_nearest,
-                })
+                self.1.compute_worly(&self.0, points)
             }
         }
 
-        impl<const APPROX: bool> VoronoiSource<$d, APPROX> for Worly<EuclideanDistance> {
-            type Noise = WorlyNoise<EuclideanDistance>;
+        impl<const APPROX: bool, M> VoronoiSource<$d, APPROX> for Worly<EuclideanDistance, M> {
+            type Noise = WorlyNoise<EuclideanDistance, M>;
 
             fn build_noise(self, max_nudge: f32) -> Self::Noise {
                 let max_displacement = max_nudge * self.expected_length_multiplier;
@@ -285,8 +380,8 @@ macro_rules! impl_voronoi {
             }
         }
 
-        impl<const APPROX: bool> VoronoiSource<$d, APPROX> for Worly<ManhatanDistance> {
-            type Noise = WorlyNoise<ManhatanDistance>;
+        impl<const APPROX: bool, M> VoronoiSource<$d, APPROX> for Worly<ManhatanDistance, M> {
+            type Noise = WorlyNoise<ManhatanDistance, M>;
 
             fn build_noise(self, max_nudge: f32) -> Self::Noise {
                 let max_displacement = max_nudge * self.expected_length_multiplier;
@@ -305,8 +400,8 @@ macro_rules! impl_voronoi {
             }
         }
 
-        impl<const APPROX: bool> VoronoiSource<$d, APPROX> for Worly<HybridDistance> {
-            type Noise = WorlyNoise<HybridDistance>;
+        impl<const APPROX: bool, M> VoronoiSource<$d, APPROX> for Worly<HybridDistance, M> {
+            type Noise = WorlyNoise<HybridDistance, M>;
 
             fn build_noise(self, max_nudge: f32) -> Self::Noise {
                 let max_displacement = max_nudge * self.expected_length_multiplier;
