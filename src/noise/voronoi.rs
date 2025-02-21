@@ -23,8 +23,6 @@ use super::{
         ManhatanDistance,
         Merger,
         MinIndex,
-        MinOrder,
-        MinOrders,
         Orderer,
     },
     norm::UNorm,
@@ -129,99 +127,114 @@ pub struct Worly<T, M> {
     pub mode: M,
 }
 
-/// A [`WorlyMode`] that uses the nearst distance.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Nearest;
+/// Contains some common [`WorlyMode`]s.
+pub mod worly_mode {
+    use super::WorlyMode;
+    use crate::noise::{
+        NoiseType,
+        merging::{
+            Merger,
+            MinOrder,
+            MinOrders,
+            Orderer,
+        },
+        norm::UNorm,
+    };
 
-impl WorlyMode for Nearest {
-    fn compute_worly<const N: usize, T: NoiseType>(
-        &self,
-        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
-        points: [T; N],
-    ) -> UNorm {
-        MinOrder(orderer).merge(points, &())
+    /// A [`WorlyMode`] that uses the nearst distance.
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct Nearest;
+
+    impl WorlyMode for Nearest {
+        fn compute_worly<const N: usize, T: NoiseType>(
+            &self,
+            orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+            points: [T; N],
+        ) -> UNorm {
+            MinOrder(orderer).merge(points, &())
+        }
     }
-}
 
-/// A [`WorlyMode`] that uses the second nearst distance.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct NextNearest;
+    /// A [`WorlyMode`] that uses the second nearst distance.
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct NextNearest;
 
-impl WorlyMode for NextNearest {
-    fn compute_worly<const N: usize, T: NoiseType>(
-        &self,
-        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
-        points: [T; N],
-    ) -> UNorm {
-        MinOrders(orderer).merge(points, &())[1]
+    impl WorlyMode for NextNearest {
+        fn compute_worly<const N: usize, T: NoiseType>(
+            &self,
+            orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+            points: [T; N],
+        ) -> UNorm {
+            MinOrders(orderer).merge(points, &())[1]
+        }
     }
-}
 
-/// A [`WorlyMode`] that subtracts the nearst distance from the second nearest.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Difference;
+    /// A [`WorlyMode`] that subtracts the nearst distance from the second nearest.
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct Difference;
 
-impl WorlyMode for Difference {
-    fn compute_worly<const N: usize, T: NoiseType>(
-        &self,
-        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
-        points: [T; N],
-    ) -> UNorm {
-        let [nearest, next_nearest] = MinOrders(orderer)
-            .merge(points, &())
-            .map(|v| v.adapt::<f32>());
-        UNorm::new_clamped(next_nearest - nearest)
+    impl WorlyMode for Difference {
+        fn compute_worly<const N: usize, T: NoiseType>(
+            &self,
+            orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+            points: [T; N],
+        ) -> UNorm {
+            let [nearest, next_nearest] = MinOrders(orderer)
+                .merge(points, &())
+                .map(|v| v.adapt::<f32>());
+            UNorm::new_clamped(next_nearest - nearest)
+        }
     }
-}
 
-/// A [`WorlyMode`] that averages the two nearst distances.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Average;
+    /// A [`WorlyMode`] that averages the two nearst distances.
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct Average;
 
-impl WorlyMode for Average {
-    fn compute_worly<const N: usize, T: NoiseType>(
-        &self,
-        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
-        points: [T; N],
-    ) -> UNorm {
-        let [nearest, next_nearest] = MinOrders(orderer)
-            .merge(points, &())
-            .map(|v| v.adapt::<f32>());
-        UNorm::new_clamped((next_nearest + nearest) * 0.5)
+    impl WorlyMode for Average {
+        fn compute_worly<const N: usize, T: NoiseType>(
+            &self,
+            orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+            points: [T; N],
+        ) -> UNorm {
+            let [nearest, next_nearest] = MinOrders(orderer)
+                .merge(points, &())
+                .map(|v| v.adapt::<f32>());
+            UNorm::new_clamped((next_nearest + nearest) * 0.5)
+        }
     }
-}
 
-/// A [`WorlyMode`] that multiplies the nearst distance from the second nearest.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Product;
+    /// A [`WorlyMode`] that multiplies the nearst distance from the second nearest.
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct Product;
 
-impl WorlyMode for Product {
-    fn compute_worly<const N: usize, T: NoiseType>(
-        &self,
-        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
-        points: [T; N],
-    ) -> UNorm {
-        let [nearest, next_nearest] = MinOrders(orderer)
-            .merge(points, &())
-            .map(|v| v.adapt::<f32>());
-        UNorm::new_clamped(next_nearest * nearest)
+    impl WorlyMode for Product {
+        fn compute_worly<const N: usize, T: NoiseType>(
+            &self,
+            orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+            points: [T; N],
+        ) -> UNorm {
+            let [nearest, next_nearest] = MinOrders(orderer)
+                .merge(points, &())
+                .map(|v| v.adapt::<f32>());
+            UNorm::new_clamped(next_nearest * nearest)
+        }
     }
-}
 
-/// A [`WorlyMode`] that divides the nearst distance by the second nearest.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Ratio;
+    /// A [`WorlyMode`] that divides the nearst distance by the second nearest.
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct Ratio;
 
-impl WorlyMode for Ratio {
-    fn compute_worly<const N: usize, T: NoiseType>(
-        &self,
-        orderer: &impl Orderer<T, OrderingOutput = UNorm>,
-        points: [T; N],
-    ) -> UNorm {
-        let [nearest, next_nearest] = MinOrders(orderer)
-            .merge(points, &())
-            .map(|v| v.adapt::<f32>());
-        UNorm::new_clamped(nearest / next_nearest)
+    impl WorlyMode for Ratio {
+        fn compute_worly<const N: usize, T: NoiseType>(
+            &self,
+            orderer: &impl Orderer<T, OrderingOutput = UNorm>,
+            points: [T; N],
+        ) -> UNorm {
+            let [nearest, next_nearest] = MinOrders(orderer)
+                .merge(points, &())
+                .map(|v| v.adapt::<f32>());
+            UNorm::new_clamped(nearest / next_nearest)
+        }
     }
 }
 
