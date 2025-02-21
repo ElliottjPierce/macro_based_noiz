@@ -88,7 +88,7 @@ fn make_noise(image: &mut Image) {
 
     for x in 0..width {
         for y in 0..height {
-            let loc = Vec2::new(x as f32 - (x / 2) as f32, y as f32 - (y / 2) as f32);
+            let loc = Vec2::new(x as f32 - (x / 2) as f32, -(y as f32 - (y / 2) as f32));
             let out = noise.sample(loc).adapt::<f32>();
             let color = Color::linear_rgb(out, out, out);
             if let Err(err) = image.set_color_at(x, y, color) {
