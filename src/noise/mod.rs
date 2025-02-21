@@ -42,7 +42,6 @@ pub mod mapping;
 pub mod merging;
 pub mod norm;
 pub mod nudges;
-pub mod parallel;
 pub mod seeded;
 pub mod smoothing;
 pub mod voronoi;
