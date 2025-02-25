@@ -27,7 +27,7 @@ impl<S: NoiseOp<u32, Output = Dir2>> NoiseOp<Seeded<Vec2>> for Perlin<S> {
         let dir = self.0.get(input.meta);
         let dot = dir.dot(input.value);
         const NORMALIZER: f32 = 2.0 / core::f32::consts::SQRT_2;
-        (dot * NORMALIZER + 1.0) * 0.5
+        dot * NORMALIZER
     }
 }
 

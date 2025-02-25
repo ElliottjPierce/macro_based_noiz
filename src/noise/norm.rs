@@ -16,6 +16,11 @@ pub struct SNorm(f32);
 pub struct UNorm(f32);
 
 impl SNorm {
+    /// The maximum valid value.
+    pub const MAX: f32 = UNorm::MAX;
+    /// The minimum valid value.
+    pub const MIN: f32 = -UNorm::MAX;
+
     /// constructs an arbetrary but valid value using these bits. Returns an additional byte of
     /// leftover bits not used in the calculation.
     #[inline]
@@ -44,7 +49,7 @@ impl SNorm {
     /// clamps the value into a valid SNorm
     #[inline]
     pub fn new_clamped(value: f32) -> Self {
-        Self(take_sign(value.abs().clamp(UNorm::MIN, UNorm::MAX), value))
+        Self(make_nonzero_f32(value.clamp(Self::MIN, Self::MAX)))
     }
 
     /// creates a new [`SNorm`] by rolling the input by fractions. Values an integer apart will be
@@ -291,8 +296,8 @@ impl UNorm {
 convertible!(u32 = UNorm, |source| UNorm::from_bits(source));
 convertible!(u32 = SNorm, |source| SNorm::from_bits(source));
 
-convertible!(f32 = UNorm, |source| UNorm::new_rolling(source));
-convertible!(f32 = SNorm, |source| SNorm::new_rolling(source));
+convertible!(f32 = UNorm, |source| UNorm::new_clamped(source));
+convertible!(f32 = SNorm, |source| SNorm::new_clamped(source));
 
 convertible!(UNorm = f32, |source| source.0);
 convertible!(SNorm = f32, |source| source.0);

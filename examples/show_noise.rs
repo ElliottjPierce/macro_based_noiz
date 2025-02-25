@@ -21,7 +21,10 @@ use noiz::noise::{
         ManhatanDistance,
     },
     noise_op,
-    norm::UNorm,
+    norm::{
+        SNorm,
+        UNorm,
+    },
     perlin::{
         Perlin,
         RuntimeRand,
@@ -118,8 +121,8 @@ noise_op! {
     fn Lerp = Lerp;
     mut ValueOf for fn Seeding = Seeding(args.seed);
     mut ValueOf for fn MetaOf;
-    mut ValueOf for as u32, UNorm, f32;
-    fn Smooth<Cubic> = Smooth(Cubic);
+    mut ValueOf for as UNorm, f32;
+    fn Smooth<Cubic>;
     as UNorm
 }
 
@@ -132,7 +135,7 @@ noise_op! {
     mut ValueOf for mut ValueOf || input.offset;
     mut ValueOf for fn Perlin<RuntimeRand<Dir2>>;
     fn Smooth<Cubic>;
-    as UNorm
+    as SNorm, UNorm
 }
 
 noise_op! {
