@@ -97,11 +97,11 @@ impl<T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Ou
 
 /// A linear mixing function.
 /// Note that complex derivatives using this will not be continuous.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Linear;
 
 /// A Cubic mixing function. Similar to Smoothstep
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Cubic;
 
 /// Allows implementing curves easily
