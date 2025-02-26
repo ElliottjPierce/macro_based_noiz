@@ -1,38 +1,93 @@
 //! This module implements perlin noise
 
-use std::{
-    hint::unreachable_unchecked,
-    marker::PhantomData,
-};
+use std::hint::unreachable_unchecked;
 
 use bevy_math::{
-    Dir2,
     Vec2,
+    Vec3,
+    Vec4,
 };
 
 use super::{
     NoiseOp,
+    NoiseType,
     convert,
     norm::SNorm,
     seeded::Seeded,
     white::White32,
 };
 
+/// This trait allows for use as `S` in [`Perlin`].
+///
+/// # Safety
+///
+/// For `offset` values where each element is in ±1,
+/// [`get_perlin_dot`](PerlinSource::get_perlin_dot) must return a value x such that x *
+/// [`NORMALIZING_FACTOR`](PerlinSource::NORMALIZING_FACTOR) / √d is within ±1, where d is the
+/// number od dimensions in `I`.
+pub unsafe trait PerlinSource<I: NoiseType> {
+    /// See [`PerlinSource`]'s safety comment for info.
+    const NORMALIZING_FACTOR: f32;
+
+    /// Gets the perlin value for this seed and vector offset.
+    /// For use in actual perlin noise, each element of `offset` can be assumed to be in -1..=1.
+    fn get_perlin_dot(&self, seed: u32, offset: I) -> f32;
+}
+
 /// A simple perlin noise implementation where `S` is the source of the direction vectors.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Perlin<S>(pub S);
+
+macro_rules! impl_perlin {
+    ($vec:ty, $sqrt_d:expr) => {
+        impl<S: PerlinSource<$vec>> NoiseOp<Seeded<$vec>> for Perlin<S> {
+            type Output = f32;
+
+            #[inline]
+            fn get(&self, input: Seeded<$vec>) -> Self::Output {
+                let dot = self.0.get_perlin_dot(input.meta, input.value);
+                dot * S::NORMALIZING_FACTOR / $sqrt_d
+            }
+        }
+    };
+}
+
+impl_perlin!(Vec2, core::f32::consts::SQRT_2);
+impl_perlin!(Vec3, 1.7320508); // sqrt 3
+impl_perlin!(Vec4, 2.0); // sqrt 4
+
+/// A simple perlin noise source from uniquely random values.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct RuntimeRand;
+
+// SAFETY: The dot product can not be grater than the product of the
+// lengths, and one length is normalized and the other one is taken care of by setting
+// `NORMALIZING_FACTOR` to 2.0.
+unsafe impl PerlinSource<Vec2> for RuntimeRand {
+    const NORMALIZING_FACTOR: f32 = 2.0;
+
+    fn get_perlin_dot(&self, seed: u32, offset: Vec2) -> f32 {
+        let vec = Vec2::new(
+            convert!(White32(seed).get(0) => SNorm, f32),
+            convert!(White32(seed).get(1) => SNorm, f32),
+        ) * 128.0; // extra multiplication prevenst len from being Nan because of an approx zero length.
+        vec.normalize().dot(offset)
+    }
+}
 
 /// A simple perlin noise source that uses vectors with elemental values of only -1, 0, or 1.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Cardinal;
 
-impl NoiseOp<Seeded<Vec2>> for Perlin<Cardinal> {
-    type Output = f32;
+// SAFETY: The dot product can not be grater than the product of the
+// lengths, and one length is within √d. So their product is normalized by setting
+// `NORMALIZING_FACTOR` to 1.0.
+unsafe impl PerlinSource<Vec2> for Cardinal {
+    const NORMALIZING_FACTOR: f32 = 1.0;
 
-    #[inline]
-    fn get(&self, input: Seeded<Vec2>) -> Self::Output {
-        let v = input.value;
-        let dot = match input.meta & 0b111 {
+    fn get_perlin_dot(&self, seed: u32, offset: Vec2) -> f32 {
+        let v = offset;
+        match seed & 0b111 {
             0 => v.x + v.y,
             1 => v.x - v.y,
             2 => -v.x + v.y,
@@ -43,46 +98,6 @@ impl NoiseOp<Seeded<Vec2>> for Perlin<Cardinal> {
             7 => -v.y,
             // SAFETY: We did & 7 above, so there is no way for the value to be > 7.
             _ => unsafe { unreachable_unchecked() },
-        };
-
-        const NORMALIZER: f32 = 2.0 / core::f32::consts::SQRT_2;
-        dot * NORMALIZER
-    }
-}
-
-impl<S: NoiseOp<u32, Output = Dir2>> NoiseOp<Seeded<Vec2>> for Perlin<S> {
-    type Output = f32;
-
-    #[inline]
-    fn get(&self, input: Seeded<Vec2>) -> Self::Output {
-        let dir = self.0.get(input.meta);
-        let dot = dir.dot(input.value);
-        const NORMALIZER: f32 = 2.0 / core::f32::consts::SQRT_2;
-        dot * NORMALIZER
-    }
-}
-
-/// A simple perlin noise source from uniquely random values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RuntimeRand<V>(pub PhantomData<V>);
-
-impl<V> Default for RuntimeRand<V> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl NoiseOp<u32> for RuntimeRand<Dir2> {
-    type Output = Dir2;
-
-    #[inline]
-    fn get(&self, input: u32) -> Self::Output {
-        Dir2::new_unchecked(
-            (Vec2::new(
-                convert!(White32(input).get(0) => SNorm, f32),
-                convert!(White32(input).get(1) => SNorm, f32),
-            ) * 2.0)
-                .normalize(),
-        )
+        }
     }
 }
