@@ -32,6 +32,7 @@ use noiz::noise::{
     },
     smoothing::{
         Lerp,
+        LerpValuesOf,
         Smooth,
     },
     voronoi::{
@@ -119,9 +120,9 @@ noise_op! {
     impl
     fn GridNoise = GridNoise::new_period(args.period);
     fn Lerp = Lerp;
-    mut ValueOf for fn Seeding = Seeding(args.seed);
-    mut ValueOf for fn SeedOf;
-    mut ValueOf for as UNorm, f32;
+    mut LerpValuesOf for fn Seeding = Seeding(args.seed);
+    mut LerpValuesOf for fn SeedOf;
+    mut LerpValuesOf for as UNorm, f32;
     fn Smooth<Cubic>;
     as UNorm
 }
@@ -131,9 +132,9 @@ noise_op! {
     impl
     fn GridNoise = GridNoise::new_period(args.period);
     fn Lerp = Lerp;
-    mut ValueOf for fn Seeding = Seeding(args.seed);
-    mut ValueOf for mut ValueOf || input.offset;
-    mut ValueOf for fn Perlin<RuntimeRand>;
+    mut LerpValuesOf for fn Seeding = Seeding(args.seed);
+    mut LerpValuesOf for mut ValueOf || input.offset;
+    mut LerpValuesOf for fn Perlin<RuntimeRand>;
     fn Smooth<Cubic>;
     as SNorm, UNorm
 }
