@@ -45,7 +45,7 @@ macro_rules! impl_perlin {
 
             #[inline]
             fn get(&self, input: Seeded<$vec>) -> Self::Output {
-                let dot = self.0.get_perlin_dot(input.meta, input.value);
+                let dot = self.0.get_perlin_dot(input.seed(), input.value);
                 dot * S::NORMALIZING_FACTOR / $sqrt_d
             }
         }
