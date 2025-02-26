@@ -4,6 +4,8 @@ use bevy_math::{
     DVec2,
     DVec3,
     DVec4,
+    Dir2,
+    Dir3,
     I8Vec2,
     I8Vec3,
     I8Vec4,
@@ -42,6 +44,7 @@ pub mod mapping;
 pub mod merging;
 pub mod norm;
 pub mod nudges;
+pub mod perlin;
 pub mod seeded;
 pub mod smoothing;
 pub mod voronoi;
@@ -116,8 +119,10 @@ impl NoiseType for isize {}
 // bevy
 impl NoiseType for Vec2 {}
 impl NoiseType for DVec2 {}
+impl NoiseType for Dir2 {}
 impl NoiseType for Vec3 {}
 impl NoiseType for DVec3 {}
+impl NoiseType for Dir3 {}
 impl NoiseType for Vec4 {}
 impl NoiseType for DVec4 {}
 impl NoiseType for I8Vec2 {}

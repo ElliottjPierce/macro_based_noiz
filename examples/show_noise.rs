@@ -21,7 +21,14 @@ use noiz::noise::{
         ManhatanDistance,
     },
     noise_op,
-    norm::UNorm,
+    norm::{
+        SNorm,
+        UNorm,
+    },
+    perlin::{
+        Perlin,
+        RuntimeRand,
+    },
     seeded::Seeding,
     smoothing::{
         Lerp,
@@ -71,7 +78,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WorlyNoise;
+type NoiseUsed = PerlinNoise;
 
 pub struct TestingNoiseInput {
     pub seed: u32,
@@ -83,7 +90,7 @@ fn make_noise(image: &mut Image) {
     let height = image.height();
     let noise = NoiseUsed::new(TestingNoiseInput {
         seed: 9283740,
-        period: 100.0,
+        period: 50.0,
     });
 
     for x in 0..width {
@@ -114,9 +121,21 @@ noise_op! {
     fn Lerp = Lerp;
     mut ValueOf for fn Seeding = Seeding(args.seed);
     mut ValueOf for fn MetaOf;
-    mut ValueOf for as u32, UNorm, f32;
-    fn Smooth<Cubic> = Smooth(Cubic);
+    mut ValueOf for as UNorm, f32;
+    fn Smooth<Cubic>;
     as UNorm
+}
+
+noise_op! {
+    pub struct PerlinNoise for Vec2 -> UNorm = TestingNoiseInput
+    impl
+    fn GridNoise = GridNoise::new_period(args.period);
+    fn Lerp = Lerp;
+    mut ValueOf for fn Seeding = Seeding(args.seed);
+    mut ValueOf for mut ValueOf || input.offset;
+    mut ValueOf for fn Perlin<RuntimeRand>;
+    fn Smooth<Cubic>;
+    as SNorm, UNorm
 }
 
 noise_op! {
