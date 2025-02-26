@@ -156,13 +156,15 @@ impl<T: NoiseType, const N: usize> NoiseType for [T; N] {}
 mod tests {
 
     use super::{
-        associating::MetaOf,
         grid::{
             GridNoise,
             GridPoint2,
         },
         norm::UNorm,
-        seeded::Seeding,
+        seeded::{
+            SeedOf,
+            Seeding,
+        },
         *,
     };
     use crate as noiz;
@@ -184,7 +186,7 @@ mod tests {
         fn Seeding = Seeding(seed); // If you don't give a 'do' a name, it will make one for you.
         #[allow(unused)]
         let GridPoint2{ base, offset } = input.value; // 'let' holds a temporary value during the noise calculation.
-        fn MetaOf; // If you don't provide a constructor for a 'do' value, the default will be used.
+        fn SeedOf; // If you don't provide a constructor for a 'do' value, the default will be used.
         as UNorm, f32, UNorm; // 'as' performs a conversion chain through the types listed.
         |mut x: UNorm| { // 'fn' performs a custom noise function. You must name the return type.
             // You can name the parameter and its type if you want.

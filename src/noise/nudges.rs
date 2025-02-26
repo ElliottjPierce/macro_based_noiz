@@ -22,7 +22,6 @@ use super::{
         UNorm,
     },
     seeded::Seeded,
-    white::White32,
 };
 
 /// Offsets a grid point randomly, with respect to its surroundings.
@@ -88,7 +87,7 @@ macro_rules! impl_nudge {
             #[inline]
             fn get(&self, input: Seeded<$uvec>) -> Self::Output {
                 let raw_shift = input.value.to_array().map(|v| {
-                    let seed = White32(input.meta).get(v);
+                    let seed = input.rng(v);
                     if RESTRICT_POSITIVE {
                         seed.adapt::<UNorm>().adapt()
                     } else {

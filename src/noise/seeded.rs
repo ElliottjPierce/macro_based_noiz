@@ -37,7 +37,11 @@ pub trait SeedableNoiseType: NoiseType {
 }
 
 /// Represents a type that has been given a seed for quick access.
-pub type Seeded<T> = Associated<T, u32>;
+pub type Seeded<T> = Associated<T, Seed>;
+
+/// Represents a seed for a particular noise type. See also [`Seeded`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Seed(pub u32);
 
 /// A noise operation that produces a [`Seeded`] version of any value that is passed into it,
 /// provided it implements [`SeedableNoiseType`]. Contains a [`u32`] seed to do this.
@@ -50,9 +54,36 @@ impl<T: SeedableNoiseType> NoiseOp<T> for Seeding {
     #[inline]
     fn get(&self, input: T) -> Self::Output {
         Seeded {
-            meta: input.generate_seed(self.0),
+            meta: Seed(input.generate_seed(self.0)),
             value: input,
         }
+    }
+}
+
+/// A [`NoiseOp`] that gets the seed out of a [`Seeded`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SeedOf;
+
+impl<T> NoiseOp<Seeded<T>> for SeedOf {
+    type Output = u32;
+
+    #[inline]
+    fn get(&self, input: Seeded<T>) -> Self::Output {
+        input.meta.0
+    }
+}
+
+impl<T> Seeded<T> {
+    /// Gets the seed of this [`Seeded`].
+    #[inline]
+    pub fn seed(&self) -> u32 {
+        self.meta.0
+    }
+
+    /// Uses the seed of this [`Seeded`] to generate a random number from `input` via [`White32`].
+    #[inline]
+    pub fn rng(&self, input: u32) -> u32 {
+        White32(self.seed()).get(input)
     }
 }
 

@@ -45,7 +45,7 @@ macro_rules! impl_perlin {
 
             #[inline]
             fn get(&self, input: Seeded<$vec>) -> Self::Output {
-                let dot = self.0.get_perlin_dot(input.meta, input.value);
+                let dot = self.0.get_perlin_dot(input.seed(), input.value);
                 dot * S::NORMALIZING_FACTOR / $sqrt_d
             }
         }
@@ -66,6 +66,7 @@ pub struct RuntimeRand;
 unsafe impl PerlinSource<Vec2> for RuntimeRand {
     const NORMALIZING_FACTOR: f32 = 2.0;
 
+    #[inline]
     fn get_perlin_dot(&self, seed: u32, offset: Vec2) -> f32 {
         let vec = Vec2::new(
             convert!(White32(seed).get(0) => SNorm, f32),
@@ -79,6 +80,7 @@ unsafe impl PerlinSource<Vec2> for RuntimeRand {
 unsafe impl PerlinSource<Vec3> for RuntimeRand {
     const NORMALIZING_FACTOR: f32 = 2.0;
 
+    #[inline]
     fn get_perlin_dot(&self, seed: u32, offset: Vec3) -> f32 {
         let vec = Vec3::new(
             convert!(White32(seed).get(0) => SNorm, f32),
@@ -93,6 +95,7 @@ unsafe impl PerlinSource<Vec3> for RuntimeRand {
 unsafe impl PerlinSource<Vec4> for RuntimeRand {
     const NORMALIZING_FACTOR: f32 = 2.0;
 
+    #[inline]
     fn get_perlin_dot(&self, seed: u32, offset: Vec4) -> f32 {
         let vec = Vec4::new(
             convert!(White32(seed).get(0) => SNorm, f32),
@@ -114,6 +117,7 @@ pub struct Hashed;
 unsafe impl PerlinSource<Vec2> for Hashed {
     const NORMALIZING_FACTOR: f32 = 1.0;
 
+    #[inline]
     fn get_perlin_dot(&self, seed: u32, offset: Vec2) -> f32 {
         let v = offset;
         match seed & 7 {
@@ -135,6 +139,7 @@ unsafe impl PerlinSource<Vec2> for Hashed {
 unsafe impl PerlinSource<Vec3> for Hashed {
     const NORMALIZING_FACTOR: f32 = 1.0;
 
+    #[inline]
     fn get_perlin_dot(&self, seed: u32, offset: Vec3) -> f32 {
         let mut result = 0.0;
         if seed & 1 > 0 {
@@ -163,6 +168,7 @@ unsafe impl PerlinSource<Vec3> for Hashed {
 unsafe impl PerlinSource<Vec4> for Hashed {
     const NORMALIZING_FACTOR: f32 = 1.0;
 
+    #[inline]
     fn get_perlin_dot(&self, seed: u32, offset: Vec4) -> f32 {
         let mut result = 0.0;
         if seed & 1 > 0 {

@@ -10,10 +10,7 @@ use bevy::{
 use noiz::noise::{
     Noise,
     NoiseType,
-    associating::{
-        MetaOf,
-        ValueOf,
-    },
+    associating::ValueOf,
     grid::GridNoise,
     interpolating::Cubic,
     merging::{
@@ -29,9 +26,13 @@ use noiz::noise::{
         Perlin,
         RuntimeRand,
     },
-    seeded::Seeding,
+    seeded::{
+        SeedOf,
+        Seeding,
+    },
     smoothing::{
         Lerp,
+        LerpValuesOf,
         Smooth,
     },
     voronoi::{
@@ -110,7 +111,7 @@ noise_op! {
     impl
     fn GridNoise = GridNoise::new_period(args.period);
     fn Seeding = Seeding(args.seed);
-    fn MetaOf;
+    fn SeedOf;
     as UNorm
 }
 
@@ -119,9 +120,9 @@ noise_op! {
     impl
     fn GridNoise = GridNoise::new_period(args.period);
     fn Lerp = Lerp;
-    mut ValueOf for fn Seeding = Seeding(args.seed);
-    mut ValueOf for fn MetaOf;
-    mut ValueOf for as UNorm, f32;
+    mut LerpValuesOf for fn Seeding = Seeding(args.seed);
+    mut LerpValuesOf for fn SeedOf;
+    mut LerpValuesOf for as UNorm, f32;
     fn Smooth<Cubic>;
     as UNorm
 }
@@ -131,9 +132,9 @@ noise_op! {
     impl
     fn GridNoise = GridNoise::new_period(args.period);
     fn Lerp = Lerp;
-    mut ValueOf for fn Seeding = Seeding(args.seed);
-    mut ValueOf for mut ValueOf || input.offset;
-    mut ValueOf for fn Perlin<RuntimeRand>;
+    mut LerpValuesOf for fn Seeding = Seeding(args.seed);
+    mut LerpValuesOf for mut ValueOf || input.offset;
+    mut LerpValuesOf for fn Perlin<RuntimeRand>;
     fn Smooth<Cubic>;
     as SNorm, UNorm
 }
@@ -143,7 +144,7 @@ noise_op! {
     impl
     fn GridNoise = GridNoise::new_period(args.period);
     fn Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new_default(1.0.adapt(), args.seed);
-    fn MetaOf;
+    fn SeedOf;
     as UNorm
 }
 
