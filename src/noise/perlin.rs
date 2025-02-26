@@ -75,6 +75,35 @@ unsafe impl PerlinSource<Vec2> for RuntimeRand {
     }
 }
 
+// SAFETY: See impl PerlinSource<Vec2> for RuntimeRand
+unsafe impl PerlinSource<Vec3> for RuntimeRand {
+    const NORMALIZING_FACTOR: f32 = 2.0;
+
+    fn get_perlin_dot(&self, seed: u32, offset: Vec3) -> f32 {
+        let vec = Vec3::new(
+            convert!(White32(seed).get(0) => SNorm, f32),
+            convert!(White32(seed).get(1) => SNorm, f32),
+            convert!(White32(seed).get(2) => SNorm, f32),
+        ) * 128.0; // extra multiplication prevenst len from being Nan because of an approx zero length.
+        vec.normalize().dot(offset)
+    }
+}
+
+// SAFETY: See impl PerlinSource<Vec2> for RuntimeRand
+unsafe impl PerlinSource<Vec4> for RuntimeRand {
+    const NORMALIZING_FACTOR: f32 = 2.0;
+
+    fn get_perlin_dot(&self, seed: u32, offset: Vec4) -> f32 {
+        let vec = Vec4::new(
+            convert!(White32(seed).get(0) => SNorm, f32),
+            convert!(White32(seed).get(1) => SNorm, f32),
+            convert!(White32(seed).get(2) => SNorm, f32),
+            convert!(White32(seed).get(3) => SNorm, f32),
+        ) * 128.0; // extra multiplication prevenst len from being Nan because of an approx zero length.
+        vec.normalize().dot(offset)
+    }
+}
+
 /// A simple perlin noise source that uses vectors with elemental values of only -1, 0, or 1.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Cardinal;
