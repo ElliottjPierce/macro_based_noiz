@@ -26,7 +26,6 @@ use noiz::noise::{
         UNorm,
     },
     perlin::{
-        Cardinal,
         Perlin,
         RuntimeRand,
     },
@@ -134,8 +133,7 @@ noise_op! {
     fn Lerp = Lerp;
     mut ValueOf for fn Seeding = Seeding(args.seed);
     mut ValueOf for mut ValueOf || input.offset;
-    mut ValueOf for fn Perlin<Cardinal>;
-    // mut ValueOf for fn Perlin<RuntimeRand<Dir2>>;
+    mut ValueOf for fn Perlin<RuntimeRand>;
     fn Smooth<Cubic>;
     as SNorm, UNorm
 }

@@ -106,17 +106,17 @@ unsafe impl PerlinSource<Vec4> for RuntimeRand {
 
 /// A simple perlin noise source that uses vectors with elemental values of only -1, 0, or 1.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Cardinal;
+pub struct Hashed;
 
 // SAFETY: The dot product can not be grater than the product of the
 // lengths, and one length is within √d. So their product is normalized by setting
 // `NORMALIZING_FACTOR` to 1.0.
-unsafe impl PerlinSource<Vec2> for Cardinal {
+unsafe impl PerlinSource<Vec2> for Hashed {
     const NORMALIZING_FACTOR: f32 = 1.0;
 
     fn get_perlin_dot(&self, seed: u32, offset: Vec2) -> f32 {
         let v = offset;
-        match seed & 0b111 {
+        match seed & 7 {
             0 => v.x + v.y,
             1 => v.x - v.y,
             2 => -v.x + v.y,
@@ -128,5 +128,67 @@ unsafe impl PerlinSource<Vec2> for Cardinal {
             // SAFETY: We did & 7 above, so there is no way for the value to be > 7.
             _ => unsafe { unreachable_unchecked() },
         }
+    }
+}
+
+// SAFETY: impl PerlinSource<Vec2> for Cardinal.
+unsafe impl PerlinSource<Vec3> for Hashed {
+    const NORMALIZING_FACTOR: f32 = 1.0;
+
+    fn get_perlin_dot(&self, seed: u32, offset: Vec3) -> f32 {
+        let mut result = 0.0;
+        if seed & 1 > 0 {
+            result += offset.x;
+        }
+        if seed & 2 > 0 {
+            result -= offset.x;
+        }
+        if seed & 4 > 0 {
+            result += offset.y;
+        }
+        if seed & 8 > 0 {
+            result -= offset.y;
+        }
+        if seed & 16 > 0 {
+            result += offset.z;
+        }
+        if seed & 32 > 0 {
+            result -= offset.z;
+        }
+        result
+    }
+}
+
+// SAFETY: impl PerlinSource<Vec2> for Cardinal.
+unsafe impl PerlinSource<Vec4> for Hashed {
+    const NORMALIZING_FACTOR: f32 = 1.0;
+
+    fn get_perlin_dot(&self, seed: u32, offset: Vec4) -> f32 {
+        let mut result = 0.0;
+        if seed & 1 > 0 {
+            result += offset.x;
+        }
+        if seed & 2 > 0 {
+            result -= offset.x;
+        }
+        if seed & 4 > 0 {
+            result += offset.y;
+        }
+        if seed & 8 > 0 {
+            result -= offset.y;
+        }
+        if seed & 16 > 0 {
+            result += offset.z;
+        }
+        if seed & 32 > 0 {
+            result -= offset.z;
+        }
+        if seed & 64 > 0 {
+            result += offset.w;
+        }
+        if seed & 128 > 0 {
+            result -= offset.w;
+        }
+        result
     }
 }
