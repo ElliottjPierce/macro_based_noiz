@@ -101,6 +101,48 @@ impl<N> FbmOctave<N> {
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Fbm<T>(T);
 
+impl<I: NoiseType> NoiseOp<I> for Fbm<()> {
+    type Output = I;
+
+    #[inline]
+    fn get(&self, input: I) -> Self::Output {
+        input
+    }
+}
+
+impl Fbm<()> {
+    /// Constructs a new [`FBM`] given these settings.
+    pub fn new_fbm<T>(_settings: &T) -> Self {
+        Self(())
+    }
+}
+
+impl<I: NoiseType, N0: NoiseOp<I, Output: FbmOctaveResult>> NoiseOp<I> for Fbm<FbmOctave<N0>> {
+    type Output = [N0::Output; 1];
+
+    #[inline]
+    fn get(&self, input: I) -> Self::Output {
+        [self.0.get(input)]
+    }
+}
+
+impl<N0> Fbm<FbmOctave<N0>> {
+    /// Constructs a new [`FBM`] given these settings.
+    pub fn new_fbm<D>(settings: &impl FbmSettings<D>) -> Self
+    where
+        N0: From<D>,
+    {
+        let mut generator = settings.get_generator(1);
+        let mut total_contribution = 0.0;
+        let mut result = Self(FbmOctave::new_octave_partial::<0, _>(
+            &mut generator,
+            &mut total_contribution,
+        ));
+        result.0.finalize(total_contribution);
+        result
+    }
+}
+
 macro_rules! impl_fbm {
     ($octaves:expr, $($n:tt = $t:ident),+) => {
         impl<
