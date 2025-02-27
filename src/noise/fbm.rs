@@ -1,9 +1,13 @@
 //! This module allows factional brownian motion (fbm) noise.
 
+use rand::Rng;
+
 use super::{
     NoiseOp,
     NoiseType,
+    white::White32,
 };
+use crate::rng::NoiseRng;
 
 /// Signifies that this type can be the result of an fbm octave.
 pub trait FbmOctaveResult: NoiseType {
@@ -15,7 +19,7 @@ pub trait FbmOctaveResult: NoiseType {
 /// Allows this type to generate fbm octaves.
 pub trait FbmOctaveGenerator<D> {
     /// Gets the next octave initializer.
-    fn get_octave(&self) -> D;
+    fn get_octave(&mut self) -> D;
     /// Gets the weight/influence of this octave.
     fn get_weight(&self) -> f32;
     /// Updates self to prepare the next octave.
@@ -146,4 +150,61 @@ mod unformatted {
     impl_fbm!(29, 1=N1, 2=N2, 3=N3, 4=N4, 5=N5, 6=N6, 7=N7, 8=N8, 9=N9, 10=N10, 11=N11, 12=N12, 13=N13, 14=N14, 15=N15, 16=N16, 17=N17, 18=N18, 19=N19, 20=N20, 21=N21, 22=N22, 23=N23, 24=N24, 25=N25, 26=N26, 27=N27, 28=N28, 29=N29);
     impl_fbm!(30, 1=N1, 2=N2, 3=N3, 4=N4, 5=N5, 6=N6, 7=N7, 8=N8, 9=N9, 10=N10, 11=N11, 12=N12, 13=N13, 14=N14, 15=N15, 16=N16, 17=N17, 18=N18, 19=N19, 20=N20, 21=N21, 22=N22, 23=N23, 24=N24, 25=N25, 26=N26, 27=N27, 28=N28, 29=N29, 30=N30);
     impl_fbm!(31, 1=N1, 2=N2, 3=N3, 4=N4, 5=N5, 6=N6, 7=N7, 8=N8, 9=N9, 10=N10, 11=N11, 12=N12, 13=N13, 14=N14, 15=N15, 16=N16, 17=N17, 18=N18, 19=N19, 20=N20, 21=N21, 22=N22, 23=N23, 24=N24, 25=N25, 26=N26, 27=N27, 28=N28, 29=N29, 30=N30, 31=N31);
+}
+
+/// This describes typical settings for a [`NoiseOp`] that creates noise based purely on space and
+/// seeds.
+pub struct SpatialNoiseSettings<'a, T: Rng> {
+    /// The period at which the noise may repeat, the inverse of frequency.
+    /// You can think of this like the scale of the noise.
+    pub period: f32,
+    /// The [`Rng`] for this noise, capable of producing multiple seeds.
+    pub rng: &'a mut T,
+}
+
+/// A [`FbmOctaveGenerator`] for [`SpatialNoiseSettings`].
+pub struct SpatialFbmGenerator<T: Rng> {
+    period: f32,
+    rng: T,
+    octave_fall_off: f32,
+    octave_scaling: f32,
+}
+
+/// [`FbmSettings`] for [`SpatialFbmGenerator`] using [`NoiseRng`] of [`White32`].
+pub struct SpatialFbmSettings {
+    period: f32,
+    seed: u64,
+    octave_fall_off: f32,
+    octave_scaling: f32,
+}
+
+impl<T: Rng> FbmOctaveGenerator<SpatialNoiseSettings<'_, T>> for SpatialFbmGenerator<T> {
+    fn get_octave(&mut self) -> SpatialNoiseSettings<'_, T> {
+        SpatialNoiseSettings {
+            period: self.period,
+            rng: &mut self.rng,
+        }
+    }
+
+    fn get_weight(&self) -> f32 {
+        todo!()
+    }
+
+    fn progress_octave(&mut self) {
+        todo!()
+    }
+}
+
+impl<'a> FbmSettings<SpatialNoiseSettings<'a, NoiseRng<White32>>> for SpatialFbmSettings {
+    fn get_generator(
+        &self,
+        _octaves: u8,
+    ) -> impl FbmOctaveGenerator<SpatialNoiseSettings<'a, NoiseRng<White32>>> {
+        SpatialFbmGenerator {
+            period: self.period,
+            rng: NoiseRng::new_with(White32(self.seed as u32), (self.seed >> 32) as u32),
+            octave_fall_off: self.octave_fall_off,
+            octave_scaling: self.octave_scaling,
+        }
+    }
 }
