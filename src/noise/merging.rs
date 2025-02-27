@@ -1,9 +1,12 @@
 //! THis module allows noise types to be merged together
 
-use std::ops::{
-    AddAssign,
-    Mul,
-    MulAssign,
+use std::{
+    mem::MaybeUninit,
+    ops::{
+        AddAssign,
+        Mul,
+        MulAssign,
+    },
 };
 
 use bevy_math::{
@@ -497,11 +500,24 @@ impl<I: NoiseType + Default + AddAssign, M> Merger<I, M> for Total {
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
-        let mut total = I::default();
-        for v in vals {
-            total += v;
+        if vals.is_empty() {
+            return I::default();
         }
-        total
+
+        let mut total = MaybeUninit::uninit();
+        for (i, v) in vals.into_iter().enumerate() {
+            if i == 0 {
+                total = MaybeUninit::new(v);
+            } else {
+                // SAFETY: we initialized it above.
+                unsafe {
+                    *total.assume_init_mut() += v;
+                }
+            }
+        }
+
+        // SAFETY: We early returned if zero already.
+        unsafe { total.assume_init() }
     }
 }
 
@@ -514,11 +530,24 @@ impl<I: NoiseType + Default + MulAssign, M> Merger<I, M> for Product {
 
     #[inline]
     fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
-        let mut total = I::default();
-        for v in vals {
-            total *= v;
+        if vals.is_empty() {
+            return I::default();
         }
-        total
+
+        let mut total = MaybeUninit::uninit();
+        for (i, v) in vals.into_iter().enumerate() {
+            if i == 0 {
+                total = MaybeUninit::new(v);
+            } else {
+                // SAFETY: we initialized it above.
+                unsafe {
+                    *total.assume_init_mut() *= v;
+                }
+            }
+        }
+
+        // SAFETY: We early returned if zero already.
+        unsafe { total.assume_init() }
     }
 }
 
@@ -532,6 +561,15 @@ impl<I: Mergeable, M: Merger<I::Part, I::Meta>> NoiseOp<I> for Merged<M> {
     #[inline]
     fn get(&self, input: I) -> Self::Output {
         input.perform_merge(&self.0)
+    }
+}
+
+impl<const N: usize, I: NoiseType, M: Merger<I, ()>> NoiseOp<[I; N]> for Merged<M> {
+    type Output = M::Output;
+
+    #[inline]
+    fn get(&self, input: [I; N]) -> Self::Output {
+        self.0.merge(input, &())
     }
 }
 
