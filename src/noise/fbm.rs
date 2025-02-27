@@ -119,7 +119,7 @@ macro_rules! impl_fbm {
 
         impl<N0, $($t),+> Fbm<(FbmOctave<N0>, $(FbmOctave<$t>),+ )> {
             /// Constructs a new [`FBM`] given these settings.
-            pub fn new_fbm<D, G: FbmOctaveGenerator<D>>(settings: &impl FbmSettings<D>) -> Self
+            pub fn new_fbm<D>(settings: &impl FbmSettings<D>) -> Self
             where
                 N0: From<D>,
                 $($t: From<D>),+
@@ -292,6 +292,23 @@ impl FbmOctaveGenerator<SpatialNoiseSettings> for SpatialFbmGenerator {
     fn progress_octave(&mut self) {
         self.period *= self.octave_scaling;
         self.weight *= self.octave_fall_off;
+    }
+}
+
+impl SpatialFbmSettings {
+    /// Constructs a new [`SpatialFbmSettings`] from a [`SpatialNoiseSettings`] with a given
+    /// [`octave_fall_off`](Self::octave_fall_off) and [`octave_scaling`](Self::octave_scaling).
+    pub fn from_spatial(
+        spatial: &mut SpatialNoiseSettings,
+        octave_fall_off: f32,
+        octave_scaling: f32,
+    ) -> Self {
+        Self {
+            period: spatial.period,
+            seed: spatial.rng.next_u64(),
+            octave_fall_off,
+            octave_scaling,
+        }
     }
 }
 

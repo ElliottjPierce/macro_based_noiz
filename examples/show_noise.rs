@@ -11,12 +11,19 @@ use noiz::noise::{
     Noise,
     NoiseType,
     associating::ValueOf,
-    fbm::SpatialNoiseSettings,
+    fbm::{
+        Fbm,
+        FbmOctave,
+        SpatialFbmSettings,
+        SpatialNoiseSettings,
+    },
     grid::GridNoise,
     interpolating::Cubic,
     merging::{
         EuclideanDistance,
         ManhatanDistance,
+        SizedMerged,
+        Total,
     },
     noise_op,
     norm::{
@@ -80,7 +87,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = PerlinNoise;
+type NoiseUsed = PerlinFbmNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -147,4 +154,13 @@ noise_op! {
     fn GridNoise = GridNoise::new_period(args.period);
     fn Voronoi<2, Worly<EuclideanDistance, worly_mode::Ratio>, false> = Voronoi::new(1.0, args.rand_32(), Worly::shrunk_by(0.75));
     || input.inverse();
+}
+
+noise_op! {
+    pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
+    impl
+    fn Fbm<(FbmOctave<PerlinNoise>, FbmOctave<PerlinNoise>)> = Fbm::<(FbmOctave<PerlinNoise>, FbmOctave<PerlinNoise>)>::new_fbm(&SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.5));
+    for as f32;
+    fn SizedMerged<2, Total>;
+    as UNorm;
 }
