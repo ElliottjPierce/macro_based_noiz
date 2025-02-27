@@ -12,8 +12,6 @@ use noiz::noise::{
     NoiseType,
     associating::ValueOf,
     fbm::{
-        Fbm,
-        FbmOctave,
         SpatialFbmSettings,
         SpatialNoiseSettings,
     },
@@ -87,12 +85,12 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = PerlinFbmNoise;
+type NoiseUsed = CustomNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
     let height = image.height();
-    let noise = NoiseUsed::new(SpatialNoiseSettings::new(9202344, 50.0));
+    let noise = NoiseUsed::new(SpatialNoiseSettings::new(9202344, 100.0));
 
     for x in 0..width {
         for y in 0..height {
@@ -159,8 +157,17 @@ noise_op! {
 noise_op! {
     pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.5) enum [PerlinNoise, PerlinNoise];
+    loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [8 PerlinNoise];
     for as f32;
-    fn SizedMerged<2, Total>;
+    fn SizedMerged<8, Total>;
+    as UNorm;
+}
+
+noise_op! {
+    pub struct CustomNoise for Vec2 -> UNorm = SpatialNoiseSettings
+    impl
+    loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [1 PerlinNoise, WorlyNoise, CellularNoise, 5 PerlinNoise];
+    for as f32;
+    fn SizedMerged<8, Total>;
     as UNorm;
 }
