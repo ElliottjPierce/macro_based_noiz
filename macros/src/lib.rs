@@ -376,6 +376,7 @@ impl Lambda {
         let source = input.parse()?;
         _ = input.parse::<Token![=]>()?;
         let source_expr = input.parse()?;
+        _ = input.parse::<Token![impl]>()?;
         let lambda;
         _ = braced!(lambda in input);
         let ops = Operation::parse_many(&lambda)?;
