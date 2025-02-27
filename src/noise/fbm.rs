@@ -200,6 +200,7 @@ pub struct SpatialFbmSettings {
 }
 
 impl FbmOctaveGenerator<SpatialNoiseSettings> for SpatialFbmGenerator {
+    #[inline]
     fn get_octave(&mut self) -> SpatialNoiseSettings {
         SpatialNoiseSettings {
             period: self.period,
@@ -207,10 +208,12 @@ impl FbmOctaveGenerator<SpatialNoiseSettings> for SpatialFbmGenerator {
         }
     }
 
+    #[inline]
     fn get_weight(&self) -> f32 {
         self.weight
     }
 
+    #[inline]
     fn progress_octave(&mut self) {
         self.period *= self.octave_scaling;
         self.weight *= self.octave_fall_off;
@@ -218,10 +221,11 @@ impl FbmOctaveGenerator<SpatialNoiseSettings> for SpatialFbmGenerator {
 }
 
 impl FbmSettings<SpatialNoiseSettings> for SpatialFbmSettings {
+    #[inline]
     fn get_generator(&self, _octaves: u8) -> impl FbmOctaveGenerator<SpatialNoiseSettings> {
         SpatialFbmGenerator {
             period: self.period,
-            rng: NoiseRng::new_with(White32(self.seed as u32), (self.seed >> 32) as u32),
+            rng: NoiseRng::new_seed(self.seed),
             octave_fall_off: self.octave_fall_off,
             octave_scaling: self.octave_scaling,
             weight: 100.0,

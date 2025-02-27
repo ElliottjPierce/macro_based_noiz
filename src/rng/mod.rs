@@ -8,7 +8,10 @@ use rand_core::impls;
 
 use crate::noise::{
     NoiseOp,
-    white::White32,
+    white::{
+        White32,
+        White64,
+    },
 };
 
 /// A 64-bit version of [`NoiseRng`]. Use this when you are working primarily with 64-bit numbers.
@@ -42,14 +45,21 @@ impl<N: NoiseOp<u64, Output = u64>> RngCore for NoiseRng64<N> {
 }
 
 impl<N: NoiseOp<u64, Output = u64>> NoiseRng64<N> {
-    /// constructs a new rng with this noise and seed
+    /// Constructs a new rng with this noise and seed.
     pub fn new_with(noise: N, seed: u64) -> Self {
         Self(noise, seed)
     }
 }
 
+impl NoiseRng64<White64> {
+    /// Constructs a new rng with this seed.
+    pub fn new_seed(seed: u128) -> Self {
+        Self::new_with(White64(seed as u64), (seed >> 64) as u64)
+    }
+}
+
 impl<N: NoiseOp<u64, Output = u64> + Clone> NoiseRng64<N> {
-    /// creates a new version of Self from this one
+    /// Creates a new version of Self from this one.
     pub fn break_off(&mut self) -> Self {
         let start = self.next_u64();
         Self(self.0.clone(), start.rotate_left(24)) // rotation just to desync the two generators
@@ -87,14 +97,21 @@ impl<N: NoiseOp<u32, Output = u32>> RngCore for NoiseRng<N> {
 }
 
 impl<N: NoiseOp<u32, Output = u32>> NoiseRng<N> {
-    /// constructs a new rng with this noise and seed
+    /// Constructs a new rng with this noise and seed.
     pub fn new_with(noise: N, seed: u32) -> Self {
         Self(noise, seed)
     }
 }
 
+impl NoiseRng<White32> {
+    /// Constructs a new rng with this seed.
+    pub fn new_seed(seed: u64) -> Self {
+        Self::new_with(White32(seed as u32), (seed >> 32) as u32)
+    }
+}
+
 impl<N: NoiseOp<u32, Output = u32> + Clone> NoiseRng<N> {
-    /// creates a new version of Self from this one
+    /// Creates a new version of Self from this one.
     pub fn break_off(&mut self) -> Self {
         let start = self.next_u32();
         Self(self.0.clone(), start.rotate_left(12)) // rotation just to desync the two generators
