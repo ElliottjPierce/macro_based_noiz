@@ -250,6 +250,14 @@ impl SpatialNoiseSettings {
     pub fn seeding(&mut self) -> Seeding {
         Seeding(self.rand_32())
     }
+
+    /// Branches this [`SpatialNoiseSettings`] into another noise branch.
+    pub fn branch(&mut self) -> Self {
+        Self {
+            period: self.period,
+            rng: self.rng.break_off(),
+        }
+    }
 }
 
 /// A [`FbmOctaveGenerator`] for [`SpatialNoiseSettings`].

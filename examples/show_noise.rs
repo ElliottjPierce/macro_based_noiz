@@ -166,8 +166,11 @@ noise_op! {
 noise_op! {
     pub struct CustomNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
+    use worly: WorlyNoise = WorlyNoise::from(args.branch());
+    let worly_res = worly.get(input);
     loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [1 PerlinNoise, WorlyNoise, CellularNoise, 5 PerlinNoise];
     for as f32;
     fn Merged<Total>;
+    || input * worly_res.adapt::<f32>();
     as UNorm;
 }
