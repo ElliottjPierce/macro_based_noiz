@@ -63,20 +63,7 @@ impl Parse for NoiseDefinition {
         let source = input.parse()?;
 
         _ = input.parse::<Token![impl]>()?;
-        let mut noise_ops = 0u32;
-
-        let mut operations = Vec::new();
-        loop {
-            if input.is_empty() {
-                break;
-            }
-            let value = Operation::parse(input, &mut noise_ops)?;
-            let needs_semi_colon = value.needs_following_semi_colon() && !input.is_empty();
-            operations.push(value);
-            if needs_semi_colon || input.peek(Token![;]) {
-                _ = input.parse::<Token![;]>()?;
-            }
-        }
+        let operations = Operation::parse_many(input)?;
         for op in operations.iter() {
             op.store_fields(&mut noise.data);
         }
@@ -370,6 +357,39 @@ impl FbmOp {
     }
 }
 
+struct Lambda {
+    ops: Vec<Operation>,
+    input: Type,
+    output: Type,
+    source: Type,
+    source_expr: Expr,
+    id: u32,
+}
+
+impl Lambda {
+    fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
+        _ = input.parse::<Token![type]>()?;
+        let input_type = input.parse()?;
+        _ = input.parse::<Token![->]>()?;
+        let output = input.parse()?;
+        _ = input.parse::<Token![for]>()?;
+        let source = input.parse()?;
+        _ = input.parse::<Token![=]>()?;
+        let source_expr = input.parse()?;
+        let lambda;
+        _ = braced!(lambda in input);
+        let ops = Operation::parse_many(&lambda)?;
+        Ok(Self {
+            ops,
+            input: input_type,
+            output,
+            source,
+            source_expr,
+            id: *noise_amount,
+        })
+    }
+}
+
 enum Operation {
     Data(ConstructableField<Token![use]>),
     Noise(ConstructableField<Token![fn]>),
@@ -383,6 +403,23 @@ enum Operation {
 }
 
 impl Operation {
+    fn parse_many(input: ParseStream) -> Result<Vec<Self>> {
+        let mut operations = Vec::new();
+        let mut noise_ops = 0u32;
+        loop {
+            if input.is_empty() {
+                break;
+            }
+            let value = Operation::parse(input, &mut noise_ops)?;
+            let needs_semi_colon = value.needs_following_semi_colon() && !input.is_empty();
+            operations.push(value);
+            if needs_semi_colon || input.peek(Token![;]) {
+                _ = input.parse::<Token![;]>()?;
+            }
+        }
+        Ok(operations)
+    }
+
     fn quote_external(&self) -> proc_macro2::TokenStream {
         match self {
             Operation::Parallel(op) => op.quote_external(),
