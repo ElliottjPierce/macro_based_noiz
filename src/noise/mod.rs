@@ -38,6 +38,7 @@ use conversions::NoiseConverter;
 
 pub mod associating;
 pub mod conversions;
+pub mod fbm;
 pub mod grid;
 pub mod interpolating;
 pub mod mapping;
