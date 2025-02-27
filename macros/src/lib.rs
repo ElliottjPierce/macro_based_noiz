@@ -1,7 +1,6 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use quote::{
     ToTokens,
     quote,
@@ -310,7 +309,7 @@ struct FbmOp {
     vis: Visibility,
     ident: Ident,
     settings: Expr,
-    octaves: Vec<ConstructableField<Token![fn]>>,
+    octaves: Vec<Type>,
 }
 
 impl FbmOp {
@@ -336,10 +335,10 @@ impl FbmOp {
             };
 
             *noise_amount += 1;
-            let noise = ConstructableField::<Token![fn]>::parse(&octaves_stream, *noise_amount)?;
+            let noise = octaves_stream.parse::<Type>()?;
             for _ in 0..repeat {
                 *noise_amount += 1;
-                octaves.push(noise.clone_new(*noise_amount, octaves_stream.span()));
+                octaves.push(noise.clone());
             }
 
             if octaves_stream.parse::<Token![,]>().is_err() {
@@ -387,7 +386,7 @@ impl Operation {
             Operation::Data(field) => fields.push(field.field()),
             Operation::Noise(field) => fields.push(field.field()),
             Operation::Fbm(fbm) => {
-                let types = fbm.octaves.iter().map(|octave| &octave.ty);
+                let types = fbm.octaves.iter();
                 fields.push(Field {
                     attrs: fbm.attrs.clone(),
                     vis: fbm.vis.clone(),
@@ -408,7 +407,7 @@ impl Operation {
             Operation::Data(field) => field.quote_constructor(),
             Operation::Noise(field) => field.quote_constructor(),
             Operation::Fbm(fbm) => {
-                let types = fbm.octaves.iter().map(|octave| &octave.ty);
+                let types = fbm.octaves.iter();
                 let settings = &fbm.settings;
                 let name = &fbm.ident;
                 quote! { let #name = noiz::noise::fbm::Fbm::<( #(noiz::noise::fbm::FbmOctave<#types>),* )>::new_fbm(#settings); }
@@ -518,10 +517,18 @@ impl Operation {
 struct ConstructableField<K: Parse> {
     attrs: Vec<Attribute>,
     vis: Visibility,
+    #[expect(
+        unused,
+        reason = "Helpful for parsing to have this. Helpful for users for little type hints."
+    )]
     key_word: K,
     ident: Ident,
     colon: Token![:],
     ty: Type,
+    #[expect(
+        unused,
+        reason = "Helpful for parsing to have this. Helpful for users for little type hints."
+    )]
     eq: Token![=],
     constructor: Expr,
 }
@@ -593,19 +600,6 @@ impl<K: Parse + Clone> ConstructableField<K> {
         let name = &self.ident;
         let constructor = &self.constructor;
         quote! {let #name = #constructor;}
-    }
-
-    fn clone_new(&self, ident_hint: u32, span: Span) -> Self {
-        Self {
-            attrs: self.attrs.clone(),
-            vis: self.vis.clone(),
-            key_word: self.key_word.clone(),
-            ident: Ident::new(&format!("val{ident_hint}"), span),
-            colon: self.colon.clone(),
-            ty: self.ty.clone(),
-            eq: self.eq.clone(),
-            constructor: self.constructor.clone(),
-        }
     }
 }
 
