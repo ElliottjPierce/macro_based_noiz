@@ -1,5 +1,10 @@
 //! This module allows factional brownian motion (fbm) noise.
 
+use bevy_math::{
+    Vec2,
+    Vec3,
+    Vec4,
+};
 use rand::{
     Rng,
     RngCore,
@@ -8,6 +13,10 @@ use rand::{
 use super::{
     NoiseOp,
     NoiseType,
+    norm::{
+        SNorm,
+        UNorm,
+    },
     seeded::Seeding,
     white::White32,
 };
@@ -17,7 +26,11 @@ use crate::rng::NoiseRng;
 pub trait FbmOctaveResult: NoiseType {
     /// Scales this result by some octave `contribution` in (0,1).
     /// Usually this is just multiplication.
-    fn fit_contribution(&mut self, contribution: f32);
+    ///
+    /// # Safety
+    ///
+    /// `contribution` must be in (0,1)
+    unsafe fn fit_contribution(&mut self, contribution: f32);
 }
 
 /// Allows this type to generate fbm octaves.
@@ -50,7 +63,8 @@ impl<I: NoiseType, N: NoiseOp<I, Output: FbmOctaveResult>> NoiseOp<I> for FbmOct
     #[inline]
     fn get(&self, input: I) -> Self::Output {
         let mut result = self.noise.get(input);
-        result.fit_contribution(self.contribution);
+        // SAFETY: Self can only be constructed via internal methods which always satisfy safety.
+        unsafe { result.fit_contribution(self.contribution) };
         result
     }
 }
@@ -74,6 +88,12 @@ impl<N> FbmOctave<N> {
         };
         generator.progress_octave();
         result
+    }
+
+    /// Normalizes contribution given a total.
+    #[inline]
+    fn finalize(&mut self, total_contribution: f32) {
+        self.contribution = UNorm::new_clamped(self.contribution / total_contribution).adapt();
     }
 }
 
@@ -110,12 +130,53 @@ macro_rules! impl_fbm {
                     FbmOctave::new_octave_partial::<0, _>(&mut generator, &mut total_contribution),
                     $(FbmOctave::new_octave_partial::<$n, _>(&mut generator, &mut total_contribution)),+
                 ));
-                result.0.0.contribution /= total_contribution;
-                $(result.0.$n.contribution /= total_contribution;)+
+                result.0.0.finalize(total_contribution);
+                $(result.0.$n.finalize(total_contribution);)+
                 result
             }
         }
     };
+}
+
+macro_rules! impl_octave_result_with_mul {
+    ($($t:ty),*) => {
+        $(impl FbmOctaveResult for $t {
+            #[inline]
+            unsafe fn fit_contribution(&mut self, contribution: f32) {
+                *self *= contribution;
+            }
+        })*
+    };
+}
+
+impl_octave_result_with_mul!(f32, Vec2, Vec3, Vec4);
+
+impl<T: FbmOctaveResult, const N: usize> FbmOctaveResult for [T; N] {
+    #[inline]
+    unsafe fn fit_contribution(&mut self, contribution: f32) {
+        for v in self {
+            // SAFETY: Caller ensures contribution is in range.
+            unsafe {
+                v.fit_contribution(contribution);
+            }
+        }
+    }
+}
+
+impl FbmOctaveResult for UNorm {
+    #[inline]
+    unsafe fn fit_contribution(&mut self, contribution: f32) {
+        // SAFETY: Caller ensures contribution is in the same range.
+        unsafe { *self.get_mut() *= contribution };
+    }
+}
+
+impl FbmOctaveResult for SNorm {
+    #[inline]
+    unsafe fn fit_contribution(&mut self, contribution: f32) {
+        // SAFETY: Caller ensures contribution is in the same range.
+        unsafe { *self.get_mut() *= contribution };
+    }
 }
 
 #[rustfmt::skip]
