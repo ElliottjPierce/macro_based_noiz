@@ -307,16 +307,8 @@ impl FbmOp {
     fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
         let _kw = input.parse::<Token![loop]>()?;
         let is_field = input.parse::<Token![use]>().is_ok();
-        let attrs = if is_field {
-            Attribute::parse_outer(input)?
-        } else {
-            Default::default()
-        };
-        let vis = if is_field {
-            input.parse()?
-        } else {
-            Visibility::Inherited
-        };
+        let attrs = Attribute::parse_outer(input)?;
+        let vis = input.parse()?;
         let ident = if is_field {
             let name = input.parse::<Ident>()?;
             _ = input.parse::<Token![=]>()?;
@@ -358,6 +350,9 @@ impl FbmOp {
 }
 
 struct Lambda {
+    attrs: Vec<Attribute>,
+    vis: Visibility,
+    ident: Ident,
     ops: Vec<Operation>,
     input: Type,
     output: Type,
@@ -369,6 +364,16 @@ struct Lambda {
 impl Lambda {
     fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
         _ = input.parse::<Token![type]>()?;
+
+        let is_field = input.parse::<Token![use]>().is_ok();
+        let attrs = Attribute::parse_outer(input)?;
+        let vis = input.parse()?;
+        let ident = if is_field {
+            input.parse()?
+        } else {
+            Ident::new(&format!("val{}", *noise_amount), input.span())
+        };
+
         let input_type = input.parse()?;
         _ = input.parse::<Token![->]>()?;
         let output = input.parse()?;
@@ -380,7 +385,11 @@ impl Lambda {
         let lambda;
         _ = braced!(lambda in input);
         let ops = Operation::parse_many(&lambda)?;
+
         Ok(Self {
+            vis,
+            attrs,
+            ident,
             ops,
             input: input_type,
             output,
@@ -401,6 +410,7 @@ enum Operation {
     ConstructionVariable(Local),
     Mapping(Mapping),
     Fbm(FbmOp),
+    // Lambda(Lambda),
 }
 
 impl Operation {
@@ -424,6 +434,9 @@ impl Operation {
     fn quote_external(&self, full: &NoiseDefinition) -> proc_macro2::TokenStream {
         match self {
             Operation::Parallel(op) => op.quote_external(full),
+            // Operation::Lambda(lambda) => {
+
+            // }
             _ => quote! {},
         }
     }
