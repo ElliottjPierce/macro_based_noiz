@@ -535,6 +535,15 @@ impl<I: Mergeable, M: Merger<I::Part, I::Meta>> NoiseOp<I> for Merged<M> {
     }
 }
 
+impl<const N: usize, I: NoiseType, M: Merger<I, ()>> NoiseOp<[I; N]> for Merged<M> {
+    type Output = M::Output;
+
+    #[inline]
+    fn get(&self, input: [I; N]) -> Self::Output {
+        self.0.merge(input, &())
+    }
+}
+
 /// A noise operation that uses [`Merger`] `M` to merge any [`SizedMergeable`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct SizedMerged<const N: usize, M>(pub M);

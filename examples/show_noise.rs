@@ -20,7 +20,7 @@ use noiz::noise::{
     merging::{
         EuclideanDistance,
         ManhatanDistance,
-        SizedMerged,
+        Merged,
         Total,
     },
     noise_op,
@@ -159,7 +159,7 @@ noise_op! {
     impl
     loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [8 PerlinNoise];
     for as f32;
-    fn SizedMerged<8, Total>;
+    fn Merged<Total>;
     as UNorm;
 }
 
@@ -168,6 +168,6 @@ noise_op! {
     impl
     loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [1 PerlinNoise, WorlyNoise, CellularNoise, 5 PerlinNoise];
     for as f32;
-    fn SizedMerged<8, Total>;
+    fn Merged<Total>;
     as UNorm;
 }
