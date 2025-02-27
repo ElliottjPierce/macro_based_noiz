@@ -110,10 +110,14 @@ impl ToTokens for NoiseDefinition {
 
         let source = source.quote_source(noise_name, creation, noise_fields.iter().copied());
 
+        let ops = operations.iter().map(|op| op.quote_external());
+
         tokens.extend(quote! {
             #noise
 
             #source
+
+            #(#ops)*
 
             impl noiz::noise::NoiseOp<#input> for #noise_name {
                 type Output = #output;
@@ -379,6 +383,13 @@ enum Operation {
 }
 
 impl Operation {
+    fn quote_external(&self) -> proc_macro2::TokenStream {
+        match self {
+            Operation::Parallel(op) => op.quote_external(),
+            _ => quote! {},
+        }
+    }
+
     fn needs_following_semi_colon(&self) -> bool {
         match self {
             Operation::Noise(_)
