@@ -3,6 +3,7 @@
 use std::ops::{
     AddAssign,
     Mul,
+    MulAssign,
 };
 
 use bevy_math::{
@@ -58,6 +59,20 @@ pub trait SizedMergeable<const N: usize> {
         self,
         merger: &M,
     ) -> M::Output;
+}
+
+impl<const N: usize, T: NoiseType> SizedMergeable<N> for [T; N] {
+    type Meta = ();
+
+    type Part = T;
+
+    #[inline]
+    fn perform_merge_sized<M: SizedMerger<Self::Part, Self::Meta, N>>(
+        self,
+        merger: &M,
+    ) -> M::Output {
+        merger.merge_sized(self, &())
+    }
 }
 
 impl<I, M, const N: usize, T: Merger<I, M>> SizedMerger<I, M, N> for T {
@@ -473,7 +488,41 @@ where
     }
 }
 
-/// A type that can merge in a noise operation, anything that can be merged by M.
+/// A [`Merger`] that sums together values.
+#[derive(Default, PartialEq, Eq, Clone, Copy)]
+pub struct Total;
+
+impl<I: NoiseType + Default + AddAssign, M> Merger<I, M> for Total {
+    type Output = I;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut total = I::default();
+        for v in vals {
+            total += v;
+        }
+        total
+    }
+}
+
+/// A [`Merger`] that multiplies together values.
+#[derive(Default, PartialEq, Eq, Clone, Copy)]
+pub struct Product;
+
+impl<I: NoiseType + Default + MulAssign, M> Merger<I, M> for Product {
+    type Output = I;
+
+    #[inline]
+    fn merge<const N: usize>(&self, vals: [I; N], _meta: &M) -> Self::Output {
+        let mut total = I::default();
+        for v in vals {
+            total *= v;
+        }
+        total
+    }
+}
+
+/// A noise operation that uses [`Merger`] `M` to merge any [`Mergeable`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Merged<M>(pub M);
 
@@ -483,6 +532,21 @@ impl<I: Mergeable, M: Merger<I::Part, I::Meta>> NoiseOp<I> for Merged<M> {
     #[inline]
     fn get(&self, input: I) -> Self::Output {
         input.perform_merge(&self.0)
+    }
+}
+
+/// A noise operation that uses [`Merger`] `M` to merge any [`SizedMergeable`].
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct SizedMerged<const N: usize, M>(pub M);
+
+impl<const N: usize, I: SizedMergeable<N>, M: Merger<I::Part, I::Meta>> NoiseOp<I>
+    for SizedMerged<N, M>
+{
+    type Output = M::Output;
+
+    #[inline]
+    fn get(&self, input: I) -> Self::Output {
+        input.perform_merge_sized(&self.0)
     }
 }
 

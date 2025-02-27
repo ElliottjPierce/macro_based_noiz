@@ -21,6 +21,16 @@ impl SNorm {
     /// The minimum valid value.
     pub const MIN: f32 = -UNorm::MAX;
 
+    /// Gets the internal [`f32`] mutably.
+    ///
+    /// # Safety
+    ///
+    /// Users must keep the internal value in the proper range.
+    #[inline]
+    pub unsafe fn get_mut(&mut self) -> &mut f32 {
+        &mut self.0
+    }
+
     /// constructs an arbetrary but valid value using these bits. Returns an additional byte of
     /// leftover bits not used in the calculation.
     #[inline]
@@ -144,6 +154,16 @@ impl UNorm {
     const MIN: f32 = f32::MIN_POSITIVE;
     /// The greatest valid value
     const MAX: f32 = 1.0 - f32::EPSILON;
+
+    /// Gets the internal [`f32`] mutably.
+    ///
+    /// # Safety
+    ///
+    /// Users must keep the internal value in the proper range.
+    #[inline]
+    pub unsafe fn get_mut(&mut self) -> &mut f32 {
+        &mut self.0
+    }
 
     /// constructs an arbetrary but valid value using these bits. Returns an additional byte of
     /// leftover bits not used in the calculation.
