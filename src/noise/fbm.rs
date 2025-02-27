@@ -227,14 +227,28 @@ pub struct SpatialNoiseSettings {
 }
 
 impl SpatialNoiseSettings {
+    /// Constructs a new [`SpatialNoiseSettings`] based on the given seed and
+    /// [`period`](SpatialNoiseSettings::period).
+    pub fn new(seed: u64, period: f32) -> Self {
+        Self {
+            period,
+            rng: NoiseRng::new_seed(seed),
+        }
+    }
+
     /// Gets the [`Rng`] for this [`SpatialNoiseSettings`].
     pub fn rng(&mut self) -> &mut impl Rng {
         &mut self.rng
     }
 
-    /// Gets a unique [`Seeding`].
+    /// Gets a random u32.
+    pub fn rand_32(&mut self) -> u32 {
+        self.rng.next_u32()
+    }
+
+    /// Gets a random [`Seeding`].
     pub fn seeding(&mut self) -> Seeding {
-        Seeding(self.rng.next_u32())
+        Seeding(self.rand_32())
     }
 }
 
