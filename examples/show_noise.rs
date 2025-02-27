@@ -159,7 +159,7 @@ noise_op! {
 noise_op! {
     pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    fn Fbm<(FbmOctave<PerlinNoise>, FbmOctave<PerlinNoise>)> = Fbm::<(FbmOctave<PerlinNoise>, FbmOctave<PerlinNoise>)>::new_fbm(&SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.5));
+    loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.5) enum [PerlinNoise, PerlinNoise];
     for as f32;
     fn SizedMerged<2, Total>;
     as UNorm;

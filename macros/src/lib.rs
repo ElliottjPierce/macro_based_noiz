@@ -315,16 +315,27 @@ struct FbmOp {
 impl FbmOp {
     fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
         let _kw = input.parse::<Token![loop]>()?;
-        let attrs = Attribute::parse_outer(input)?;
-        let vis = input.parse()?;
-        let ident = match input.parse::<Ident>() {
-            Ok(ident) => {
-                input.parse::<Token![=]>()?;
-                ident
-            }
-            Err(_) => Ident::new(&format!("fbm{}", *noise_amount), input.span()),
+        let is_field = input.parse::<Token![use]>().is_ok();
+        let attrs = if is_field {
+            Attribute::parse_outer(input)?
+        } else {
+            Default::default()
+        };
+        let vis = if is_field {
+            input.parse()?
+        } else {
+            Visibility::Inherited
+        };
+        let ident = if is_field {
+            let name = input.parse::<Ident>()?;
+            _ = input.parse::<Token![=]>()?;
+            name
+        } else {
+            Ident::new(&format!("fbm{}", *noise_amount), input.span())
         };
         let settings = input.parse()?;
+        _ = input.parse::<Token![enum]>()?;
+
         let octaves_stream;
         let _ = bracketed!(octaves_stream in input);
         let mut octaves = Vec::new();
@@ -489,8 +500,8 @@ impl Operation {
             Ok(Self::Data(op))
         } else if let Ok(op) = ConstructableField::<Token![fn]>::parse(input, *noise_amount) {
             Ok(Self::Noise(op))
-        } else if let Ok(op) = FbmOp::parse(input, noise_amount) {
-            Ok(Self::Fbm(op))
+        } else if input.peek(Token![loop]) {
+            Ok(Self::Fbm(FbmOp::parse(input, noise_amount)?))
         } else if let Ok(_is_converter) = input.parse::<Token![as]>() {
             let conversions = Punctuated::parse_separated_nonempty(input)?;
             Ok(Self::Convert(ConversionChain { conversions }))
@@ -508,7 +519,7 @@ impl Operation {
         } else {
             Err(input.error(
                 "Unable to parse a noise operation. Expected a noise key word like 'let', '||', \
-                 'as', 'use', 'for', 'fn', 'mut, or 'const'.",
+                 'as', 'use', 'for', 'fn', 'loop', 'mut, or 'const'.",
             ))
         }
     }
