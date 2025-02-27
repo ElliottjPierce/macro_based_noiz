@@ -97,7 +97,7 @@ impl ToTokens for NoiseDefinition {
 
         let source = source.quote_source(noise_name, creation, noise_fields.iter().copied());
 
-        let ops = operations.iter().map(|op| op.quote_external());
+        let ops = operations.iter().map(|op| op.quote_external(self));
 
         tokens.extend(quote! {
             #noise
@@ -421,9 +421,9 @@ impl Operation {
         Ok(operations)
     }
 
-    fn quote_external(&self) -> proc_macro2::TokenStream {
+    fn quote_external(&self, full: &NoiseDefinition) -> proc_macro2::TokenStream {
         match self {
-            Operation::Parallel(op) => op.quote_external(),
+            Operation::Parallel(op) => op.quote_external(full),
             _ => quote! {},
         }
     }
