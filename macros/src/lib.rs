@@ -67,7 +67,8 @@ impl Parse for NoiseDefinition {
         let source = input.parse()?;
 
         _ = input.parse::<Token![impl]>()?;
-        let operations = Operation::parse_many(input)?;
+        let mut noise_count = 0u32;
+        let operations = Operation::parse_many(input, &mut noise_count)?;
         for op in operations.iter() {
             op.store_fields(&mut noise.data, &noise.name);
         }
@@ -472,7 +473,7 @@ impl Lambda {
         _ = input.parse::<Token![impl]>()?;
         let lambda;
         _ = braced!(lambda in input);
-        let ops = Operation::parse_many(&lambda)?;
+        let ops = Operation::parse_many(&lambda, noise_amount)?;
 
         Ok(Self {
             ops,
@@ -480,6 +481,33 @@ impl Lambda {
             output,
             source,
             id: *noise_amount,
+        })
+    }
+}
+
+struct RefOp {
+    attrs: Vec<Attribute>,
+    ident: Ident,
+    refer: Expr,
+    ops: Vec<Operation>,
+}
+
+impl RefOp {
+    fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
+        _ = input.parse::<Token![ref]>()?;
+        let attrs = Attribute::parse_outer(input)?;
+        let ident = input.parse()?;
+        _ = input.parse::<Token![=]>()?;
+        let refer = input.parse()?;
+        _ = input.parse::<Token![impl]>()?;
+        let inner;
+        _ = braced!(inner in input);
+        let ops = Operation::parse_many(&inner, noise_amount)?;
+        Ok(Self {
+            attrs,
+            ident,
+            refer,
+            ops,
         })
     }
 }
@@ -498,14 +526,13 @@ enum Operation {
 }
 
 impl Operation {
-    fn parse_many(input: ParseStream) -> Result<Vec<Self>> {
+    fn parse_many(input: ParseStream, noise_amount: &mut u32) -> Result<Vec<Self>> {
         let mut operations = Vec::new();
-        let mut noise_ops = 0u32;
         loop {
             if input.is_empty() {
                 break;
             }
-            let value = Operation::parse(input, &mut noise_ops)?;
+            let value = Operation::parse(input, noise_amount)?;
             let needs_semi_colon = value.needs_following_semi_colon() && !input.is_empty();
             operations.push(value);
             if needs_semi_colon || input.peek(Token![;]) {
