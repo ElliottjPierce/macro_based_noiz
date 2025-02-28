@@ -507,9 +507,14 @@ impl RefOp {
         };
 
         _ = input.parse::<Token![impl]>()?;
-        let inner;
-        _ = braced!(inner in input);
-        let ops = Operation::parse_many(&inner, noise_amount)?;
+
+        let ops = if input.peek(Brace) {
+            let inner;
+            _ = braced!(inner in input);
+            Operation::parse_many(&inner, noise_amount)?
+        } else {
+            vec![Operation::parse(input, noise_amount)?]
+        };
         Ok(Self {
             attrs,
             ident,
