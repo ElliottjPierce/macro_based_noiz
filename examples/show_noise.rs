@@ -178,6 +178,16 @@ noise_op! {
     pub struct CustomNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     ref worly_res impl fn WorlyNoise = WorlyNoise::from(args.branch());
+    ref scale = input impl {
+        fn GridNoise = GridNoise::new_period(args.period);
+        fn Lerp = Lerp;
+        mut LerpValuesOf for fn Seeding = args.seeding();
+        mut LerpValuesOf for mut ValueOf || input.offset;
+        mut LerpValuesOf for fn Perlin<RuntimeRand>;
+        fn Smooth<Cubic>;
+        as SNorm, UNorm, f32;
+        || input * 10.0
+    };
     loop &SpatialFbmSettings::from_spatial(&mut args, 0.8, 0.7) enum [
         3 PerlinNoise,
         WorlyNoise,
@@ -195,5 +205,8 @@ noise_op! {
     for as f32;
     fn Merged<Total>;
     || input * worly_res.adapt::<f32>();
-    as UNorm;
+    || input * scale;
+    fn type f32 -> UNorm = () impl {
+        || UNorm::new_rolling(input)
+    } = ().into()
 }
