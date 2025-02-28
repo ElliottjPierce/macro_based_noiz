@@ -117,7 +117,7 @@ noise_op! {
     pub struct ValueNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     fn GridNoise = GridNoise::new_period(args.period);
-    fn Lerp = Lerp;
+    fn Lerp;
     mut LerpValuesOf for fn Seeding = args.seeding();
     mut LerpValuesOf for fn SeedOf;
     mut LerpValuesOf for as UNorm, f32;
@@ -129,12 +129,38 @@ noise_op! {
     pub struct PerlinNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     fn GridNoise = GridNoise::new_period(args.period);
-    fn Lerp = Lerp;
+    fn Lerp;
     mut LerpValuesOf for fn Seeding = args.seeding();
     mut LerpValuesOf for mut ValueOf || input.offset;
     mut LerpValuesOf for fn Perlin<RuntimeRand>;
     fn Smooth<Cubic>;
     as SNorm, UNorm
+}
+
+noise_op! {
+    pub struct Perlin3dNoise for Vec2 -> UNorm = SpatialNoiseSettings
+    impl
+    || input.extend(445.5);
+    fn GridNoise = GridNoise::new_period(args.period);
+    fn Lerp;
+    mut LerpValuesOf for fn Seeding = args.seeding();
+    mut LerpValuesOf for mut ValueOf || input.offset;
+    mut LerpValuesOf for fn Perlin<RuntimeRand>;
+    fn Smooth<Cubic>;
+    as SNorm, UNorm
+}
+
+noise_op! {
+    pub struct Value3dNoise for Vec2 -> UNorm = SpatialNoiseSettings
+    impl
+    || input.extend(72132.5);
+    fn GridNoise = GridNoise::new_period(args.period);
+    fn Lerp;
+    mut LerpValuesOf for fn Seeding = args.seeding();
+    mut LerpValuesOf for fn SeedOf;
+    mut LerpValuesOf for as UNorm, f32;
+    fn Smooth<Cubic>;
+    as UNorm
 }
 
 noise_op! {
@@ -180,7 +206,7 @@ noise_op! {
     ref worly_res impl fn WorlyNoise = WorlyNoise::from(args.branch());
     ref scale = input impl {
         fn GridNoise = GridNoise::new_period(args.period);
-        fn Lerp = Lerp;
+        fn Lerp;
         mut LerpValuesOf for fn Seeding = args.seeding();
         mut LerpValuesOf for mut ValueOf || input.offset;
         mut LerpValuesOf for fn Perlin<RuntimeRand>;
@@ -194,7 +220,7 @@ noise_op! {
         CellularNoise,
         5 type Vec2 -> UNorm = SpatialNoiseSettings impl {
             fn GridNoise = GridNoise::new_period(args.period);
-            fn Lerp = Lerp;
+            fn Lerp;
             mut LerpValuesOf for fn Seeding = args.seeding();
             mut LerpValuesOf for fn SeedOf;
             mut LerpValuesOf for as UNorm, f32;
