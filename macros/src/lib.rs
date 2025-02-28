@@ -67,7 +67,8 @@ impl Parse for NoiseDefinition {
         let source = input.parse()?;
 
         _ = input.parse::<Token![impl]>()?;
-        let operations = Operation::parse_many(input)?;
+        let mut noise_count = 0u32;
+        let operations = Operation::parse_many(input, &mut noise_count)?;
         for op in operations.iter() {
             op.store_fields(&mut noise.data, &noise.name);
         }
@@ -472,7 +473,7 @@ impl Lambda {
         _ = input.parse::<Token![impl]>()?;
         let lambda;
         _ = braced!(lambda in input);
-        let ops = Operation::parse_many(&lambda)?;
+        let ops = Operation::parse_many(&lambda, noise_amount)?;
 
         Ok(Self {
             ops,
@@ -480,6 +481,45 @@ impl Lambda {
             output,
             source,
             id: *noise_amount,
+        })
+    }
+}
+
+#[derive(Clone)]
+struct RefOp {
+    attrs: Vec<Attribute>,
+    ident: Ident,
+    refer: Expr,
+    ops: Vec<Operation>,
+}
+
+impl RefOp {
+    fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
+        _ = input.parse::<Token![ref]>()?;
+        let attrs = Attribute::parse_outer(input)?;
+        let ident = input.parse()?;
+
+        let refer = if input.peek(Token![impl]) {
+            parse_quote!(input)
+        } else {
+            _ = input.parse::<Token![=]>()?;
+            input.parse()?
+        };
+
+        _ = input.parse::<Token![impl]>()?;
+
+        let ops = if input.peek(Brace) {
+            let inner;
+            _ = braced!(inner in input);
+            Operation::parse_many(&inner, noise_amount)?
+        } else {
+            vec![Operation::parse(input, noise_amount)?]
+        };
+        Ok(Self {
+            attrs,
+            ident,
+            refer,
+            ops,
         })
     }
 }
@@ -495,17 +535,17 @@ enum Operation {
     ConstructionVariable(Local),
     Mapping(Mapping),
     Fbm(FbmOp),
+    RefOp(RefOp),
 }
 
 impl Operation {
-    fn parse_many(input: ParseStream) -> Result<Vec<Self>> {
+    fn parse_many(input: ParseStream, noise_amount: &mut u32) -> Result<Vec<Self>> {
         let mut operations = Vec::new();
-        let mut noise_ops = 0u32;
         loop {
             if input.is_empty() {
                 break;
             }
-            let value = Operation::parse(input, &mut noise_ops)?;
+            let value = Operation::parse(input, noise_amount)?;
             let needs_semi_colon = value.needs_following_semi_colon() && !input.is_empty();
             operations.push(value);
             if needs_semi_colon || input.peek(Token![;]) {
@@ -531,6 +571,13 @@ impl Operation {
                     .map(|op| op.quote_external(full, completed_ids));
                 quote! {#(#fbm)*}
             }
+            Operation::RefOp(ref_op) => {
+                let ops = ref_op
+                    .ops
+                    .iter()
+                    .map(|op| op.quote_external(full, completed_ids));
+                quote! {#(#ops)*}
+            }
             _ => quote! {},
         }
     }
@@ -539,6 +586,7 @@ impl Operation {
         match self {
             Operation::Noise(_)
             | Operation::Fbm(_)
+            | Operation::RefOp(_)
             | Operation::Convert(_)
             | Operation::Data(_) => true,
             Operation::ConstructionVariable(_) | Operation::Hold(_) => false,
@@ -565,6 +613,10 @@ impl Operation {
             }
             Operation::Parallel(op) => op.store_fields(fields, root_name),
             Operation::Mapping(mapping) => mapping.operation.store_fields(fields, root_name),
+            Operation::RefOp(ref_op) => ref_op
+                .ops
+                .iter()
+                .for_each(|op| op.store_fields(fields, root_name)),
             _ => {}
         }
     }
@@ -582,6 +634,10 @@ impl Operation {
             Operation::ConstructionVariable(binding) => binding.to_token_stream(),
             Operation::Parallel(op) => op.quote_construction(root_name),
             Operation::Mapping(mapping) => mapping.operation.quote_construction(root_name),
+            Operation::RefOp(ref_op) => {
+                let ops = ref_op.ops.iter().map(|op| op.quote_construction(root_name));
+                quote! {#(#ops)*}
+            }
             _ => quote! {},
         }
     }
@@ -638,6 +694,22 @@ impl Operation {
                 let name = &fbm_op.ident;
                 quote! {let input = #name.get(input); }
             }
+            Operation::RefOp(RefOp {
+                attrs,
+                ident,
+                refer,
+                ops,
+            }) => {
+                let ops = ops.iter().map(|op| op.quote_noise());
+                quote! {
+                    #(#attrs)*
+                    let #ident = {
+                        let input = #refer;
+                        #(#ops)*
+                        input
+                    };
+                }
+            }
         }
     }
 
@@ -652,6 +724,8 @@ impl Operation {
                 }
                 Err(err) => Err(err),
             }
+        } else if input.peek(Token![ref]) {
+            Ok(Self::RefOp(RefOp::parse(input, noise_amount)?))
         } else if let Ok(op) = ConstructableField::<Token![use]>::parse(input, noise_amount) {
             Ok(Self::Data(op))
         } else if let Ok(op) = ConstructableField::<Token![fn]>::parse(input, noise_amount) {
@@ -675,7 +749,7 @@ impl Operation {
         } else {
             Err(input.error(
                 "Unable to parse a noise operation. Expected a noise key word like 'let', '||', \
-                 'as', 'use', 'for', 'fn', 'loop', 'mut, or 'const'.",
+                 'as', 'use', 'for', 'fn', 'loop', 'ref', 'mut, or 'const'.",
             ))
         }
     }
@@ -820,65 +894,6 @@ impl Parse for Morph {
     }
 }
 
-/// Creates a noise operation using smaller operations with key words `use`, `do`, `let`, `as`,
-/// `fn`, and `for`.
-///
-/// # Example
-///
-/// ```
-/// noise_op! {
-///     // declare the name of the noise and what type it is for
-///     /// Attributes work!
-///     pub struct MyNoise for Vec2 =
-///
-///     // declare the data that is used to make the noise operation
-///     /// Attributes work!
-///     pub(crate) struct MyNoiseArgs {seed: u32, period: f32,}
-///
-///     impl // specifies the start of the noise implementation.
-///
-///     // `use` adds custom data to the noise struct. Visibility works too.
-///     /// Attributes work!
-///     #[allow(unused)]
-///     pub use custom_data: f32 = period;
-///
-///     // 'do' is the same as 'use', but the value participates as a noise operation automatically.
-///     pub do fist_noise: GridNoise = GridNoise::new_period(period);
-///
-///     // If you don't give a 'do' a name, it will make one for you.
-///     /// Attributes work!
-///     do Seeding = Seeding(seed);
-///
-///     // 'let' holds a temporary value during the noise calculation.
-///     #[allow(unused)]
-///     let GridPoint2{ base, offset } = input.value;
-///
-///     // If you don't provide a constructor for a 'do' value, the default will be used.
-///     do MetaOf;
-///
-///     // 'as' performs a conversion chain through the types listed.
-///     as UNorm, f32, UNorm;
-///
-///     // 'fn' performs a custom noise function. You must name the return type.
-///     fn (mut x: UNorm) -> [UNorm; 3] {
-///         // You can name the parameter and its type if you want.
-///         // You can use the values of 'use' 'do' 'let' operations here.
-///         x = UNorm::new_clamped(*custom_data * offset.x);
-///         // You can't use return, but whatever value is left here is passed out as the result.
-///         [x, x, x]
-///     }
-///
-///     // 'for' operates on inner values of an array for this operation only.
-///     // The next operation will be on the resulting mapped array.
-///     for as f32;
-///
-///     // 'fn' operations don't need to specify their type,
-///     // and if they don't specify a name, `input` is the default
-///     fn () -> f32 {input[2]}
-///
-///     // whatever value is left here is returned for the noise operation.
-/// }
-/// ```
 #[proc_macro]
 pub fn noise_op(input: TokenStream) -> TokenStream {
     let noise = parse_macro_input!(input as NoiseDefinition);
