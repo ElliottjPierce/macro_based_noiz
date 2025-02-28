@@ -265,13 +265,27 @@ impl UNorm {
     #[inline]
     pub fn split_even(self) -> Self {
         // SAFETY: the could produce a value of zero
-        unsafe { Self::new_small((self.0 - 0.5).abs() * 2.0) }
+        unsafe { Self::new_small((self.0 * 2.0 - 1.0).abs()) }
     }
 
-    /// creates sharp jumps
+    /// creates sharp jumps.
     #[inline]
     pub fn jump(self, jumps: f32) -> Self {
-        Self::new_clamped((self.0 * jumps).fract())
+        Self::new_rolling(self.0 * jumps)
+    }
+
+    /// creates smooth jumps.
+    #[inline]
+    pub fn roll(self, strength: f32) -> Self {
+        self.jump(strength).split_even()
+    }
+
+    /// creates smooth jumps.
+    #[inline]
+    pub fn pingpong(self, strength: f32) -> Self {
+        let t = self.0 * strength;
+        let t = t - (t * 0.5).trunc() * 2.;
+        Self::new_clamped(if t < 1. { t } else { 2. - t })
     }
 
     /// Interpolates from `lo` to `hi`.
