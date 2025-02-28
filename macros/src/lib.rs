@@ -313,7 +313,7 @@ impl NoiseType {
                 ops,
                 input,
                 output,
-                source: _,
+                source,
                 id,
             }) => {
                 let id = *id as usize;
@@ -322,7 +322,7 @@ impl NoiseType {
                     op.store_fields(&mut fields, root_name);
                 }
                 let field_types = fields.iter().map(|field| &field.ty);
-                parse_quote!( noiz::noise::lambda::LambdaNoise<(#(#field_types),*), #input, #output, #id, #root_name> )
+                parse_quote!( noiz::noise::lambda::LambdaNoise<#source, (#(#field_types),*), #input, #output, #id, #root_name> )
             }
         }
     }
@@ -344,8 +344,8 @@ impl NoiseType {
             Self::Vanila(_) => quote! {},
             Self::Lambda(Lambda {
                 ops,
-                input: _,
-                output: _,
+                input,
+                output,
                 source,
                 id,
             }) => {
@@ -354,28 +354,31 @@ impl NoiseType {
                 }
                 completed_ids.push(*id);
 
+                let id = *id as usize;
                 let ty = self.get_type(&full.noise.name);
-                let def_name = &full.noise.name;
+                let root_name = &full.noise.name;
                 let mut fields = Punctuated::default();
                 for op in ops {
-                    op.store_fields(&mut fields, def_name);
+                    op.store_fields(&mut fields, root_name);
                 }
+                let field_types = fields.iter().map(|field| &field.ty);
                 let field_names = fields
                     .iter()
                     .map(|field| field.ident.as_ref().expect("Fields must be named."))
                     .collect::<Vec<_>>();
-                let constructions = ops.iter().map(|op| op.quote_construction(def_name));
+                let constructions = ops.iter().map(|op| op.quote_construction(root_name));
                 let noise_impls = ops.iter().map(|op| op.quote_noise());
 
                 quote! {
-                    impl From<#source> for #ty {
-                        fn from(value: #source) -> Self {
+                    impl noiz::noise::lambda::LambdaConstructor<#source, (#(#field_types),*), #input, #output, #id, #root_name> for #ty {
+                        fn construct(value: #source) -> Self {
                             let mut args = value;
 
                             #(#constructions)*
 
                             let data = (#(#field_names),*);
                             Self::new(data, |(#(#field_names),*), input| {
+                                use noiz::noise::NoiseOp as _;
 
                                 #(#noise_impls)*
 

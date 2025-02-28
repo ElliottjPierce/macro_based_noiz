@@ -164,12 +164,23 @@ noise_op! {
 }
 
 noise_op! {
+    pub struct TestLambda for Vec2 -> UNorm = SpatialNoiseSettings
+    impl
+    fn type Vec2 -> UNorm = SpatialNoiseSettings impl {
+        loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [8 PerlinNoise];
+        for as f32;
+        fn Merged<Total>;
+        as UNorm;
+    } = args.branch().into();
+}
+
+noise_op! {
     pub struct CustomNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     use worly: WorlyNoise = WorlyNoise::from(args.branch());
     let worly_res = worly.get(input);
-    loop &SpatialFbmSettings::from_spatial(&mut args, 0.8, 0.8) enum [
-        PerlinNoise,
+    loop &SpatialFbmSettings::from_spatial(&mut args, 0.8, 0.7) enum [
+        3 PerlinNoise,
         WorlyNoise,
         CellularNoise,
         5 type Vec2 -> UNorm = SpatialNoiseSettings impl {
@@ -179,8 +190,8 @@ noise_op! {
             mut LerpValuesOf for fn SeedOf;
             mut LerpValuesOf for as UNorm, f32;
             fn Smooth<Cubic>;
-            as UNorm
-        }
+            as UNorm;
+        },
     ];
     for as f32;
     fn Merged<Total>;
