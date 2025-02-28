@@ -177,8 +177,9 @@ noise_op! {
 noise_op! {
     pub struct CustomNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    use worly: WorlyNoise = WorlyNoise::from(args.branch());
-    let worly_res = worly.get(input);
+    ref worly_res = input impl {
+        fn WorlyNoise = WorlyNoise::from(args.branch());
+    };
     loop &SpatialFbmSettings::from_spatial(&mut args, 0.8, 0.7) enum [
         3 PerlinNoise,
         WorlyNoise,
