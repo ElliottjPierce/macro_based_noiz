@@ -498,8 +498,14 @@ impl RefOp {
         _ = input.parse::<Token![ref]>()?;
         let attrs = Attribute::parse_outer(input)?;
         let ident = input.parse()?;
-        _ = input.parse::<Token![=]>()?;
-        let refer = input.parse()?;
+
+        let refer = if input.peek(Token![impl]) {
+            parse_quote!(input)
+        } else {
+            _ = input.parse::<Token![=]>()?;
+            input.parse()?
+        };
+
         _ = input.parse::<Token![impl]>()?;
         let inner;
         _ = braced!(inner in input);
