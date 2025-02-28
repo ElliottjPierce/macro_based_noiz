@@ -749,7 +749,7 @@ impl Operation {
         } else {
             Err(input.error(
                 "Unable to parse a noise operation. Expected a noise key word like 'let', '||', \
-                 'as', 'use', 'for', 'fn', 'loop', 'mut, or 'const'.",
+                 'as', 'use', 'for', 'fn', 'loop', 'ref', 'mut, or 'const'.",
             ))
         }
     }
@@ -894,65 +894,6 @@ impl Parse for Morph {
     }
 }
 
-/// Creates a noise operation using smaller operations with key words `use`, `do`, `let`, `as`,
-/// `fn`, and `for`.
-///
-/// # Example
-///
-/// ```
-/// noise_op! {
-///     // declare the name of the noise and what type it is for
-///     /// Attributes work!
-///     pub struct MyNoise for Vec2 =
-///
-///     // declare the data that is used to make the noise operation
-///     /// Attributes work!
-///     pub(crate) struct MyNoiseArgs {seed: u32, period: f32,}
-///
-///     impl // specifies the start of the noise implementation.
-///
-///     // `use` adds custom data to the noise struct. Visibility works too.
-///     /// Attributes work!
-///     #[allow(unused)]
-///     pub use custom_data: f32 = period;
-///
-///     // 'do' is the same as 'use', but the value participates as a noise operation automatically.
-///     pub do fist_noise: GridNoise = GridNoise::new_period(period);
-///
-///     // If you don't give a 'do' a name, it will make one for you.
-///     /// Attributes work!
-///     do Seeding = Seeding(seed);
-///
-///     // 'let' holds a temporary value during the noise calculation.
-///     #[allow(unused)]
-///     let GridPoint2{ base, offset } = input.value;
-///
-///     // If you don't provide a constructor for a 'do' value, the default will be used.
-///     do MetaOf;
-///
-///     // 'as' performs a conversion chain through the types listed.
-///     as UNorm, f32, UNorm;
-///
-///     // 'fn' performs a custom noise function. You must name the return type.
-///     fn (mut x: UNorm) -> [UNorm; 3] {
-///         // You can name the parameter and its type if you want.
-///         // You can use the values of 'use' 'do' 'let' operations here.
-///         x = UNorm::new_clamped(*custom_data * offset.x);
-///         // You can't use return, but whatever value is left here is passed out as the result.
-///         [x, x, x]
-///     }
-///
-///     // 'for' operates on inner values of an array for this operation only.
-///     // The next operation will be on the resulting mapped array.
-///     for as f32;
-///
-///     // 'fn' operations don't need to specify their type,
-///     // and if they don't specify a name, `input` is the default
-///     fn () -> f32 {input[2]}
-///
-///     // whatever value is left here is returned for the noise operation.
-/// }
-/// ```
 #[proc_macro]
 pub fn noise_op(input: TokenStream) -> TokenStream {
     let noise = parse_macro_input!(input as NoiseDefinition);
