@@ -485,6 +485,7 @@ impl Lambda {
     }
 }
 
+#[derive(Clone)]
 struct RefOp {
     attrs: Vec<Attribute>,
     ident: Ident,
@@ -523,6 +524,7 @@ enum Operation {
     ConstructionVariable(Local),
     Mapping(Mapping),
     Fbm(FbmOp),
+    RefOp(RefOp),
 }
 
 impl Operation {
@@ -558,6 +560,13 @@ impl Operation {
                     .map(|op| op.quote_external(full, completed_ids));
                 quote! {#(#fbm)*}
             }
+            Operation::RefOp(ref_op) => {
+                let ops = ref_op
+                    .ops
+                    .iter()
+                    .map(|op| op.quote_external(full, completed_ids));
+                quote! {#(#ops)*}
+            }
             _ => quote! {},
         }
     }
@@ -566,6 +575,7 @@ impl Operation {
         match self {
             Operation::Noise(_)
             | Operation::Fbm(_)
+            | Operation::RefOp(_)
             | Operation::Convert(_)
             | Operation::Data(_) => true,
             Operation::ConstructionVariable(_) | Operation::Hold(_) => false,
@@ -592,6 +602,10 @@ impl Operation {
             }
             Operation::Parallel(op) => op.store_fields(fields, root_name),
             Operation::Mapping(mapping) => mapping.operation.store_fields(fields, root_name),
+            Operation::RefOp(ref_op) => ref_op
+                .ops
+                .iter()
+                .for_each(|op| op.store_fields(fields, root_name)),
             _ => {}
         }
     }
@@ -609,6 +623,10 @@ impl Operation {
             Operation::ConstructionVariable(binding) => binding.to_token_stream(),
             Operation::Parallel(op) => op.quote_construction(root_name),
             Operation::Mapping(mapping) => mapping.operation.quote_construction(root_name),
+            Operation::RefOp(ref_op) => {
+                let ops = ref_op.ops.iter().map(|op| op.quote_construction(root_name));
+                quote! {#(#ops)*}
+            }
             _ => quote! {},
         }
     }
@@ -665,6 +683,22 @@ impl Operation {
                 let name = &fbm_op.ident;
                 quote! {let input = #name.get(input); }
             }
+            Operation::RefOp(RefOp {
+                attrs,
+                ident,
+                refer,
+                ops,
+            }) => {
+                let ops = ops.iter().map(|op| op.quote_noise());
+                quote! {
+                    #(#attrs)*
+                    let #ident = {
+                        let input = #refer;
+                        #(#ops)*
+                        input
+                    };
+                }
+            }
         }
     }
 
@@ -679,6 +713,8 @@ impl Operation {
                 }
                 Err(err) => Err(err),
             }
+        } else if input.peek(Token![ref]) {
+            Ok(Self::RefOp(RefOp::parse(input, noise_amount)?))
         } else if let Ok(op) = ConstructableField::<Token![use]>::parse(input, noise_amount) {
             Ok(Self::Data(op))
         } else if let Ok(op) = ConstructableField::<Token![fn]>::parse(input, noise_amount) {
