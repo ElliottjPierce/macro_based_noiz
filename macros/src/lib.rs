@@ -290,6 +290,85 @@ impl ToTokens for FullStruct {
     }
 }
 
+enum NoiseType {
+    Vanila(Type),
+    Lambda(Lambda),
+}
+
+impl NoiseType {
+    fn get_type(&self, full: &NoiseDefinition) -> Type {
+        match self {
+            NoiseType::Vanila(ty) => ty.clone(),
+            NoiseType::Lambda(Lambda {
+                ops,
+                input,
+                output,
+                source: _,
+                id,
+            }) => {
+                let def_name = &full.noise.name;
+                let mut fields = Punctuated::default();
+                for op in ops {
+                    op.store_fields(&mut fields);
+                }
+                let field_types = fields.iter().map(|field| &field.ty);
+                parse_quote!(noiz::noise::lambda::Lambda<(#(#field_types),*), #input, #output, #id, #def_name>)
+            }
+        }
+    }
+
+    fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
+        Ok(if let Ok(vanila) = input.parse() {
+            Self::Vanila(vanila)
+        } else {
+            Self::Lambda(Lambda::parse(input, noise_amount)?)
+        })
+    }
+
+    fn quote_external(&self, full: &NoiseDefinition) -> proc_macro2::TokenStream {
+        match self {
+            Self::Vanila(_) => quote! {},
+            Self::Lambda(Lambda {
+                ops,
+                input,
+                output,
+                source,
+                id,
+            }) => {
+                let def_name = &full.noise.name;
+                let mut fields = Punctuated::default();
+                for op in ops {
+                    op.store_fields(&mut fields);
+                }
+                let field_types = fields.iter().map(|field| &field.ty);
+                let field_names = fields
+                    .iter()
+                    .map(|field| field.ident.as_ref().expect("Fields must be named."))
+                    .collect::<Vec<_>>();
+                let constructions = ops.iter().map(|op| op.quote_construction());
+                let noise_impls = ops.iter().map(|op| op.quote_noise());
+                quote! {
+                    impl From<#source> for noiz::noise::lambda::Lambda<(#(#field_types),*), #input, #output, #id, #def_name> {
+                        fn from(value: #source) -> Self {
+                            let mut args = value;
+
+                            #(#constructions)*
+
+                            let data = (#(#field_names),*);
+                            Self::new(data, |(#(#field_names),*), input| {
+
+                                #(#noise_impls)*
+
+                                input
+                            })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct Mapping {
     operation: Box<Operation>,
     mapped: Type,
@@ -350,51 +429,31 @@ impl FbmOp {
 }
 
 struct Lambda {
-    attrs: Vec<Attribute>,
-    vis: Visibility,
-    ident: Ident,
     ops: Vec<Operation>,
     input: Type,
     output: Type,
     source: Type,
-    source_expr: Expr,
     id: u32,
 }
 
 impl Lambda {
     fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
         _ = input.parse::<Token![type]>()?;
-
-        let is_field = input.parse::<Token![use]>().is_ok();
-        let attrs = Attribute::parse_outer(input)?;
-        let vis = input.parse()?;
-        let ident = if is_field {
-            input.parse()?
-        } else {
-            Ident::new(&format!("val{}", *noise_amount), input.span())
-        };
-
         let input_type = input.parse()?;
         _ = input.parse::<Token![->]>()?;
         let output = input.parse()?;
         _ = input.parse::<Token![for]>()?;
         let source = input.parse()?;
-        _ = input.parse::<Token![=]>()?;
-        let source_expr = input.parse()?;
         _ = input.parse::<Token![impl]>()?;
         let lambda;
         _ = braced!(lambda in input);
         let ops = Operation::parse_many(&lambda)?;
 
         Ok(Self {
-            vis,
-            attrs,
-            ident,
             ops,
             input: input_type,
             output,
             source,
-            source_expr,
             id: *noise_amount,
         })
     }
@@ -410,7 +469,6 @@ enum Operation {
     ConstructionVariable(Local),
     Mapping(Mapping),
     Fbm(FbmOp),
-    // Lambda(Lambda),
 }
 
 impl Operation {
@@ -434,9 +492,6 @@ impl Operation {
     fn quote_external(&self, full: &NoiseDefinition) -> proc_macro2::TokenStream {
         match self {
             Operation::Parallel(op) => op.quote_external(full),
-            // Operation::Lambda(lambda) => {
-
-            // }
             _ => quote! {},
         }
     }
