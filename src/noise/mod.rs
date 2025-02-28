@@ -41,6 +41,7 @@ pub mod conversions;
 pub mod fbm;
 pub mod grid;
 pub mod interpolating;
+pub mod lambda;
 pub mod mapping;
 pub mod merging;
 pub mod norm;
