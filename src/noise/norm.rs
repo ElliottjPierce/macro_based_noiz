@@ -265,7 +265,7 @@ impl UNorm {
     #[inline]
     pub fn split_even(self) -> Self {
         // SAFETY: the could produce a value of zero
-        unsafe { Self::new_small((self.0 - 0.5).abs() * 2.0) }
+        unsafe { Self::new_small((self.0 * 2.0 - 1.0).abs()) }
     }
 
     /// creates sharp jumps.
