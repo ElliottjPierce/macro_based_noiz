@@ -103,7 +103,10 @@ impl ToTokens for NoiseDefinition {
 
         let source = source.quote_source(noise_name, creation, noise_fields.iter().copied());
 
-        let ops = operations.iter().map(|op| op.quote_external(self));
+        let mut eqxternal_quotes = Vec::new();
+        let ops = operations
+            .iter()
+            .map(|op| op.quote_external(self, &mut eqxternal_quotes));
 
         tokens.extend(quote! {
             #noise
@@ -313,12 +316,13 @@ impl NoiseType {
                 source: _,
                 id,
             }) => {
+                let id = *id as usize;
                 let mut fields = Punctuated::default();
                 for op in ops {
                     op.store_fields(&mut fields, root_name);
                 }
                 let field_types = fields.iter().map(|field| &field.ty);
-                parse_quote!(noiz::noise::lambda::Lambda<(#(#field_types),*), #input, #output, #id, #root_name>)
+                parse_quote!(noiz::noise::lambda::LambdaNoise<(#(#field_types),*), #input, #output, #id, #root_name>)
             }
         }
     }
@@ -331,7 +335,11 @@ impl NoiseType {
         })
     }
 
-    fn quote_external(&self, full: &NoiseDefinition) -> proc_macro2::TokenStream {
+    fn quote_external(
+        &self,
+        full: &NoiseDefinition,
+        completed_ids: &mut Vec<u32>,
+    ) -> proc_macro2::TokenStream {
         match self {
             Self::Vanila(_) => quote! {},
             Self::Lambda(Lambda {
@@ -341,6 +349,12 @@ impl NoiseType {
                 source,
                 id,
             }) => {
+                if completed_ids.contains(id) {
+                    return quote! {};
+                }
+
+                completed_ids.push(*id);
+                let id = *id as usize;
                 let def_name = &full.noise.name;
                 let mut fields = Punctuated::default();
                 for op in ops {
@@ -354,7 +368,7 @@ impl NoiseType {
                 let constructions = ops.iter().map(|op| op.quote_construction(def_name));
                 let noise_impls = ops.iter().map(|op| op.quote_noise());
                 quote! {
-                    impl From<#source> for noiz::noise::lambda::Lambda<(#(#field_types),*), #input, #output, #id, #def_name> {
+                    impl From<#source> for noiz::noise::lambda::LambdaNoise<(#(#field_types),*), #input, #output, #id, #def_name> {
                         fn from(value: #source) -> Self {
                             let mut args = value;
 
@@ -450,7 +464,7 @@ impl Lambda {
         let input_type = input.parse()?;
         _ = input.parse::<Token![->]>()?;
         let output = input.parse()?;
-        _ = input.parse::<Token![for]>()?;
+        _ = input.parse::<Token![=]>()?;
         let source = input.parse()?;
         _ = input.parse::<Token![impl]>()?;
         let lambda;
@@ -498,13 +512,20 @@ impl Operation {
         Ok(operations)
     }
 
-    fn quote_external(&self, full: &NoiseDefinition) -> proc_macro2::TokenStream {
+    fn quote_external(
+        &self,
+        full: &NoiseDefinition,
+        completed_ids: &mut Vec<u32>,
+    ) -> proc_macro2::TokenStream {
         match self {
-            Operation::Parallel(op) => op.quote_external(full),
-            Operation::Mapping(mapping) => mapping.operation.quote_external(full),
-            Operation::Noise(noise) => noise.ty.quote_external(full),
+            Operation::Parallel(op) => op.quote_external(full, completed_ids),
+            Operation::Mapping(mapping) => mapping.operation.quote_external(full, completed_ids),
+            Operation::Noise(noise) => noise.ty.quote_external(full, completed_ids),
             Operation::Fbm(fbm) => {
-                let fbm = fbm.octaves.iter().map(|op| op.quote_external(full));
+                let fbm = fbm
+                    .octaves
+                    .iter()
+                    .map(|op| op.quote_external(full, completed_ids));
                 quote! {#(#fbm)*}
             }
             _ => quote! {},
