@@ -322,7 +322,7 @@ impl NoiseType {
                     op.store_fields(&mut fields, root_name);
                 }
                 let field_types = fields.iter().map(|field| &field.ty);
-                parse_quote!( (noiz::noise::lambda::LambdaNoise<(#(#field_types),*), #input, #output, #id, #root_name>, std::marker::PhantomData<#root_name>) )
+                parse_quote!( noiz::noise::lambda::LambdaNoise<(#(#field_types),*), #input, #output, #id, #root_name> )
             }
         }
     }
