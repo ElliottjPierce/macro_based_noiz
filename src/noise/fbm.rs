@@ -6,7 +6,12 @@ pub trait FbmSettings {
     type Octave: FbmOctave;
 
     /// For `N` octaves, gets each octave.
-    fn get_octaves<const N: usize>(self) -> [Self::Octave; N];
+    /// `specializers` allow users to customize each octave, allowing them to participate in the
+    /// generation of future octaves.
+    fn get_octaves<const N: usize>(
+        self,
+        specializers: [fn(&mut Self::Octave); N],
+    ) -> [Self::Octave; N];
 }
 
 /// Represents a layer of fbm.
@@ -55,7 +60,11 @@ pub struct UncheckedFbm;
 impl FbmSettings for UncheckedFbm {
     type Octave = ();
 
-    fn get_octaves<const N: usize>(self) -> [Self::Octave; N] {
+    #[inline]
+    fn get_octaves<const N: usize>(
+        self,
+        _specializers: [fn(&mut Self::Octave); N],
+    ) -> [Self::Octave; N] {
         [(); N]
     }
 }
@@ -63,6 +72,7 @@ impl FbmSettings for UncheckedFbm {
 impl FbmOctave for () {
     type Stored = Self;
 
+    #[inline]
     fn finish(self) -> Self::Stored {
         self
     }
