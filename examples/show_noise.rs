@@ -11,17 +11,12 @@ use noiz::noise::{
     Noise,
     NoiseType,
     associating::ValueOf,
-    fbm::{
-        SpatialFbmSettings,
-        SpatialNoiseSettings,
-    },
+    fbm::SpatialNoiseSettings,
     grid::GridNoise,
     interpolating::Cubic,
     merging::{
         EuclideanDistance,
         ManhatanDistance,
-        Merged,
-        Total,
     },
     noise_op,
     norm::{
@@ -180,25 +175,14 @@ noise_op! {
     || input.inverse();
 }
 
-noise_op! {
-    pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
-    impl
-    loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [8 PerlinNoise];
-    for as f32;
-    fn Merged<Total>;
-    as UNorm;
-}
-
-noise_op! {
-    pub struct TestLambda for Vec2 -> UNorm = SpatialNoiseSettings
-    impl
-    fn type Vec2 -> UNorm = SpatialNoiseSettings impl {
-        loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [8 PerlinNoise];
-        for as f32;
-        fn Merged<Total>;
-        as UNorm;
-    } = args.branch().into();
-}
+// noise_op! {
+//     pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
+//     impl
+//     loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [8 PerlinNoise];
+//     for as f32;
+//     fn Merged<Total>;
+//     as UNorm;
+// }
 
 noise_op! {
     pub struct CustomNoise for Vec2 -> UNorm = SpatialNoiseSettings
@@ -214,25 +198,6 @@ noise_op! {
         as SNorm, UNorm, f32;
         || input * 10.0
     };
-    loop &SpatialFbmSettings::from_spatial(&mut args, 0.8, 0.7) enum [
-        3 PerlinNoise,
-        WorlyNoise,
-        CellularNoise,
-        5 type Vec2 -> UNorm = SpatialNoiseSettings impl {
-            fn GridNoise = GridNoise::new_period(args.period);
-            fn Lerp;
-            mut LerpValuesOf for fn Seeding = args.seeding();
-            mut LerpValuesOf for fn SeedOf;
-            mut LerpValuesOf for as UNorm, f32;
-            fn Smooth<Cubic>;
-            as UNorm;
-        },
-    ];
-    for as f32;
-    fn Merged<Total>;
-    || input * worly_res.adapt::<f32>();
-    || input * scale;
-    fn type f32 -> UNorm = () impl {
-        || UNorm::new_rolling(input)
-    } = ().into()
+    || worly_res.adapt::<f32>() * scale;
+    as UNorm
 }
