@@ -166,35 +166,75 @@ impl Octave<StandardFbm> for StandardOctave {
     }
 }
 
+macro_rules! impl_weighted_accumulator {
+    ($pre:ty, $acc:ty, $t:ty, $def:expr, $cmb:ident) => {
+        impl<const N: usize, T: NoiseConverter<$t, Input = T>> PreAccumulator<T, WeightedOctave, N>
+            for $pre
+        {
+            type Accumulator = $acc;
+
+            #[inline]
+            fn start_accumulate(
+                self,
+                octave_result: T,
+                octave: &WeightedOctave,
+            ) -> Self::Accumulator {
+                let mut acc = $def;
+                acc.accumulate(octave_result, octave);
+                acc
+            }
+        }
+
+        impl<T: NoiseConverter<$t, Input = T>> Accumulator<T, WeightedOctave> for $acc {
+            type Final = $t;
+
+            #[inline]
+            fn accumulate(&mut self, octave_result: T, octave: &WeightedOctave) {
+                let acc = &mut self.0;
+                let val = T::convert(octave_result) * octave.0.adapt::<f32>();
+                $cmb(acc, val);
+            }
+
+            #[inline]
+            fn finish(self) -> Self::Final {
+                self.0
+            }
+        }
+    };
+}
+
 /// A [`PreAccumulator`] that sums together all the octaves, normalized by their weights.
 pub struct OctaveSum;
 
 /// The [`Accumulator`] for [`OctaveSum`].
 pub struct OctaveSumAccumulator(pub f32);
 
-impl<const N: usize, T: NoiseConverter<f32, Input = T>> PreAccumulator<T, WeightedOctave, N>
-    for OctaveSum
-{
-    type Accumulator = OctaveSumAccumulator;
-
-    #[inline]
-    fn start_accumulate(self, octave_result: T, octave: &WeightedOctave) -> Self::Accumulator {
-        let mut acc = OctaveSumAccumulator(0.0);
-        acc.accumulate(octave_result, octave);
-        acc
-    }
+fn sum(acc: &mut f32, val: f32) {
+    *acc += val;
 }
 
-impl<T: NoiseConverter<f32, Input = T>> Accumulator<T, WeightedOctave> for OctaveSumAccumulator {
-    type Final = f32;
+impl_weighted_accumulator!(
+    OctaveSum,
+    OctaveSumAccumulator,
+    f32,
+    OctaveSumAccumulator(0.0),
+    sum
+);
 
-    #[inline]
-    fn accumulate(&mut self, octave_result: T, octave: &WeightedOctave) {
-        self.0 += T::convert(octave_result) * octave.0.adapt::<f32>();
-    }
+/// A [`PreAccumulator`] that multiplies together all the octaves, normalized by their weights.
+pub struct OctaveProduct;
 
-    #[inline]
-    fn finish(self) -> Self::Final {
-        self.0
-    }
+/// The [`Accumulator`] for [`OctaveProduct`].
+pub struct OctaveProductAccumulator(pub f32);
+
+fn mul(acc: &mut f32, val: f32) {
+    *acc *= val;
 }
+
+impl_weighted_accumulator!(
+    OctaveProduct,
+    OctaveProductAccumulator,
+    f32,
+    OctaveProductAccumulator(1.0),
+    mul
+);
