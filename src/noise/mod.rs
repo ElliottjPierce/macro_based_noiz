@@ -111,21 +111,25 @@ where
     }
 }
 
+/// Represents period at which the noise may repeat, the inverse of frequency.
+/// You can think of this like the scale of the noise.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Period(pub f64);
+
 /// This describes typical settings for a [`NoiseOp`] that creates noise based purely on space and
 /// seeds.
 pub struct SpatialNoiseSettings {
-    /// The period at which the noise may repeat, the inverse of frequency.
-    /// You can think of this like the scale of the noise.
-    pub period: f32,
+    /// The period of the noise.
+    pub period: Period,
     rng: NoiseRng<White32>,
 }
 
 impl SpatialNoiseSettings {
     /// Constructs a new [`SpatialNoiseSettings`] based on the given seed and
     /// [`period`](SpatialNoiseSettings::period).
-    pub fn new(seed: u64, period: f32) -> Self {
+    pub fn new(seed: u64, period: f64) -> Self {
         Self {
-            period,
+            period: Period(period),
             rng: NoiseRng::new_seed(seed),
         }
     }

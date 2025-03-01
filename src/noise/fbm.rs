@@ -1,6 +1,9 @@
 //! This module allows factional brownian motion (fbm) noise.
 
-use super::norm::UNorm;
+use super::{
+    Period,
+    norm::UNorm,
+};
 
 /// Represents the settings of a fbm.
 pub trait Settings: Sized {
@@ -130,7 +133,7 @@ impl StandardFbm {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StandardOctave {
     /// The period of the octave.
-    pub period: OctavePeriod,
+    pub period: Period,
     /// The weight of the octave. The higher the weight, the more pronounced this octave will be
     /// relative to others.
     pub weight: f32,
@@ -140,14 +143,10 @@ pub struct StandardOctave {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WeightedOctaveStorage(pub UNorm);
 
-/// Represents the period of an octave.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct OctavePeriod(pub f64);
-
 impl Octave<StandardFbm> for StandardOctave {
     type Stored = WeightedOctaveStorage;
 
-    type View = OctavePeriod;
+    type View = Period;
 
     fn finalize(self, settings: &StandardFbm) -> (Self::Stored, Self::View) {
         (
@@ -159,7 +158,7 @@ impl Octave<StandardFbm> for StandardOctave {
     fn new(settings: &mut StandardFbm) -> Self {
         settings.tally_weight();
         Self {
-            period: OctavePeriod(settings.next_period),
+            period: Period(settings.next_period),
             weight: settings.next_weight,
         }
     }
