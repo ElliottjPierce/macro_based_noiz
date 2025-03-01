@@ -1,39 +1,49 @@
 //! This module allows factional brownian motion (fbm) noise.
 
-/// Represents the settings of fbm of a certain type of octave.
-pub trait FbmSettings {
-    /// The type of octave used.
-    type Octave: FbmOctave;
+use super::norm::UNorm;
 
-    /// For `N` octaves, gets each octave.
-    /// `specializers` allow users to customize each octave, allowing them to participate in the
-    /// generation of future octaves.
-    fn get_octaves<const N: usize>(
-        self,
-        specializers: [fn(&mut Self::Octave); N],
-    ) -> [Self::Octave; N];
+/// Represents the settings of a fbm.
+pub trait Settings: Sized {
+    /// Progresses the settings for the next octave.
+    fn progress(&mut self);
+
+    /// Generates another octave with a particular progression `f`.
+    fn gen_octave_with<O: Octave<Self>>(&mut self, f: impl FnOnce(&mut Self)) -> O {
+        f(self);
+        O::new(self)
+    }
+
+    /// Generates another octave with the default rpgression.
+    fn gen_octave<O: Octave<Self>>(&mut self) -> O {
+        self.progress();
+        O::new(self)
+    }
 }
 
-/// Represents a layer of fbm.
-pub trait FbmOctave {
-    /// The data that is actually stored for reuse.
+/// Represents an octave of fbm.
+pub trait Octave<S: Settings> {
+    /// The information stored and made available to the [`Accumulator`].
     type Stored;
+    /// The information made available to the octave's operations' construction.
+    type View;
 
-    /// Converts this value to its storage.
-    fn finish(self) -> Self::Stored;
+    /// Finalizes the octave based on its settings.
+    fn finalize(self, settings: &S) -> (Self::Stored, Self::View);
+    /// Constructs the octave from its settings.
+    fn new(settings: &S) -> Self;
 }
 
-/// Starts a corresponding [`FbmAccumulator`] for `N` octaves.
-pub trait FbmPreAccumulator<R, O, const N: usize> {
+/// Starts a corresponding [`Accumulator`] for `N` octaves.
+pub trait PreAccumulator<R, O, const N: usize> {
     /// The corresponding [`FbmAccumulator`].
-    type Accumulator: FbmAccumulator<R, O>;
+    type Accumulator: Accumulator<R, O>;
 
     /// Begins the accumulation.
     fn start_accumulate(self, octave_result: R, octave: &O) -> Self::Accumulator;
 }
 
 /// Represents the accumulation of some result `R` from some octavs `O`.
-pub trait FbmAccumulator<R, O> {
+pub trait Accumulator<R, O> {
     /// The final type of the accumulation.
     type Final;
 
@@ -55,25 +65,46 @@ pub trait ContributoryOctave<T> {
 
 /// Fbm that is completely unchecked. This lets you do whatever you want, including custom octaves
 /// and layers, etc.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UncheckedFbm;
 
-impl FbmSettings for UncheckedFbm {
-    type Octave = ();
-
+impl Settings for UncheckedFbm {
     #[inline]
-    fn get_octaves<const N: usize>(
-        self,
-        _specializers: [fn(&mut Self::Octave); N],
-    ) -> [Self::Octave; N] {
-        [(); N]
-    }
+    fn progress(&mut self) {}
 }
 
-impl FbmOctave for () {
+impl Octave<UncheckedFbm> for () {
     type Stored = Self;
 
-    #[inline]
-    fn finish(self) -> Self::Stored {
-        self
+    type View = Self;
+
+    fn finalize(self, _settings: &UncheckedFbm) -> (Self::Stored, Self::View) {
+        ((), ())
     }
+
+    fn new(_settings: &UncheckedFbm) -> Self {}
 }
+
+// /// An octave defined by some settings `T` and a weight.
+// #[derive(Debug, Clone, Copy, PartialEq)]
+// pub struct Weighted<T> {
+//     /// The settings of the octave.
+//     pub settings: T,
+//     /// The weight of the octave. The higher the weight, the more pronounced this octave will be
+//     /// relative to others.
+//     pub weight: f32,
+// }
+
+// /// Stores the final, normalized contribution of a [`Weighted`] octave.
+// #[derive(Debug, Clone, Copy, PartialEq)]
+// pub struct WeightedOctaveStorage(pub UNorm);
+
+// impl<T> Octave for Weighted<T> {
+//     type Stored = WeightedOctaveStorage;
+
+//     type View = T;
+
+//     fn split(self) -> (Self::Stored, Self::Settings) {
+//         todo!()
+//     }
+// }
