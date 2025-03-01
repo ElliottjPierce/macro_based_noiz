@@ -126,11 +126,11 @@ impl StandardFbm {
     }
 }
 
-/// An octave defined by some settings `T` and a weight.
+/// An octave defined by a period and a weight.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Weighted<T> {
-    /// The settings of the octave.
-    pub settings: T,
+pub struct StandardOctave {
+    /// The period of the octave.
+    pub period: OctavePeriod,
     /// The weight of the octave. The higher the weight, the more pronounced this octave will be
     /// relative to others.
     pub weight: f32,
@@ -144,7 +144,7 @@ pub struct WeightedOctaveStorage(pub UNorm);
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OctavePeriod(pub f64);
 
-impl Octave<StandardFbm> for Weighted<OctavePeriod> {
+impl Octave<StandardFbm> for StandardOctave {
     type Stored = WeightedOctaveStorage;
 
     type View = OctavePeriod;
@@ -152,14 +152,14 @@ impl Octave<StandardFbm> for Weighted<OctavePeriod> {
     fn finalize(self, settings: &StandardFbm) -> (Self::Stored, Self::View) {
         (
             WeightedOctaveStorage(UNorm::new_clamped(self.weight / settings.tallied_weight())),
-            self.settings,
+            self.period,
         )
     }
 
     fn new(settings: &mut StandardFbm) -> Self {
         settings.tally_weight();
         Self {
-            settings: OctavePeriod(settings.next_period),
+            period: OctavePeriod(settings.next_period),
             weight: settings.next_weight,
         }
     }
