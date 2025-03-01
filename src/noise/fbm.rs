@@ -8,15 +8,17 @@ pub trait Settings: Sized {
     fn progress(&mut self);
 
     /// Generates another octave with a particular progression `f`.
+    #[inline]
     fn gen_octave_with<O: Octave<Self>>(&mut self, f: impl FnOnce(&mut Self)) -> O {
+        let res = O::new(self);
         f(self);
-        O::new(self)
+        res
     }
 
     /// Generates another octave with the default rpgression.
+    #[inline]
     fn gen_octave<O: Octave<Self>>(&mut self) -> O {
-        self.progress();
-        O::new(self)
+        self.gen_octave_with(Settings::progress)
     }
 }
 
@@ -30,7 +32,7 @@ pub trait Octave<S: Settings> {
     /// Finalizes the octave based on its settings.
     fn finalize(self, settings: &S) -> (Self::Stored, Self::View);
     /// Constructs the octave from its settings.
-    fn new(settings: &S) -> Self;
+    fn new(settings: &mut S) -> Self;
 }
 
 /// Starts a corresponding [`Accumulator`] for `N` octaves.
@@ -82,29 +84,83 @@ impl Octave<UncheckedFbm> for () {
         ((), ())
     }
 
-    fn new(_settings: &UncheckedFbm) -> Self {}
+    fn new(_settings: &mut UncheckedFbm) -> Self {}
 }
 
-// /// An octave defined by some settings `T` and a weight.
-// #[derive(Debug, Clone, Copy, PartialEq)]
-// pub struct Weighted<T> {
-//     /// The settings of the octave.
-//     pub settings: T,
-//     /// The weight of the octave. The higher the weight, the more pronounced this octave will be
-//     /// relative to others.
-//     pub weight: f32,
-// }
+/// Traditional fbm settings.
+pub struct StandardFbm {
+    /// The period of the next octave.
+    pub next_period: f64,
+    /// The weight of the next octave.
+    pub next_weight: f32,
+    /// The amount tby which the period is scaled between octaves by default.
+    pub octave_scaling: f64,
+    /// The amount tby which the weight is scaled between octaves by default.
+    pub octave_fall_off: f32,
+    total_weight: f32,
+}
 
-// /// Stores the final, normalized contribution of a [`Weighted`] octave.
-// #[derive(Debug, Clone, Copy, PartialEq)]
-// pub struct WeightedOctaveStorage(pub UNorm);
+impl Settings for StandardFbm {
+    fn progress(&mut self) {
+        self.next_period *= self.octave_scaling;
+        self.next_weight *= self.octave_fall_off;
+    }
+}
 
-// impl<T> Octave for Weighted<T> {
-//     type Stored = WeightedOctaveStorage;
+impl StandardFbm {
+    /// Adds the [`next_weight`](Self::next_weight) to the total.
+    /// This is intended to be used to create custom [`Octave`]s for this setting.
+    pub fn tally_weight(&mut self) {
+        self.tally_weight_manual(self.next_weight);
+    }
 
-//     type View = T;
+    /// Adds the `weight` to the total. If the weight does not represent an octave, this can have
+    /// unintened consequencess.
+    pub fn tally_weight_manual(&mut self, weight: f32) {
+        self.total_weight += weight;
+    }
 
-//     fn split(self) -> (Self::Stored, Self::Settings) {
-//         todo!()
-//     }
-// }
+    /// Gets the total of weights from [`tally_weight`](Self::tally_weight).
+    pub fn tallied_weight(&self) -> f32 {
+        self.total_weight
+    }
+}
+
+/// An octave defined by some settings `T` and a weight.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Weighted<T> {
+    /// The settings of the octave.
+    pub settings: T,
+    /// The weight of the octave. The higher the weight, the more pronounced this octave will be
+    /// relative to others.
+    pub weight: f32,
+}
+
+/// Stores the final, normalized contribution of a [`Weighted`] octave.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WeightedOctaveStorage(pub UNorm);
+
+/// Represents the period of an octave.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OctavePeriod(pub f64);
+
+impl Octave<StandardFbm> for Weighted<OctavePeriod> {
+    type Stored = WeightedOctaveStorage;
+
+    type View = OctavePeriod;
+
+    fn finalize(self, settings: &StandardFbm) -> (Self::Stored, Self::View) {
+        (
+            WeightedOctaveStorage(UNorm::new_clamped(self.weight / settings.tallied_weight())),
+            self.settings,
+        )
+    }
+
+    fn new(settings: &mut StandardFbm) -> Self {
+        settings.tally_weight();
+        Self {
+            settings: OctavePeriod(settings.next_period),
+            weight: settings.next_weight,
+        }
+    }
+}
