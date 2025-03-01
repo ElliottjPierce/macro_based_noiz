@@ -54,8 +54,15 @@ pub mod voronoi;
 pub mod white;
 
 pub use macros::noise_op;
+use rand::{
+    Rng,
+    RngCore,
+};
+use seeded::Seeding;
+use white::White32;
 
 pub use crate::__convert as convert;
+use crate::rng::NoiseRng;
 
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.
 pub trait NoiseOp<I> {
@@ -101,6 +108,49 @@ where
     /// samples the noise at this input
     fn sample_cold<C: NoiseConverter<Self::Input, Input = C>>(&self, input: C) -> Self::Output {
         self.sample::<C>(input)
+    }
+}
+
+/// This describes typical settings for a [`NoiseOp`] that creates noise based purely on space and
+/// seeds.
+pub struct SpatialNoiseSettings {
+    /// The period at which the noise may repeat, the inverse of frequency.
+    /// You can think of this like the scale of the noise.
+    pub period: f32,
+    rng: NoiseRng<White32>,
+}
+
+impl SpatialNoiseSettings {
+    /// Constructs a new [`SpatialNoiseSettings`] based on the given seed and
+    /// [`period`](SpatialNoiseSettings::period).
+    pub fn new(seed: u64, period: f32) -> Self {
+        Self {
+            period,
+            rng: NoiseRng::new_seed(seed),
+        }
+    }
+
+    /// Gets the [`Rng`] for this [`SpatialNoiseSettings`].
+    pub fn rng(&mut self) -> &mut impl Rng {
+        &mut self.rng
+    }
+
+    /// Gets a random u32.
+    pub fn rand_32(&mut self) -> u32 {
+        self.rng.next_u32()
+    }
+
+    /// Gets a random [`Seeding`].
+    pub fn seeding(&mut self) -> Seeding {
+        Seeding(self.rand_32())
+    }
+
+    /// Branches this [`SpatialNoiseSettings`] into another noise branch.
+    pub fn branch(&mut self) -> Self {
+        Self {
+            period: self.period,
+            rng: self.rng.break_off(),
+        }
     }
 }
 

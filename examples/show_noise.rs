@@ -10,8 +10,8 @@ use bevy::{
 use noiz::noise::{
     Noise,
     NoiseType,
+    SpatialNoiseSettings,
     associating::ValueOf,
-    fbm::SpatialNoiseSettings,
     grid::GridNoise,
     interpolating::Cubic,
     merging::{
