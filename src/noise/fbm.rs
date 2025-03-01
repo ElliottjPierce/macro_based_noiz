@@ -38,6 +38,8 @@ pub trait Octave<S: Settings> {
     fn finalize(self, settings: &S) -> (Self::Stored, Self::View);
     /// Constructs the octave from its settings.
     fn new(settings: &mut S) -> Self;
+    /// Based on the final value of this octave, modify settings.
+    fn post_construction(&self, settings: &mut S);
 }
 
 /// Starts a corresponding [`Accumulator`] for `N` octaves.
@@ -90,6 +92,8 @@ impl Octave<UncheckedFbm> for () {
     }
 
     fn new(_settings: &mut UncheckedFbm) -> Self {}
+
+    fn post_construction(&self, _settings: &mut UncheckedFbm) {}
 }
 
 /// Traditional fbm settings.
@@ -129,6 +133,17 @@ impl StandardFbm {
     pub fn tallied_weight(&self) -> f32 {
         self.total_weight
     }
+
+    /// Constructs a new [`StandardFbm`].
+    pub fn new(period: Period, octave_scaling: f64, octave_fall_off: f32) -> Self {
+        Self {
+            next_period: period.0,
+            next_weight: 1_000.0,
+            octave_scaling,
+            octave_fall_off,
+            total_weight: 0.0,
+        }
+    }
 }
 
 /// An octave defined by a period and a weight.
@@ -158,11 +173,14 @@ impl Octave<StandardFbm> for StandardOctave {
     }
 
     fn new(settings: &mut StandardFbm) -> Self {
-        settings.tally_weight();
         Self {
             period: Period(settings.next_period),
             weight: settings.next_weight,
         }
+    }
+
+    fn post_construction(&self, settings: &mut StandardFbm) {
+        settings.tally_weight_manual(self.weight);
     }
 }
 

@@ -156,6 +156,12 @@ impl SpatialNoiseSettings {
             rng: self.rng.break_off(),
         }
     }
+
+    /// Changes the period to the passed value before returning self.
+    pub fn with_period(mut self, period: Period) -> Self {
+        self.period = period;
+        self
+    }
 }
 
 // built in
