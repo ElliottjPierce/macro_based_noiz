@@ -1,7 +1,9 @@
 //! This module allows factional brownian motion (fbm) noise.
 
 use super::{
+    NoiseType,
     Period,
+    conversions::NoiseConverter,
     norm::UNorm,
 };
 
@@ -141,16 +143,16 @@ pub struct StandardOctave {
 
 /// Stores the final, normalized contribution of a [`Weighted`] octave.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct WeightedOctaveStorage(pub UNorm);
+pub struct WeightedOctave(pub UNorm);
 
 impl Octave<StandardFbm> for StandardOctave {
-    type Stored = WeightedOctaveStorage;
+    type Stored = WeightedOctave;
 
     type View = Period;
 
     fn finalize(self, settings: &StandardFbm) -> (Self::Stored, Self::View) {
         (
-            WeightedOctaveStorage(UNorm::new_clamped(self.weight / settings.tallied_weight())),
+            WeightedOctave(UNorm::new_clamped(self.weight / settings.tallied_weight())),
             self.period,
         )
     }
@@ -161,5 +163,38 @@ impl Octave<StandardFbm> for StandardOctave {
             period: Period(settings.next_period),
             weight: settings.next_weight,
         }
+    }
+}
+
+/// A [`PreAccumulator`] that sums together all the octaves, normalized by their weights.
+pub struct OctaveSum;
+
+/// The [`Accumulator`] for [`OctaveSum`].
+pub struct OctaveSumAccumulator(pub f32);
+
+impl<const N: usize, T: NoiseConverter<f32, Input = T>> PreAccumulator<T, WeightedOctave, N>
+    for OctaveSum
+{
+    type Accumulator = OctaveSumAccumulator;
+
+    #[inline]
+    fn start_accumulate(self, octave_result: T, octave: &WeightedOctave) -> Self::Accumulator {
+        let mut acc = OctaveSumAccumulator(0.0);
+        acc.accumulate(octave_result, octave);
+        acc
+    }
+}
+
+impl<T: NoiseConverter<f32, Input = T>> Accumulator<T, WeightedOctave> for OctaveSumAccumulator {
+    type Final = f32;
+
+    #[inline]
+    fn accumulate(&mut self, octave_result: T, octave: &WeightedOctave) {
+        self.0 += T::convert(octave_result) * octave.0.adapt::<f32>();
+    }
+
+    #[inline]
+    fn finish(self) -> Self::Final {
+        self.0
     }
 }
