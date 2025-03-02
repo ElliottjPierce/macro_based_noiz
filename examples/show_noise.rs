@@ -10,18 +10,19 @@ use bevy::{
 use noiz::noise::{
     Noise,
     NoiseType,
+    SpatialNoiseSettings,
     associating::ValueOf,
     fbm::{
-        SpatialFbmSettings,
-        SpatialNoiseSettings,
+        OctaveSum,
+        StandardFbm,
+        StandardOctave,
+        WeightedOctave,
     },
     grid::GridNoise,
     interpolating::Cubic,
     merging::{
         EuclideanDistance,
         ManhatanDistance,
-        Merged,
-        Total,
     },
     noise_op,
     norm::{
@@ -85,7 +86,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = CustomNoise;
+type NoiseUsed = SimpleHeightMapNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -107,7 +108,7 @@ fn make_noise(image: &mut Image) {
 noise_op! {
     pub struct WhiteNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    fn GridNoise = GridNoise::new_period(args.period);
+    fn GridNoise = args.period.into();
     fn Seeding = args.seeding();
     fn SeedOf;
     as UNorm
@@ -116,7 +117,7 @@ noise_op! {
 noise_op! {
     pub struct ValueNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    fn GridNoise = GridNoise::new_period(args.period);
+    fn GridNoise = args.period.into();
     fn Lerp;
     mut LerpValuesOf for fn Seeding = args.seeding();
     mut LerpValuesOf for fn SeedOf;
@@ -128,7 +129,7 @@ noise_op! {
 noise_op! {
     pub struct PerlinNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    fn GridNoise = GridNoise::new_period(args.period);
+    fn GridNoise = args.period.into();
     fn Lerp;
     mut LerpValuesOf for fn Seeding = args.seeding();
     mut LerpValuesOf for mut ValueOf || input.offset;
@@ -141,7 +142,7 @@ noise_op! {
     pub struct Perlin3dNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     || input.extend(445.5);
-    fn GridNoise = GridNoise::new_period(args.period);
+    fn GridNoise = args.period.into();
     fn Lerp;
     mut LerpValuesOf for fn Seeding = args.seeding();
     mut LerpValuesOf for mut ValueOf || input.offset;
@@ -154,7 +155,7 @@ noise_op! {
     pub struct Value3dNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     || input.extend(72132.5);
-    fn GridNoise = GridNoise::new_period(args.period);
+    fn GridNoise = args.period.into();
     fn Lerp;
     mut LerpValuesOf for fn Seeding = args.seeding();
     mut LerpValuesOf for fn SeedOf;
@@ -166,7 +167,7 @@ noise_op! {
 noise_op! {
     pub struct CellularNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    fn GridNoise = GridNoise::new_period(args.period);
+    fn GridNoise = args.period.into();
     fn Voronoi<2, Cellular<ManhatanDistance>, true> = Voronoi::new_default(1.0.adapt(), args.rand_32());
     fn SeedOf;
     as UNorm
@@ -175,7 +176,7 @@ noise_op! {
 noise_op! {
     pub struct WorlyNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    fn GridNoise = GridNoise::new_period(args.period);
+    fn GridNoise = args.period.into();
     fn Voronoi<2, Worly<EuclideanDistance, worly_mode::Ratio>, false> = Voronoi::new(1.0, args.rand_32(), Worly::shrunk_by(0.75));
     || input.inverse();
 }
@@ -183,56 +184,34 @@ noise_op! {
 noise_op! {
     pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [8 PerlinNoise];
-    for as f32;
-    fn Merged<Total>;
+    loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
+        8 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+            || *input;
+            fn PerlinNoise = args.branch().with_period(octave).into();
+        },
+    ];
     as UNorm;
 }
 
 noise_op! {
-    pub struct TestLambda for Vec2 -> UNorm = SpatialNoiseSettings
+    pub struct SimpleHeightMapNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    fn type Vec2 -> UNorm = SpatialNoiseSettings impl {
-        loop &SpatialFbmSettings::from_spatial(&mut args, 0.5, 0.3) enum [8 PerlinNoise];
-        for as f32;
-        fn Merged<Total>;
-        as UNorm;
-    } = args.branch().into();
-}
-
-noise_op! {
-    pub struct CustomNoise for Vec2 -> UNorm = SpatialNoiseSettings
-    impl
-    ref worly_res impl fn WorlyNoise = WorlyNoise::from(args.branch());
-    ref scale = input impl {
-        fn GridNoise = GridNoise::new_period(args.period);
-        fn Lerp;
-        mut LerpValuesOf for fn Seeding = args.seeding();
-        mut LerpValuesOf for mut ValueOf || input.offset;
-        mut LerpValuesOf for fn Perlin<RuntimeRand>;
-        fn Smooth<Cubic>;
-        as SNorm, UNorm, f32;
-        || input * 10.0
-    };
-    loop &SpatialFbmSettings::from_spatial(&mut args, 0.8, 0.7) enum [
-        3 PerlinNoise,
-        WorlyNoise,
-        CellularNoise,
-        5 type Vec2 -> UNorm = SpatialNoiseSettings impl {
-            fn GridNoise = GridNoise::new_period(args.period);
-            fn Lerp;
-            mut LerpValuesOf for fn Seeding = args.seeding();
-            mut LerpValuesOf for fn SeedOf;
-            mut LerpValuesOf for as UNorm, f32;
-            fn Smooth<Cubic>;
-            as UNorm;
+    ref mask impl loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
+        4 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+            || *input;
+            fn PerlinNoise = args.branch().with_period(octave).into();
         },
     ];
-    for as f32;
-    fn Merged<Total>;
-    || input * worly_res.adapt::<f32>();
-    || input * scale;
-    fn type f32 -> UNorm = () impl {
-        || UNorm::new_rolling(input)
-    } = ().into()
+    loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
+        4 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+            || *input;
+            fn PerlinNoise = args.branch().with_period(octave).into();
+        },
+        4 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+            || *input;
+            fn ValueNoise = args.branch().with_period(octave).into()
+        }
+    ];
+    || input * mask.powf(2.5);
+    as UNorm
 }

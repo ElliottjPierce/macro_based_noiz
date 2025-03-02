@@ -18,6 +18,7 @@ use bevy_math::{
 use super::{
     NoiseOp,
     NoiseType,
+    Period,
     associating::Associated,
     conversions::convertible,
     norm::make_nonzero_f32,
@@ -44,6 +45,12 @@ impl GridNoise {
     }
 }
 
+impl From<Period> for GridNoise {
+    fn from(value: Period) -> Self {
+        Self::new_period(value.0 as f32)
+    }
+}
+
 /// a noise that converts a vector input to a point in a grid
 #[derive(Debug, Clone, PartialEq)]
 pub struct GridNoise64 {
@@ -63,6 +70,12 @@ impl GridNoise64 {
     }
 }
 
+impl From<Period> for GridNoise64 {
+    fn from(value: Period) -> Self {
+        Self::new_period(value.0)
+    }
+}
+
 /// a noise that converts an integer vector input to a point in a grid
 #[derive(Debug, Clone, PartialEq)]
 pub struct GridNoiseIntPow {
@@ -70,11 +83,28 @@ pub struct GridNoiseIntPow {
     pub period_power: u32,
 }
 
+impl From<Period> for GridNoiseIntPow {
+    fn from(value: Period) -> Self {
+        let int = GridNoiseInt::from(value).period;
+        Self {
+            period_power: int.ilog2() + 1,
+        }
+    }
+}
+
 /// a noise that converts an integer vector input to a point in a grid
 #[derive(Debug, Clone, PartialEq)]
 pub struct GridNoiseInt {
     /// grid lines will repeat every x where x is this value
     pub period: u32,
+}
+
+impl From<Period> for GridNoiseInt {
+    fn from(value: Period) -> Self {
+        Self {
+            period: value.0.abs().ceil() as u32,
+        }
+    }
 }
 
 /// easily creates grid points
