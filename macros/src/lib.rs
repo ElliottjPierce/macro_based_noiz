@@ -651,7 +651,7 @@ impl Operation {
                         attrs: octave.attrs.clone(),
                         vis: Visibility::Inherited,
                         mutability: FieldMutability::None,
-                        ident: Some(octave.octave_ident.clone()),
+                        ident: Some(octave.storage_ident.clone()),
                         colon_token: Default::default(),
                         ty: octave.octave_storage.clone(),
                     });
@@ -680,7 +680,7 @@ impl Operation {
             }) => {
                 let constructing_octaves = octaves.iter().map(
                     |FbmOctave {
-                         attrs,
+                         attrs: _,
                          storage_ident: _,
                          octave_ident,
                          octave_storage: _,
@@ -688,7 +688,6 @@ impl Operation {
                          ops: _,
                      }| {
                         quote! {
-                            #(#attrs)*
                             let mut #octave_ident = #octave_constructor;
                             #octave_ident.post_construction(&mut #settings_ident);
                         }
@@ -697,7 +696,7 @@ impl Operation {
 
                 let finalize_octaves = octaves.iter().map(
                     |FbmOctave {
-                         attrs,
+                         attrs: _,
                          storage_ident,
                          octave_ident,
                          octave_storage: _,
@@ -706,7 +705,6 @@ impl Operation {
                      }| {
                         let ops_construction = ops.iter().map(|op| op.quote_construction(root_name));
                         quote! {
-                            #(#attrs)*
                             let (#storage_ident, mut #octave_ident) = #octave_ident.finalize(&#settings_ident);
                             #(#ops_construction)*
                         }
@@ -743,9 +741,14 @@ impl Operation {
                 quote! {let input = #name.get(input); }
             }
             Operation::Convert(conversions) => {
+                if conversions.conversions.is_empty() {
+                    return quote! {};
+                }
+
+                let final_type = conversions.conversions.last().unwrap();
                 let conversions = conversions.conversions.iter();
                 quote! {
-                    let input = noiz::noise::convert!(input => #(#conversions),*);
+                    let input: #final_type = noiz::noise::convert!(input => #(#conversions),*);
                 }
             }
             Operation::Morph(morph) => {
@@ -794,12 +797,13 @@ impl Operation {
                     return quote! {};
                 };
 
+                let num_octaves = octaves.len();
                 let first_noise = first.ops.iter().map(|op| op.quote_noise());
                 let first_storage = &first.storage_ident;
                 let first = quote! {
                     {
                         #(#first_noise)*
-                        __fbm_acc = __fbm_acc.start_accumulate(input, &self.#first_storage);
+                        __fbm_acc = noiz::noise::fbm::PreAccumulator::<_, _, #num_octaves>::start_accumulate(__fbm_acc_start, input, &self.#first_storage);
                     }
                 };
 
@@ -823,7 +827,7 @@ impl Operation {
                 );
 
                 quote! {
-                    use noiz::noise::fbm::PreAccumulator as _;
+                    use noiz::noise::fbm::PostAccumulator as _;
                     use noiz::noise::fbm::Accumulator as _;
                     let mut __fbm_acc_start = #accumulator_constructor;
                     let mut __fbm_acc;

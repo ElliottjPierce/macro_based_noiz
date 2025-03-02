@@ -53,11 +53,14 @@ pub trait PreAccumulator<R, O, const N: usize> {
 
 /// Represents the accumulation of some result `R` from some octavs `O`.
 pub trait Accumulator<R, O> {
-    /// The final type of the accumulation.
-    type Final;
-
     /// Brings together an octave and its result.
     fn accumulate(&mut self, octave_result: R, octave: &O);
+}
+
+/// FInishes some [`Accumulator`]
+pub trait PostAccumulator {
+    /// The final type of the accumulation.
+    type Final;
 
     /// Completes the accumulationn.
     fn finish(self) -> Self::Final;
@@ -204,18 +207,11 @@ macro_rules! impl_weighted_accumulator {
         }
 
         impl<T: NoiseConverter<$t, Input = T>> Accumulator<T, WeightedOctave> for $acc {
-            type Final = $t;
-
             #[inline]
             fn accumulate(&mut self, octave_result: T, octave: &WeightedOctave) {
                 let acc = &mut self.0;
                 let val = T::convert(octave_result) * octave.0.adapt::<f32>();
                 $cmb(acc, val);
-            }
-
-            #[inline]
-            fn finish(self) -> Self::Final {
-                self.0
             }
         }
     };
@@ -226,6 +222,15 @@ pub struct OctaveSum;
 
 /// The [`Accumulator`] for [`OctaveSum`].
 pub struct OctaveSumAccumulator(pub f32);
+
+impl PostAccumulator for OctaveSumAccumulator {
+    type Final = f32;
+
+    #[inline]
+    fn finish(self) -> Self::Final {
+        self.0
+    }
+}
 
 fn sum(acc: &mut f32, val: f32) {
     *acc += val;
@@ -244,6 +249,15 @@ pub struct OctaveProduct;
 
 /// The [`Accumulator`] for [`OctaveProduct`].
 pub struct OctaveProductAccumulator(pub f32);
+
+impl PostAccumulator for OctaveProductAccumulator {
+    type Final = f32;
+
+    #[inline]
+    fn finish(self) -> Self::Final {
+        self.0
+    }
+}
 
 fn mul(acc: &mut f32, val: f32) {
     *acc *= val;

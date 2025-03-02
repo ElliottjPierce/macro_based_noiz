@@ -12,6 +12,12 @@ use noiz::noise::{
     NoiseType,
     SpatialNoiseSettings,
     associating::ValueOf,
+    fbm::{
+        OctaveSum,
+        StandardFbm,
+        StandardOctave,
+        WeightedOctave,
+    },
     grid::GridNoise,
     interpolating::Cubic,
     merging::{
@@ -175,16 +181,18 @@ noise_op! {
     || input.inverse();
 }
 
-// noise_op! {
-//     pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
-//     impl
-//     loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.3) enum [
-//         8 where octave: StandardOctave as { fbm.gen_octave().scale_period(20.0) } impl {
-//             PerlinNoise = args.branch().with_period(octave).into();
-//         },
-//     ];
-//     as UNorm;
-// }
+noise_op! {
+    pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
+    impl
+    loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.3) enum [
+        where octave: WeightedOctave as { fbm.gen_octave::<StandardOctave>() } impl {
+            || *input;
+            fn PerlinNoise = args.branch().with_period(octave).into();
+            as UNorm;
+        }
+    ];
+    as UNorm;
+}
 
 noise_op! {
     pub struct CustomNoise for Vec2 -> UNorm = SpatialNoiseSettings
