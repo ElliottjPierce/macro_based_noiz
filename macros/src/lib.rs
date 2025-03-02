@@ -671,11 +671,56 @@ impl Operation {
         match self {
             Operation::Data(field) => field.quote_constructor(),
             Operation::Noise(field) => field.quote_constructor(),
-            Operation::Fbm(fbm) => {
-                let types = fbm.octaves.iter().map(|ty| ty.get_type(root_name));
-                let settings = &fbm.settings;
-                let name = &fbm.ident;
-                quote! { let #name = noiz::noise::fbm::Fbm::<( #(noiz::noise::fbm::FbmOctave<#types>),* )>::new_fbm(#settings); }
+            Operation::Fbm(FbmOp {
+                attrs,
+                settings_ident,
+                settings_constructor,
+                accumulator_constructor: _,
+                octaves,
+            }) => {
+                let constructing_octaves = octaves.iter().map(
+                    |FbmOctave {
+                         attrs,
+                         storage_ident: _,
+                         octave_ident,
+                         octave_storage: _,
+                         octave_constructor,
+                         ops: _,
+                     }| {
+                        quote! {
+                            #(#attrs)*
+                            let mut #octave_ident = #octave_constructor;
+                            #octave_ident.post_construction(&mut #settings_ident);
+                        }
+                    },
+                );
+
+                let finalize_octaves = octaves.iter().map(
+                    |FbmOctave {
+                         attrs,
+                         storage_ident,
+                         octave_ident,
+                         octave_storage: _,
+                         octave_constructor: _,
+                         ops,
+                     }| {
+                        let ops_construction = ops.iter().map(|op| op.quote_construction(root_name));
+                        quote! {
+                            #(#attrs)*
+                            let (#storage_ident, mut #octave_ident) = #octave_ident.finalize(&#settings_ident);
+                            #(#ops_construction)*
+                        }
+                    },
+                );
+
+                quote! {
+                    use noiz::noise::fbm::Octave as _;
+                    use noiz::noise::fbm::Settings as _;
+                    #(#attrs)*
+                    let mut #settings_ident = #settings_constructor;
+                    #(#constructing_octaves)*
+                    #(#finalize_octaves)*
+                }
             }
             Operation::ConstructionVariable(binding) => binding.to_token_stream(),
             Operation::Parallel(op) => op.quote_construction(root_name),
@@ -736,9 +781,61 @@ impl Operation {
                     });
                 }
             }
-            Operation::Fbm(fbm_op) => {
-                let name = &fbm_op.ident;
-                quote! {let input = #name.get(input); }
+            Operation::Fbm(FbmOp {
+                attrs: _,
+                settings_ident: _,
+                settings_constructor: _,
+                accumulator_constructor,
+                octaves,
+            }) => {
+                let mut octaves = octaves.iter();
+
+                let Some(first) = octaves.next() else {
+                    return quote! {};
+                };
+
+                let first_noise = first.ops.iter().map(|op| op.quote_noise());
+                let first_storage = &first.storage_ident;
+                let first = quote! {
+                    {
+                        #(#first_noise)*
+                        __fbm_acc = __fbm_acc.start_accumulate(input, &self.#first_storage);
+                    }
+                };
+
+                let octaves = octaves.map(
+                    |FbmOctave {
+                         attrs: _,
+                         storage_ident,
+                         octave_ident: _,
+                         octave_storage: _,
+                         octave_constructor: _,
+                         ops,
+                     }| {
+                        let ops_noise = ops.iter().map(|op| op.quote_noise());
+                        quote! {
+                            {
+                                #(#ops_noise)*
+                                __fbm_acc.accumulate(input, &self.#storage_ident);
+                            }
+                        }
+                    },
+                );
+
+                quote! {
+                    use noiz::noise::fbm::PreAccumulator as _;
+                    use noiz::noise::fbm::Accumulator as _;
+                    let mut __fbm_acc_start = #accumulator_constructor;
+                    let mut __fbm_acc;
+
+                    let mut input = input;
+                    let input = &mut input;
+
+                    #first
+                    #(#octaves)*
+
+                    let input = __fbm_acc.finish();
+                }
             }
             Operation::RefOp(RefOp {
                 attrs,
