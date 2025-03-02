@@ -402,27 +402,58 @@ struct Mapping {
 #[derive(Clone)]
 struct FbmOp {
     attrs: Vec<Attribute>,
-    vis: Visibility,
-    ident: Ident,
-    settings: Expr,
-    octaves: Vec<NoiseType>,
+    settings_ident: Ident,
+    settings_constructor: Expr,
+    accumulator_constructor: Expr,
+    octaves: Vec<FbmOctave>,
+}
+
+#[derive(Clone)]
+struct FbmOctave {
+    attrs: Vec<Attribute>,
+    storage_ident: Ident,
+    octave_ident: Ident,
+    octave_storage: Type,
+    octave_constructor: Expr,
+    ops: Vec<Operation>,
+}
+
+impl FbmOctave {
+    fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
+        let attrs = Attribute::parse_outer(input)?;
+        let _kw = input.parse::<Token![where]>()?;
+        let octave_ident = input.parse()?;
+        let _kw = input.parse::<Token![:]>()?;
+        let octave_storage = input.parse()?;
+        let _kw = input.parse::<Token![as]>()?;
+        let octave_constructor = input.parse()?;
+        let _kw = input.parse::<Token![impl]>()?;
+
+        let ops_stream;
+        let _ = braced!(ops_stream in input);
+        let ops = Operation::parse_many(&ops_stream, noise_amount)?;
+
+        Ok(Self {
+            octave_storage,
+            storage_ident: Ident::new(&format!("octave_storage_{0}", *noise_amount), input.span()),
+            attrs,
+            octave_ident,
+            octave_constructor,
+            ops,
+        })
+    }
 }
 
 impl FbmOp {
     fn parse(input: ParseStream, noise_amount: &mut u32) -> Result<Self> {
         let _kw = input.parse::<Token![loop]>()?;
-        let is_field = input.parse::<Token![use]>().is_ok();
+        let accumulator_constructor = input.parse()?;
+        let _kw = input.parse::<Token![where]>()?;
         let attrs = Attribute::parse_outer(input)?;
-        let vis = input.parse()?;
-        let ident = if is_field {
-            let name = input.parse::<Ident>()?;
-            _ = input.parse::<Token![=]>()?;
-            name
-        } else {
-            Ident::new(&format!("fbm{}", *noise_amount), input.span())
-        };
-        let settings = input.parse()?;
-        _ = input.parse::<Token![enum]>()?;
+        let settings_ident = input.parse()?;
+        let _kw = input.parse::<Token![=]>()?;
+        let settings_constructor = input.parse()?;
+        let _kw = input.parse::<Token![enum]>()?;
 
         let octaves_stream;
         let _ = bracketed!(octaves_stream in input);
@@ -433,22 +464,31 @@ impl FbmOp {
                 Err(_) => 1,
             };
 
-            *noise_amount += 1;
-            let noise = NoiseType::parse(&octaves_stream, noise_amount)?;
-            for _ in 0..repeat {
-                octaves.push(noise.clone());
+            if repeat == 0 {
+                continue;
             }
+
+            let additional = repeat - 1;
+            for _ in 0..additional {
+                *noise_amount += 1;
+                let noise = FbmOctave::parse(&octaves_stream.fork(), noise_amount)?;
+                octaves.push(noise);
+            }
+
+            *noise_amount += 1;
+            let noise = FbmOctave::parse(&octaves_stream, noise_amount)?;
+            octaves.push(noise);
 
             if octaves_stream.parse::<Token![,]>().is_err() {
                 break;
             }
         }
         Ok(Self {
-            ident,
-            octaves,
-            settings,
-            vis,
             attrs,
+            settings_ident,
+            settings_constructor,
+            accumulator_constructor,
+            octaves,
         })
     }
 }
@@ -568,6 +608,7 @@ impl Operation {
                 let fbm = fbm
                     .octaves
                     .iter()
+                    .flat_map(|octave| octave.ops.iter())
                     .map(|op| op.quote_external(full, completed_ids));
                 quote! {#(#fbm)*}
             }
@@ -601,14 +642,19 @@ impl Operation {
             Operation::Data(field) => fields.push(field.field(root_name)),
             Operation::Noise(field) => fields.push(field.field(root_name)),
             Operation::Fbm(fbm) => {
-                let types = fbm.octaves.iter().map(|ty| ty.get_type(root_name));
-                fields.push(Field {
-                    attrs: fbm.attrs.clone(),
-                    vis: fbm.vis.clone(),
-                    mutability: FieldMutability::None,
-                    ident: Some(fbm.ident.clone()),
-                    colon_token: Default::default(),
-                    ty: parse_quote!( noiz::noise::fbm::Fbm<( #(noiz::noise::fbm::FbmOctave<#types>),* )> ),
+                fbm.octaves
+                    .iter()
+                    .flat_map(|octave| octave.ops.iter())
+                    .for_each(|op| op.store_fields(fields, root_name));
+                fbm.octaves.iter().for_each(|octave| {
+                    fields.push(Field {
+                        attrs: octave.attrs.clone(),
+                        vis: Visibility::Inherited,
+                        mutability: FieldMutability::None,
+                        ident: Some(octave.octave_ident.clone()),
+                        colon_token: Default::default(),
+                        ty: octave.octave_storage.clone(),
+                    });
                 });
             }
             Operation::Parallel(op) => op.store_fields(fields, root_name),
