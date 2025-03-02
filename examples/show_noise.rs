@@ -80,7 +80,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WhiteNoise;
+type NoiseUsed = PerlinNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
