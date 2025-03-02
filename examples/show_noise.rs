@@ -185,10 +185,9 @@ noise_op! {
     pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.3) enum [
-        where octave: WeightedOctave as { fbm.gen_octave::<StandardOctave>() } impl {
-            || *input;
+        8 where octave: WeightedOctave as { fbm.gen_octave::<StandardOctave>() } impl {
+            || input.clone();
             fn PerlinNoise = args.branch().with_period(octave).into();
-            as UNorm;
         }
     ];
     as UNorm;
