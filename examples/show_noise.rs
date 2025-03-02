@@ -86,7 +86,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = PerlinFbmNoise;
+type NoiseUsed = SimpleHeightMapNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -185,7 +185,7 @@ noise_op! {
     pub struct PerlinFbmNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
-        8 where octave: WeightedOctave as { fbm.gen_octave::<StandardOctave>() } impl {
+        8 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
             || *input;
             fn PerlinNoise = args.branch().with_period(octave).into();
         },
@@ -194,19 +194,24 @@ noise_op! {
 }
 
 noise_op! {
-    pub struct CustomNoise for Vec2 -> UNorm = SpatialNoiseSettings
+    pub struct SimpleHeightMapNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
-    ref worly_res impl fn WorlyNoise = WorlyNoise::from(args.branch());
-    ref scale = input impl {
-        fn GridNoise = args.period.into();
-        fn Lerp;
-        mut LerpValuesOf for fn Seeding = args.seeding();
-        mut LerpValuesOf for mut ValueOf || input.offset;
-        mut LerpValuesOf for fn Perlin<RuntimeRand>;
-        fn Smooth<Cubic>;
-        as SNorm, UNorm, f32;
-        || input * 10.0
-    };
-    || worly_res.adapt::<f32>() * scale;
+    ref mask impl loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
+        4 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+            || *input;
+            fn PerlinNoise = args.branch().with_period(octave).into();
+        },
+    ];
+    loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
+        4 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+            || *input;
+            fn PerlinNoise = args.branch().with_period(octave).into();
+        },
+        4 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+            || *input;
+            fn ValueNoise = args.branch().with_period(octave).into()
+        }
+    ];
+    || input * mask.powf(2.5);
     as UNorm
 }
