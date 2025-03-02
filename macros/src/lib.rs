@@ -803,7 +803,7 @@ impl Operation {
                 let first = quote! {
                     {
                         #(#first_noise)*
-                        __fbm_acc = noiz::noise::fbm::PreAccumulator::<_, _, #num_octaves>::start_accumulate(__fbm_acc_start, input, &self.#first_storage);
+                        __fbm_acc = noiz::noise::fbm::PreAccumulator::<_, _, #num_octaves>::start_accumulate(__fbm_acc_start, input, #first_storage);
                     }
                 };
 
@@ -820,7 +820,7 @@ impl Operation {
                         quote! {
                             {
                                 #(#ops_noise)*
-                                __fbm_acc.accumulate(input, &self.#storage_ident);
+                                __fbm_acc.accumulate(input, #storage_ident);
                             }
                         }
                     },
