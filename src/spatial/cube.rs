@@ -6,10 +6,13 @@ use bevy_math::{
 };
 use flagset::FlagSet;
 
-use super::square::{
-    Corners2d,
-    expand2d,
-    flatten2d,
+use super::{
+    d1::AxisDirections,
+    square::{
+        Corners2d,
+        expand2d,
+        flatten2d,
+    },
 };
 use crate::{
     name_array,
@@ -561,20 +564,6 @@ pub const fn side3d_to_axis3d(side: Side3d) -> Axis3d {
     unsafe { Axis3d::from_const_index(side_index) }
 }
 
-/// converts an axis to its sides, negative first, then positive
-#[inline]
-pub const fn axis3d_to_side3d(axis: Axis3d) -> [Side3d; 2] {
-    let negative = axis as u8 * 2;
-    let positive = negative + 1;
-    // SAFETY: there are exactly 2 sides per axis.
-    unsafe {
-        [
-            Side3d::from_const_index(negative),
-            Side3d::from_const_index(positive),
-        ]
-    }
-}
-
 /// inverts a side's direction, keeping its axis
 #[inline]
 pub const fn invert_side3d(side: Side3d) -> Side3d {
@@ -641,6 +630,22 @@ impl From<Side3d> for Surrounding3d {
     fn from(value: Side3d) -> Self {
         // SAFETY: The sides and surroundings exactly line up.
         unsafe { Surrounding3d::from_const_index(value.get_index()) }
+    }
+}
+
+impl From<Axis3d> for AxisDirections<Side3d> {
+    #[inline]
+    fn from(value: Axis3d) -> Self {
+        let negative = value as u8 * 2;
+        let positive = negative + 1;
+        // SAFETY: there are exactly 2 sides per axis.
+        unsafe {
+            [
+                Side3d::from_const_index(negative),
+                Side3d::from_const_index(positive),
+            ]
+            .into()
+        }
     }
 }
 
@@ -719,7 +724,7 @@ mod tests {
     #[test]
     fn test_sides_and_axies() {
         for axis in Axis3d::IDENTITY {
-            for side in axis3d_to_side3d(axis) {
+            for side in AxisDirections::from(axis) {
                 assert_eq!(axis, side3d_to_axis3d(side));
             }
         }

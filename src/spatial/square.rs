@@ -6,6 +6,7 @@ use bevy_math::{
 };
 use flagset::FlagSet;
 
+use super::d1::AxisDirections;
 use crate::{
     name_array,
     spatial::named_array::NamedArrayIndices,
@@ -278,20 +279,6 @@ pub const fn side2d_to_axis2d(side: Side2d) -> Axis2d {
     unsafe { Axis2d::from_const_index(side_index) }
 }
 
-/// converts an axis to its sides, negative first, then positive
-#[inline]
-pub const fn axis2d_to_side2d(axis: Axis2d) -> [Side2d; 2] {
-    let negative = axis as u8 * 2;
-    let positive = negative + 1;
-    // SAFETY: the index is known to be valid since there are 2 axies for each side
-    unsafe {
-        [
-            Side2d::from_const_index(negative),
-            Side2d::from_const_index(positive),
-        ]
-    }
-}
-
 /// inverts a side's direction, keeping its axis
 #[inline]
 pub const fn invert_side2d(side: Side2d) -> Side2d {
@@ -355,6 +342,22 @@ impl From<Side2d> for Surrounding2d {
     fn from(value: Side2d) -> Self {
         // SAFETY: The indices line up exactly.
         unsafe { Surrounding2d::from_const_index(value.get_index()) }
+    }
+}
+
+impl From<Axis2d> for AxisDirections<Side2d> {
+    #[inline]
+    fn from(value: Axis2d) -> Self {
+        let negative = value as u8 * 2;
+        let positive = negative + 1;
+        // SAFETY: the index is known to be valid since there are 2 axies for each side
+        unsafe {
+            [
+                Side2d::from_const_index(negative),
+                Side2d::from_const_index(positive),
+            ]
+            .into()
+        }
     }
 }
 
@@ -434,7 +437,7 @@ mod tests {
     #[test]
     fn test_sides_and_axies() {
         for axis in Axis2d::IDENTITY {
-            for side in axis2d_to_side2d(axis) {
+            for side in AxisDirections::from(axis) {
                 assert_eq!(axis, side2d_to_axis2d(side));
             }
         }
