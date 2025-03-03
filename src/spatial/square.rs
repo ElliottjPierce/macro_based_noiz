@@ -250,11 +250,11 @@ pub const fn corners2d_separation(c1: Corner2d, c2: Corner2d) -> u8 {
     result
 }
 
-/// converts an edge to its direction. Edges are always oriented positively
+/// converts an edge to its axis. Edges are always oriented positively
 #[inline]
 pub const fn edge2d_axis(edge: Edge2d) -> Axis2d {
-    let axis = edge as u8 / 4;
-    // SAFETY: the index is known to be valid since there are 4 edges for each axis
+    let axis = edge as u8 / 2;
+    // SAFETY: the index is known to be valid since there are 2 edges for each axis
     unsafe { Axis2d::from_const_index(axis) }
 }
 
