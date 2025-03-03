@@ -4,10 +4,7 @@ use super::cube::{
     expand3d,
     flatten3d,
 };
-use crate::{
-    name_array,
-    spatial::named_array::NamedArrayIndices,
-};
+use crate::name_array;
 
 name_array! {
     /// A 1 to 1 collection for the corners of a hypercube

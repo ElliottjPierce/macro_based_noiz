@@ -1,9 +1,6 @@
 //! Tiny utilities for just 1 dimension.
 
-use crate::{
-    name_array,
-    spatial::named_array::NamedArrayIndices,
-};
+use crate::name_array;
 
 name_array! {
     /// Represents a two directions along an axis.

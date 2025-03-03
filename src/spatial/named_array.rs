@@ -90,7 +90,7 @@ macro_rules! name_array {
             /// Attempty to convert an index to its name
             #[inline]
             pub const fn try_from_index(index: <Self as $crate::spatial::named_array::NamedArrayIndices>::Inner) -> Option<Self> {
-                if index <= Self::MAX {
+                if index <= <Self as $crate::spatial::named_array::NamedArrayIndices>::MAX {
                     // SAFETY: the index is valid.
                     Some(unsafe { Self::from_const_index(index) })
                 } else {
@@ -104,7 +104,7 @@ macro_rules! name_array {
                 if let Some(valid) = Self::try_from_index(index) {
                     valid
                 } else {
-                    Self::INDEX_TO_NAME[Self::MAX as usize]
+                    <Self as $crate::spatial::named_array::NamedArrayIndices>::INDEX_TO_NAME[<Self as $crate::spatial::named_array::NamedArrayIndices>::MAX as usize]
                 }
             }
 
@@ -126,7 +126,7 @@ macro_rules! name_array {
             /// The index must be valid.
             #[inline]
             pub unsafe fn from_index(index: <Self as $crate::spatial::named_array::NamedArrayIndices>::Inner) -> Self {
-                debug_assert!(index <= Self::MAX, "Invalid index to named array enum conversion. Index requested: {index}, max: {}", Self::MAX);
+                debug_assert!(index <= <Self as $crate::spatial::named_array::NamedArrayIndices>::MAX, "Invalid index to named array enum conversion. Index requested: {index}, max: {}", <Self as $crate::spatial::named_array::NamedArrayIndices>::MAX);
                 // SAFETY: caller ensures index is valid.
                 unsafe { Self::from_const_index(index) }
             }
