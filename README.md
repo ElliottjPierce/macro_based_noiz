@@ -4,12 +4,12 @@ A fast and configurable proceedural noise library.
 WARNING: This crate is still in development and is not at all production ready yet.
 
 # About
-Noiz is designed for game development in rust with [Bevy](https://bevyengine.org/). 
+Noiz is designed for game development in rust with [Bevy](https://bevyengine.org/).
 
 ### Goals
 - Fast. Latency and slim memory footprint is most important.
 - Configurable. Making noise of your own is easy.
-- Integrated. Featues integration with common crates.
+- Integrated. Features integration with common crates.
 - Contextualized. Noise functions and types can be chained together beyond what is possible in most crates.
 
 ### Philosophy
