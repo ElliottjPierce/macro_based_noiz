@@ -58,22 +58,6 @@ pub trait NamedArrayIndices: 'static + Sized {
     const LEN: usize;
     /// The maximum array index
     const MAX: Self::Inner;
-
-    /// Attempty to convert an index to its name
-    fn try_from_index(index: Self::Inner) -> Option<Self>;
-
-    /// forces a name from an index. If the index is invalid, it will be the `MAX` index's name
-    fn force_from_index(index: Self::Inner) -> Self;
-
-    /// Creates a new values from a known valid index.
-    ///
-    /// # Safety
-    ///
-    /// The index must be valid.
-    unsafe fn from_index(index: Self::Inner) -> Self;
-
-    /// return the index of a given name
-    fn get_index(self) -> Self::Inner;
 }
 
 /// creates an array with special meaning.
@@ -99,33 +83,57 @@ macro_rules! name_array {
             const LEN: usize = Self::INDEX_TO_NAME.len();
             const MAX: $t = Self::LEN as $t - 1;
             type Inner = $t;
+        }
 
+        impl $i {
+
+            /// Attempty to convert an index to its name
             #[inline]
-            fn try_from_index(index: Self::Inner) -> Option<Self> {
+            pub const fn try_from_index(index: <Self as $crate::spatial::named_array::NamedArrayIndices>::Inner) -> Option<Self> {
                 if index <= Self::MAX {
-                    // SAFETY: the index is valid, and the enum is just tags, no data.
-                    Some(unsafe { std::mem::transmute::<$t, Self>(index) })
+                    // SAFETY: the index is valid.
+                    Some(unsafe { Self::from_const_index(index) })
                 } else {
                     None
                 }
             }
 
+            /// forces a name from an index. If the index is invalid, it will be the `MAX` index's name
             #[inline]
-            fn force_from_index(index: Self::Inner) -> Self {
-                let index = index.min(Self::MAX);
-                // SAFETY: the index is clamped to be valid, and the enum is just tags, no data.
-                unsafe { std::mem::transmute(index) }
+            pub const fn force_from_index(index: <Self as $crate::spatial::named_array::NamedArrayIndices>::Inner) -> Self {
+                if let Some(valid) = Self::try_from_index(index) {
+                    valid
+                } else {
+                    Self::INDEX_TO_NAME[Self::MAX as usize]
+                }
             }
 
+            /// Creates a new values from a known valid index.
+            ///
+            /// # Safety
+            ///
+            /// The index must be valid.
             #[inline]
-            unsafe fn from_index(index: Self::Inner) -> Self {
-                debug_assert!(index <= Self::MAX, "Invalid from index enum conversion. Index requested: {index}, max: {}", Self::MAX);
+            pub const unsafe fn from_const_index(index: <Self as $crate::spatial::named_array::NamedArrayIndices>::Inner) -> Self {
                 // SAFETY: caller ensures index is valid, and the enum is just tags, no data.
                 unsafe { std::mem::transmute(index) }
             }
 
+            /// Creates a new values from a known valid index.
+            ///
+            /// # Safety
+            ///
+            /// The index must be valid.
             #[inline]
-            fn get_index(self) -> Self::Inner {
+            pub unsafe fn from_index(index: <Self as $crate::spatial::named_array::NamedArrayIndices>::Inner) -> Self {
+                debug_assert!(index <= Self::MAX, "Invalid index to named array enum conversion. Index requested: {index}, max: {}", Self::MAX);
+                // SAFETY: caller ensures index is valid.
+                unsafe { Self::from_const_index(index) }
+            }
+
+            /// return the index of a given name
+            #[inline]
+            pub const fn get_index(self) -> <Self as $crate::spatial::named_array::NamedArrayIndices>::Inner {
                 self as $t
             }
         }

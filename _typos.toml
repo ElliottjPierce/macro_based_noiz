@@ -1,0 +1,2 @@
+[default.extend-words]
+Pn = "Pn" # We use this for positive, negative for spatials
