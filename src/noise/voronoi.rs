@@ -324,6 +324,18 @@ impl<T, M: Default> Worly<T, M> {
     }
 }
 
+/// A [`VoronoiSource`] that returns the relative distance of each point to an edge.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DistanceToEdge;
+
+impl<const DIMENSIONS: u8> VoronoiSource<DIMENSIONS, false> for DistanceToEdge {
+    type Noise = Self;
+
+    fn build_noise(self, _max_nudge: f32) -> Self::Noise {
+        Self
+    }
+}
+
 /// easily implements worly for different inputs
 macro_rules! impl_voronoi {
     ($point:path, $vec:path, $d:literal, $d_2:ident, $d_3:ident) => {
@@ -370,6 +382,30 @@ macro_rules! impl_voronoi {
                     meta: self.nudge,
                 };
                 self.source.get(voronoi)
+            }
+        }
+
+        // distance to edge
+
+        impl NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>> for DistanceToEdge {
+            type Output = UNorm;
+
+            #[inline]
+            fn get(&self, input: VoronoiGraph<$d_3<Seeded<$point>>>) -> Self::Output {
+                let points = input.value.map(|point| point.value.offset);
+                let [nearest, next] = $crate::noise::merging::MinIndices(EuclideanDistance {
+                    inv_max_expected: 1.0, // doesn't matter since we are just comparing them.
+                })
+                .merge(points.0.iter().copied(), &())
+                .map(|i| points.0[i]);
+
+                let cross_boarder = nearest - next;
+                let a_on_b = nearest.dot(cross_boarder);
+                // divide by length once to just get the length in the right direction, twice to
+                // normalize it relative to the whole distance, and multiply by two to normalize
+                // relative to half the distance.
+                let result = a_on_b * 2.0 / cross_boarder.length_squared();
+                UNorm::new_clamped(result) // eliminate any accumulated error.
             }
         }
 
