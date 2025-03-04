@@ -9,6 +9,7 @@ rand_core = "0.6.0"
 bevy_math = "0.15.1"
 flagset = "0.4.5"
 macros = { path = "macros" }
+bumpalo = {version = "3.17.0", features = ["default", "collections"]}
 
 [dev-dependencies]
 criterion = "0.5.1"
