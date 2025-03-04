@@ -405,7 +405,7 @@ macro_rules! impl_voronoi {
                 // normalize it relative to the whole distance, and multiply by two to normalize
                 // relative to half the distance.
                 let result = a_on_b * 2.0 / cross_boarder.length_squared();
-                UNorm::new_clamped(result) // eliminate any accumulated error.
+                UNorm::new_clamped(1.0 - result) // eliminate any accumulated error.
             }
         }
 
