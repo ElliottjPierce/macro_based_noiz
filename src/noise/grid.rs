@@ -30,18 +30,21 @@ use super::{
 };
 use crate::spatial::{
     cube::{
+        Axies3d,
         Corners3d,
         Surroundings3d,
         UNIT_CORNERS_IVEC3,
         UNIT_SURROUNDINGS_IVEC3,
     },
     hypercube::{
+        Axies4d,
         Corners4d,
         Surroundings4d,
         UNIT_CORNERS_IVEC4,
         UNIT_SURROUNDINGS_IVEC4,
     },
     square::{
+        Axies2d,
         Corners2d,
         Surroundings2d,
         UNIT_CORNERS_IVEC2,
@@ -142,12 +145,13 @@ macro_rules! make_grid_point {
         $s:ty,
         $i:ty,
         $d:ident,
-        $num_d:literal,with_extra
+        $axies:ident,
+        $num_d:literal
     ) => {
         make_grid_point!($name, $uint, $f, $fnoise, $f2i, $ui2f, $s, $i, $d, $num_d);
 
         impl LerpLocatable for $name {
-            type Location = [$s; $num_d];
+            type Location = $axies<$s>;
 
             type Extents = $d<Self>;
 
@@ -155,7 +159,7 @@ macro_rules! make_grid_point {
             fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
                 Associated {
                     value: self.corners(),
-                    meta: self.offset.to_array(),
+                    meta: self.offset.to_array().into(),
                 }
             }
         }
@@ -247,13 +251,13 @@ macro_rules! make_grid_point {
 }
 
 make_grid_point!(
-    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32, Corners2d, 2, with_extra
+    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32, Corners2d, Axies2d, 2
 );
 make_grid_point!(
-    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32, Corners3d, 3, with_extra
+    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32, Corners3d, Axies3d, 3
 );
 make_grid_point!(
-    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32, Corners4d, 4, with_extra
+    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32, Corners4d, Axies4d, 4
 );
 make_grid_point!(
     GridPointD2,
