@@ -32,6 +32,20 @@ use super::{
         Seeding,
     },
 };
+use crate::spatial::{
+    cube::{
+        Corners3d,
+        Surroundings3d,
+    },
+    hypercube::{
+        Corners4d,
+        Surroundings4d,
+    },
+    square::{
+        Corners2d,
+        Surroundings2d,
+    },
+};
 
 /// Describes a source of Worly noise with a [`NoiseOp`] for [`VoronoiGraph`].
 pub trait VoronoiSource<const DIMENSIONS: u8, const APPROX: bool> {
@@ -312,14 +326,14 @@ impl<T, M: Default> Worly<T, M> {
 
 /// easily implements worly for different inputs
 macro_rules! impl_voronoi {
-    ($point:path, $vec:path, $d:literal, $d_2:literal, $d_3:literal) => {
+    ($point:path, $vec:path, $d:literal, $d_2:ident, $d_3:ident) => {
         // worly
 
         impl<S: VoronoiSource<$d, true>> NoiseOp<$point> for Voronoi<$d, S, true>
         where
-            S::Noise: NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>,
+            S::Noise: NoiseOp<VoronoiGraph<$d_2<Seeded<$point>>>>,
         {
-            type Output = <S::Noise as NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>>::Output;
+            type Output = <S::Noise as NoiseOp<VoronoiGraph<$d_2<Seeded<$point>>>>>::Output;
 
             #[inline]
             fn get(&self, input: $point) -> Self::Output {
@@ -339,9 +353,9 @@ macro_rules! impl_voronoi {
 
         impl<S: VoronoiSource<$d, false>> NoiseOp<$point> for Voronoi<$d, S, false>
         where
-            S::Noise: NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>,
+            S::Noise: NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>>,
         {
-            type Output = <S::Noise as NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>>::Output;
+            type Output = <S::Noise as NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>>>::Output;
 
             #[inline]
             fn get(&self, input: $point) -> Self::Output {
@@ -361,15 +375,27 @@ macro_rules! impl_voronoi {
 
         // worly
 
-        impl<O: Orderer<$vec, OrderingOutput = UNorm>, M: WorlyMode, const K: usize>
-            NoiseOp<VoronoiGraph<[Seeded<$point>; K]>> for WorlyNoise<O, M>
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>, M: WorlyMode>
+            NoiseOp<VoronoiGraph<$d_2<Seeded<$point>>>> for WorlyNoise<O, M>
         {
             type Output = UNorm;
 
             #[inline]
-            fn get(&self, input: VoronoiGraph<[Seeded<$point>; K]>) -> Self::Output {
+            fn get(&self, input: VoronoiGraph<$d_2<Seeded<$point>>>) -> Self::Output {
                 let points = input.value.map(|point| point.value.offset);
-                self.1.compute_worly(&self.0, points)
+                self.1.compute_worly(&self.0, points.0)
+            }
+        }
+
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>, M: WorlyMode>
+            NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>> for WorlyNoise<O, M>
+        {
+            type Output = UNorm;
+
+            #[inline]
+            fn get(&self, input: VoronoiGraph<$d_3<Seeded<$point>>>) -> Self::Output {
+                let points = input.value.map(|point| point.value.offset);
+                self.1.compute_worly(&self.0, points.0)
             }
         }
 
@@ -436,29 +462,29 @@ macro_rules! impl_voronoi {
         // cellular
 
         // we can't generalize CellularNoise's array length since length of 0 is unsafe.
-        impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<[Seeded<$point>; $d_2]>>
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<$d_2<Seeded<$point>>>>
             for CellularNoise<O>
         {
             type Output = Seeded<$point>;
 
             #[inline]
-            fn get(&self, input: VoronoiGraph<[Seeded<$point>; $d_2]>) -> Self::Output {
-                let points = input.value.clone().map(|point| point.value.offset);
+            fn get(&self, input: VoronoiGraph<$d_2<Seeded<$point>>>) -> Self::Output {
+                let points = input.value.clone().map(|point| point.value.offset).0;
                 let index = MinIndex(&self.0).merge(points, &());
-                input.value[index].clone()
+                input.value.0[index].clone()
             }
         }
 
-        impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<[Seeded<$point>; $d_3]>>
+        impl<O: Orderer<$vec, OrderingOutput = UNorm>> NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>>
             for CellularNoise<O>
         {
             type Output = Seeded<$point>;
 
             #[inline]
-            fn get(&self, input: VoronoiGraph<[Seeded<$point>; $d_3]>) -> Self::Output {
-                let points = input.value.clone().map(|point| point.value.offset);
+            fn get(&self, input: VoronoiGraph<$d_3<Seeded<$point>>>) -> Self::Output {
+                let points = input.value.clone().map(|point| point.value.offset).0;
                 let index = MinIndex(&self.0).merge(points, &());
-                input.value[index].clone()
+                input.value.0[index].clone()
             }
         }
 
@@ -494,6 +520,6 @@ macro_rules! impl_voronoi {
     };
 }
 
-impl_voronoi!(GridPoint2, Vec2, 2, 4, 9);
-impl_voronoi!(GridPoint3, Vec3, 3, 8, 27);
-impl_voronoi!(GridPoint4, Vec4, 4, 16, 81);
+impl_voronoi!(GridPoint2, Vec2, 2, Corners2d, Surroundings2d);
+impl_voronoi!(GridPoint3, Vec3, 3, Corners3d, Surroundings3d);
+impl_voronoi!(GridPoint4, Vec4, 4, Corners4d, Surroundings4d);

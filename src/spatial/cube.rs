@@ -1,5 +1,7 @@
 //! 3d orthogonal space utilities.
 
+use std::ops::Mul;
+
 use bevy_math::{
     BVec3,
     IVec3,
@@ -7,7 +9,14 @@ use bevy_math::{
 use flagset::FlagSet;
 
 use super::{
-    d1::AxisDirections,
+    d1::{
+        AxisDirection,
+        AxisDirections,
+    },
+    interpolating::{
+        Lerpable,
+        MixerFxn,
+    },
     square::{
         Corners2d,
         expand2d,
@@ -662,60 +671,67 @@ impl Corner3d {
     }
 }
 
-// impl<T: Lerpable + Copy> Corners3d<T> {
-//     /// performs an interpolation within the cube formed by these corners  to the coordinates in
-// `by`     /// according to the `curve`
-//     #[inline(always)]
-//     pub fn interpolate_3d<I: Mixable<T> + Copy>(
-//         &self,
-//         by: Axies3d<I>,
-//         curve: &impl MixerFxn<I>,
-//     ) -> T {
-//         let bf = by[Axis3d::Z].apply_mixer(curve);
-//         let back = SIDE_CORNERS_3D[Side3d::Back]
-//             .map(|c| self[c])
-//             .interpolate_2d([by[Axis3d::X], by[Axis3d::Y]].into(), curve);
-//         let front = SIDE_CORNERS_3D[Side3d::Front]
-//             .map(|c| self[c])
-//             .interpolate_2d([by[Axis3d::X], by[Axis3d::Y]].into(), curve);
-//         T::lerp_dirty(back, front, bf)
-//     }
+impl<T: Copy> Corners3d<T> {
+    /// performs an interpolation within the cube formed by these corners to the coordinates in
+    /// `by` according to the `curve`
+    #[inline(always)]
+    pub fn interpolate_3d<I: Copy, L: Copy>(&self, by: Axies3d<I>, curve: &impl MixerFxn<I, L>) -> T
+    where
+        T: Lerpable<L>,
+    {
+        let bf = curve.mix(by[Axis3d::Z]);
+        let back = SIDE_CORNERS_3D[Side3d::Back]
+            .map(|c| self[c])
+            .interpolate_2d([by[Axis3d::X], by[Axis3d::Y]].into(), curve);
+        let front = SIDE_CORNERS_3D[Side3d::Front]
+            .map(|c| self[c])
+            .interpolate_2d([by[Axis3d::X], by[Axis3d::Y]].into(), curve);
+        T::lerp_dirty(back, front, bf)
+    }
 
-//     /// performs an interpolation gradient within the cube formed by these corners  to the
-//     /// coordinates in `by` according to the `curve`
-//     #[inline(always)]
-//     pub fn interpolate_gradient_3d<I: Mixable<T> + Copy>(
-//         &self,
-//         by: Axies3d<I>,
-//         curve: &impl MixerFxn<I>,
-//     ) -> Axies3d<T> {
-//         let grads = EDGE_CORNERS_3D.map(|[c1, c2]| self[c1].lerp_gradient(self[c2]));
-//         let axies = Axis3d::IDENTITY
-//             .map(|a| SIDE_CORNERS_3D[axis3d_to_side3d(a)[0]].map(|c|
-// grads[CORNER_EDGES_3D[c][a]]));         Axies3d([
-//             axies[Axis3d::X].interpolate_2d([by[Axis3d::Y], by[Axis3d::Z]].into(), curve)
-//                 * by[Axis3d::X].apply_mixer_derivative(curve),
-//             axies[Axis3d::Y].interpolate_2d([by[Axis3d::X], by[Axis3d::Z]].into(), curve)
-//                 * by[Axis3d::Y].apply_mixer_derivative(curve),
-//             axies[Axis3d::Z].interpolate_2d([by[Axis3d::X], by[Axis3d::Y]].into(), curve)
-//                 * by[Axis3d::Z].apply_mixer_derivative(curve),
-//         ])
-//     }
+    /// performs an interpolation gradient within the cube formed by these corners to the
+    /// coordinates in `by` according to the `curve`
+    #[inline(always)]
+    pub fn interpolate_gradient_3d<I: Copy, L: Copy>(
+        &self,
+        by: Axies3d<I>,
+        curve: &impl MixerFxn<I, L>,
+    ) -> Axies3d<T>
+    where
+        T: Lerpable<L> + Mul<L, Output = T>,
+    {
+        let grads = EDGE_CORNERS_3D.map(|[c1, c2]| self[c1].lerp_gradient(self[c2]));
+        let axies = Axis3d::IDENTITY.map(|a| {
+            SIDE_CORNERS_3D[AxisDirections::from(a)[AxisDirection::Negative]]
+                .map(|c| grads[CORNER_EDGES_3D[c][a]])
+        });
+        Axies3d([
+            axies[Axis3d::X].interpolate_2d([by[Axis3d::Y], by[Axis3d::Z]].into(), curve)
+                * curve.derivative(by[Axis3d::X]),
+            axies[Axis3d::Y].interpolate_2d([by[Axis3d::X], by[Axis3d::Z]].into(), curve)
+                * curve.derivative(by[Axis3d::Y]),
+            axies[Axis3d::Z].interpolate_2d([by[Axis3d::X], by[Axis3d::Y]].into(), curve)
+                * curve.derivative(by[Axis3d::Z]),
+        ])
+    }
 
-//     /// performs an interpolation and gradient within the cube formed by these corners  to the
-//     /// coordinates in `by` according to the `curve`
-//     #[inline(always)]
-//     pub fn interpolate_and_gradient_3d<I: Mixable<T> + Copy>(
-//         &self,
-//         by: Axies3d<I>,
-//         curve: &impl MixerFxn<I>,
-//     ) -> (T, Axies3d<T>) {
-//         (
-//             self.interpolate_3d(by, curve),
-//             self.interpolate_gradient_3d(by, curve),
-//         )
-//     }
-// }
+    /// performs an interpolation and gradient within the cube formed by these corners to the
+    /// coordinates in `by` according to the `curve`
+    #[inline(always)]
+    pub fn interpolate_and_gradient_3d<I: Copy, L: Copy>(
+        &self,
+        by: Axies3d<I>,
+        curve: &impl MixerFxn<I, L>,
+    ) -> (T, Axies3d<T>)
+    where
+        T: Lerpable<L> + Mul<L, Output = T>,
+    {
+        (
+            self.interpolate_3d(by, curve),
+            self.interpolate_gradient_3d(by, curve),
+        )
+    }
+}
 
 #[cfg(test)]
 mod tests {

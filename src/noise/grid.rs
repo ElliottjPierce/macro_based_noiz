@@ -4,6 +4,9 @@ use bevy_math::{
     DVec2,
     DVec3,
     DVec4,
+    IVec2,
+    IVec3,
+    IVec4,
     U64Vec2,
     U64Vec3,
     U64Vec4,
@@ -24,6 +27,29 @@ use super::{
     norm::make_nonzero_f32,
     seeded::SeedableNoiseType,
     smoothing::LerpLocatable,
+};
+use crate::spatial::{
+    cube::{
+        Axies3d,
+        Corners3d,
+        Surroundings3d,
+        UNIT_CORNERS_IVEC3,
+        UNIT_SURROUNDINGS_IVEC3,
+    },
+    hypercube::{
+        Axies4d,
+        Corners4d,
+        Surroundings4d,
+        UNIT_CORNERS_IVEC4,
+        UNIT_SURROUNDINGS_IVEC4,
+    },
+    square::{
+        Axies2d,
+        Corners2d,
+        Surroundings2d,
+        UNIT_CORNERS_IVEC2,
+        UNIT_SURROUNDINGS_IVEC2,
+    },
 };
 
 /// a noise that converts a vector input to a point in a grid
@@ -118,25 +144,27 @@ macro_rules! make_grid_point {
         $ui2f:ident,
         $s:ty,
         $i:ty,
-        $d:literal,
-        $num_d:literal,with_extra
+        $d:ident,
+        $axies:ident,
+        $num_d:literal
     ) => {
         make_grid_point!($name, $uint, $f, $fnoise, $f2i, $ui2f, $s, $i, $d, $num_d);
 
         impl LerpLocatable for $name {
-            type Location = [$s; $num_d];
+            type Location = $axies<$s>;
 
-            type Extents = [$name; $d];
+            type Extents = $d<Self>;
 
             #[inline]
             fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
                 Associated {
                     value: self.corners(),
-                    meta: self.offset.to_array(),
+                    meta: self.offset.to_array().into(),
                 }
             }
         }
     };
+
     (
         $name:ident,
         $uint:ty,
@@ -146,7 +174,7 @@ macro_rules! make_grid_point {
         $ui2f:ident,
         $s:ty,
         $i:ty,
-        $d:literal,
+        $d:ident,
         $num_d:literal
     ) => {
         /// represents a point in a grid
@@ -223,13 +251,13 @@ macro_rules! make_grid_point {
 }
 
 make_grid_point!(
-    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32, 4, 2, with_extra
+    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32, Corners2d, Axies2d, 2
 );
 make_grid_point!(
-    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32, 8, 3, with_extra
+    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32, Corners3d, Axies3d, 3
 );
 make_grid_point!(
-    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32, 16, 4, with_extra
+    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32, Corners4d, Axies4d, 4
 );
 make_grid_point!(
     GridPointD2,
@@ -240,7 +268,7 @@ make_grid_point!(
     as_dvec2,
     f64,
     u64,
-    4,
+    Corners2d,
     2
 );
 make_grid_point!(
@@ -252,7 +280,7 @@ make_grid_point!(
     as_dvec3,
     f64,
     u64,
-    8,
+    Corners3d,
     3
 );
 make_grid_point!(
@@ -264,7 +292,7 @@ make_grid_point!(
     as_dvec4,
     f64,
     u64,
-    16,
+    Corners4d,
     4
 );
 
@@ -297,210 +325,59 @@ convertible!(GridPoint4 = GridPointD4, |source| GridPointD4 {
 impl GridPoint2 {
     /// Produces an array of all positive unit offset combinations from the current value.
     #[inline]
-    pub fn corners(&self) -> [Self; 4] {
-        [
-            self.pushed(UVec2::new(0, 0)),
-            self.pushed(UVec2::new(0, 1)),
-            self.pushed(UVec2::new(1, 0)),
-            self.pushed(UVec2::new(1, 1)),
-        ]
+    pub fn corners(&self) -> Corners2d<Self> {
+        UNIT_CORNERS_IVEC2.map(|d| self.pushed(d.as_uvec2()))
     }
 
     /// Produces an array of all unit offset combinations from the current value.
     #[inline]
-    pub fn surroundings(&self) -> [Self; 9] {
+    pub fn surroundings(&self) -> Surroundings2d<Self> {
         let minus_corner = {
             Self {
                 base: self.base - UVec2::ONE,
                 offset: self.offset + Vec2::ONE,
             }
         };
-        [
-            minus_corner.pushed(UVec2::new(0, 0)),
-            minus_corner.pushed(UVec2::new(0, 1)),
-            minus_corner.pushed(UVec2::new(0, 2)),
-            minus_corner.pushed(UVec2::new(1, 0)),
-            minus_corner.pushed(UVec2::new(1, 1)),
-            minus_corner.pushed(UVec2::new(1, 2)),
-            minus_corner.pushed(UVec2::new(2, 0)),
-            minus_corner.pushed(UVec2::new(2, 1)),
-            minus_corner.pushed(UVec2::new(2, 2)),
-        ]
+        UNIT_SURROUNDINGS_IVEC2.map(|d| minus_corner.pushed((d + IVec2::ONE).as_uvec2()))
     }
 }
 
 impl GridPoint3 {
     /// Produces an array of all positive unit offset combinations from the current value.
     #[inline]
-    pub fn corners(&self) -> [Self; 8] {
-        [
-            self.pushed(UVec3::new(0, 0, 0)),
-            self.pushed(UVec3::new(0, 0, 1)),
-            self.pushed(UVec3::new(0, 1, 0)),
-            self.pushed(UVec3::new(0, 1, 1)),
-            self.pushed(UVec3::new(1, 0, 0)),
-            self.pushed(UVec3::new(1, 0, 1)),
-            self.pushed(UVec3::new(1, 1, 0)),
-            self.pushed(UVec3::new(1, 1, 1)),
-        ]
+    pub fn corners(&self) -> Corners3d<Self> {
+        UNIT_CORNERS_IVEC3.map(|d| self.pushed(d.as_uvec3()))
     }
 
     /// Produces an array of all unit offset combinations from the current value.
     #[inline]
-    pub fn surroundings(&self) -> [Self; 27] {
+    pub fn surroundings(&self) -> Surroundings3d<Self> {
         let minus_corner = {
             Self {
                 base: self.base - UVec3::ONE,
                 offset: self.offset + Vec3::ONE,
             }
         };
-        [
-            minus_corner.pushed(UVec3::new(0, 0, 0)),
-            minus_corner.pushed(UVec3::new(0, 0, 1)),
-            minus_corner.pushed(UVec3::new(0, 0, 2)),
-            minus_corner.pushed(UVec3::new(0, 1, 0)),
-            minus_corner.pushed(UVec3::new(0, 1, 1)),
-            minus_corner.pushed(UVec3::new(0, 1, 2)),
-            minus_corner.pushed(UVec3::new(0, 2, 0)),
-            minus_corner.pushed(UVec3::new(0, 2, 1)),
-            minus_corner.pushed(UVec3::new(0, 2, 2)),
-            minus_corner.pushed(UVec3::new(1, 0, 0)),
-            minus_corner.pushed(UVec3::new(1, 0, 1)),
-            minus_corner.pushed(UVec3::new(1, 0, 2)),
-            minus_corner.pushed(UVec3::new(1, 1, 0)),
-            minus_corner.pushed(UVec3::new(1, 1, 1)),
-            minus_corner.pushed(UVec3::new(1, 1, 2)),
-            minus_corner.pushed(UVec3::new(1, 2, 0)),
-            minus_corner.pushed(UVec3::new(1, 2, 1)),
-            minus_corner.pushed(UVec3::new(1, 2, 2)),
-            minus_corner.pushed(UVec3::new(2, 0, 0)),
-            minus_corner.pushed(UVec3::new(2, 0, 1)),
-            minus_corner.pushed(UVec3::new(2, 0, 2)),
-            minus_corner.pushed(UVec3::new(2, 1, 0)),
-            minus_corner.pushed(UVec3::new(2, 1, 1)),
-            minus_corner.pushed(UVec3::new(2, 1, 2)),
-            minus_corner.pushed(UVec3::new(2, 2, 0)),
-            minus_corner.pushed(UVec3::new(2, 2, 1)),
-            minus_corner.pushed(UVec3::new(2, 2, 2)),
-        ]
+        UNIT_SURROUNDINGS_IVEC3.map(|d| minus_corner.pushed((d + IVec3::ONE).as_uvec3()))
     }
 }
 
 impl GridPoint4 {
     /// Produces an array of all positive unit offset combinations from the current value.
     #[inline]
-    pub fn corners(&self) -> [Self; 16] {
-        [
-            self.pushed(UVec4::new(0, 0, 0, 0)),
-            self.pushed(UVec4::new(0, 0, 0, 1)),
-            self.pushed(UVec4::new(0, 0, 1, 0)),
-            self.pushed(UVec4::new(0, 0, 1, 1)),
-            self.pushed(UVec4::new(0, 1, 0, 0)),
-            self.pushed(UVec4::new(0, 1, 0, 1)),
-            self.pushed(UVec4::new(0, 1, 1, 0)),
-            self.pushed(UVec4::new(0, 1, 1, 1)),
-            self.pushed(UVec4::new(1, 0, 0, 0)),
-            self.pushed(UVec4::new(1, 0, 0, 1)),
-            self.pushed(UVec4::new(1, 0, 1, 0)),
-            self.pushed(UVec4::new(1, 0, 1, 1)),
-            self.pushed(UVec4::new(1, 1, 0, 0)),
-            self.pushed(UVec4::new(1, 1, 0, 1)),
-            self.pushed(UVec4::new(1, 1, 1, 0)),
-            self.pushed(UVec4::new(1, 1, 1, 1)),
-        ]
+    pub fn corners(&self) -> Corners4d<Self> {
+        UNIT_CORNERS_IVEC4.map(|d| self.pushed(d.as_uvec4()))
     }
 
     /// Produces an array of all unit offset combinations from the current value.
     #[inline]
-    pub fn surroundings(&self) -> [Self; 81] {
+    pub fn surroundings(&self) -> Surroundings4d<Self> {
         let minus_corner = {
             Self {
                 base: self.base - UVec4::ONE,
                 offset: self.offset + Vec4::ONE,
             }
         };
-        [
-            minus_corner.pushed(UVec4::new(0, 0, 0, 0)),
-            minus_corner.pushed(UVec4::new(0, 0, 0, 1)),
-            minus_corner.pushed(UVec4::new(0, 0, 0, 2)),
-            minus_corner.pushed(UVec4::new(0, 0, 1, 0)),
-            minus_corner.pushed(UVec4::new(0, 0, 1, 1)),
-            minus_corner.pushed(UVec4::new(0, 0, 1, 2)),
-            minus_corner.pushed(UVec4::new(0, 0, 2, 0)),
-            minus_corner.pushed(UVec4::new(0, 0, 2, 1)),
-            minus_corner.pushed(UVec4::new(0, 0, 2, 2)),
-            minus_corner.pushed(UVec4::new(0, 1, 0, 0)),
-            minus_corner.pushed(UVec4::new(0, 1, 0, 1)),
-            minus_corner.pushed(UVec4::new(0, 1, 0, 2)),
-            minus_corner.pushed(UVec4::new(0, 1, 1, 0)),
-            minus_corner.pushed(UVec4::new(0, 1, 1, 1)),
-            minus_corner.pushed(UVec4::new(0, 1, 1, 2)),
-            minus_corner.pushed(UVec4::new(0, 1, 2, 0)),
-            minus_corner.pushed(UVec4::new(0, 1, 2, 1)),
-            minus_corner.pushed(UVec4::new(0, 1, 2, 2)),
-            minus_corner.pushed(UVec4::new(0, 2, 0, 0)),
-            minus_corner.pushed(UVec4::new(0, 2, 0, 1)),
-            minus_corner.pushed(UVec4::new(0, 2, 0, 2)),
-            minus_corner.pushed(UVec4::new(0, 2, 1, 0)),
-            minus_corner.pushed(UVec4::new(0, 2, 1, 1)),
-            minus_corner.pushed(UVec4::new(0, 2, 1, 2)),
-            minus_corner.pushed(UVec4::new(0, 2, 2, 0)),
-            minus_corner.pushed(UVec4::new(0, 2, 2, 1)),
-            minus_corner.pushed(UVec4::new(0, 2, 2, 2)),
-            minus_corner.pushed(UVec4::new(1, 0, 0, 0)),
-            minus_corner.pushed(UVec4::new(1, 0, 0, 1)),
-            minus_corner.pushed(UVec4::new(1, 0, 0, 2)),
-            minus_corner.pushed(UVec4::new(1, 0, 1, 0)),
-            minus_corner.pushed(UVec4::new(1, 0, 1, 1)),
-            minus_corner.pushed(UVec4::new(1, 0, 1, 2)),
-            minus_corner.pushed(UVec4::new(1, 0, 2, 0)),
-            minus_corner.pushed(UVec4::new(1, 0, 2, 1)),
-            minus_corner.pushed(UVec4::new(1, 0, 2, 2)),
-            minus_corner.pushed(UVec4::new(1, 1, 0, 0)),
-            minus_corner.pushed(UVec4::new(1, 1, 0, 1)),
-            minus_corner.pushed(UVec4::new(1, 1, 0, 2)),
-            minus_corner.pushed(UVec4::new(1, 1, 1, 0)),
-            minus_corner.pushed(UVec4::new(1, 1, 1, 1)),
-            minus_corner.pushed(UVec4::new(1, 1, 1, 2)),
-            minus_corner.pushed(UVec4::new(1, 1, 2, 0)),
-            minus_corner.pushed(UVec4::new(1, 1, 2, 1)),
-            minus_corner.pushed(UVec4::new(1, 1, 2, 2)),
-            minus_corner.pushed(UVec4::new(1, 2, 0, 0)),
-            minus_corner.pushed(UVec4::new(1, 2, 0, 1)),
-            minus_corner.pushed(UVec4::new(1, 2, 0, 2)),
-            minus_corner.pushed(UVec4::new(1, 2, 1, 0)),
-            minus_corner.pushed(UVec4::new(1, 2, 1, 1)),
-            minus_corner.pushed(UVec4::new(1, 2, 1, 2)),
-            minus_corner.pushed(UVec4::new(1, 2, 2, 0)),
-            minus_corner.pushed(UVec4::new(1, 2, 2, 1)),
-            minus_corner.pushed(UVec4::new(1, 2, 2, 2)),
-            minus_corner.pushed(UVec4::new(2, 0, 0, 0)),
-            minus_corner.pushed(UVec4::new(2, 0, 0, 1)),
-            minus_corner.pushed(UVec4::new(2, 0, 0, 2)),
-            minus_corner.pushed(UVec4::new(2, 0, 1, 0)),
-            minus_corner.pushed(UVec4::new(2, 0, 1, 1)),
-            minus_corner.pushed(UVec4::new(2, 0, 1, 2)),
-            minus_corner.pushed(UVec4::new(2, 0, 2, 0)),
-            minus_corner.pushed(UVec4::new(2, 0, 2, 1)),
-            minus_corner.pushed(UVec4::new(2, 0, 2, 2)),
-            minus_corner.pushed(UVec4::new(2, 1, 0, 0)),
-            minus_corner.pushed(UVec4::new(2, 1, 0, 1)),
-            minus_corner.pushed(UVec4::new(2, 1, 0, 2)),
-            minus_corner.pushed(UVec4::new(2, 1, 1, 0)),
-            minus_corner.pushed(UVec4::new(2, 1, 1, 1)),
-            minus_corner.pushed(UVec4::new(2, 1, 1, 2)),
-            minus_corner.pushed(UVec4::new(2, 1, 2, 0)),
-            minus_corner.pushed(UVec4::new(2, 1, 2, 1)),
-            minus_corner.pushed(UVec4::new(2, 1, 2, 2)),
-            minus_corner.pushed(UVec4::new(2, 2, 0, 0)),
-            minus_corner.pushed(UVec4::new(2, 2, 0, 1)),
-            minus_corner.pushed(UVec4::new(2, 2, 0, 2)),
-            minus_corner.pushed(UVec4::new(2, 2, 1, 0)),
-            minus_corner.pushed(UVec4::new(2, 2, 1, 1)),
-            minus_corner.pushed(UVec4::new(2, 2, 1, 2)),
-            minus_corner.pushed(UVec4::new(2, 2, 2, 0)),
-            minus_corner.pushed(UVec4::new(2, 2, 2, 1)),
-            minus_corner.pushed(UVec4::new(2, 2, 2, 2)),
-        ]
+        UNIT_SURROUNDINGS_IVEC4.map(|d| minus_corner.pushed((d + IVec4::ONE).as_uvec4()))
     }
 }

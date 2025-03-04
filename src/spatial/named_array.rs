@@ -216,7 +216,7 @@ macro_rules! name_array {
         $np enum $i { $($(#[$km])* $k),+ }
 
         $(#[$cm])*
-        #[derive(Copy, Clone, Debug, PartialEq, Eq, Default, Hash)]
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
         $cp struct $c<T>(pub [T; <$i as $crate::spatial::named_array::NamedArrayIndices>::LEN]);
 
         $crate::name_array! {$c, $i: $t { $($(#[$km])*$k),+ } $($next)*}
@@ -231,7 +231,7 @@ macro_rules! name_array {
         }
 
         $(#[$cm])*
-        #[derive(Copy, Clone, Debug, PartialEq, Eq, Default, Hash)]
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
         $cp struct $c<T>(pub [T; <$i as $crate::spatial::named_array::NamedArrayIndices>::LEN]);
 
         $crate::name_array! {$c, $i: $t { $($(#[$km])*$k),+ } $($next)*}
