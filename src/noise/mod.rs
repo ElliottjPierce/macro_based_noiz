@@ -40,8 +40,6 @@ pub mod associating;
 pub mod conversions;
 pub mod fbm;
 pub mod grid;
-#[doc(hidden)]
-pub mod lambda;
 pub mod mapping;
 pub mod merging;
 pub mod norm;
@@ -66,15 +64,18 @@ use crate::{
     spatial::{
         cube::{
             Axies3d,
-            Corners3d, Surroundings3d,
+            Corners3d,
+            Surroundings3d,
         },
         hypercube::{
             Axies4d,
-            Corners4d, Surroundings4d,
+            Corners4d,
+            Surroundings4d,
         },
         square::{
             Axies2d,
-            Corners2d, Surroundings2d,
+            Corners2d,
+            Surroundings2d,
         },
     },
 };
