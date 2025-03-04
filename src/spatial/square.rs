@@ -380,7 +380,7 @@ impl Corner2d {
 }
 
 impl<T: Lerpable + Copy> Corners2d<T> {
-    /// performs an interpolation within the square formed by these corners  to the coordinates
+    /// performs an interpolation within the square formed by these corners to the coordinates
     /// `by` according to the `curve`
     #[inline(always)]
     pub fn interpolate_2d<I: Copy>(&self, by: Axies2d<I>, curve: &impl MixerFxn<I, T>) -> T {
@@ -391,7 +391,7 @@ impl<T: Lerpable + Copy> Corners2d<T> {
         T::lerp_dirty(left, right, lr)
     }
 
-    /// performs an interpolation gradient within the square formed by these corners  to the
+    /// performs an interpolation gradient within the square formed by these corners to the
     /// coordinates in `by` according to the `curve`
     #[inline(always)]
     pub fn interpolate_gradient_2d<I: Copy>(
@@ -417,7 +417,7 @@ impl<T: Lerpable + Copy> Corners2d<T> {
         ])
     }
 
-    /// performs an interpolation and gradient within the square formed by these corners  to the
+    /// performs an interpolation and gradient within the square formed by these corners to the
     /// coordinates in `by` according to the `curve`
     #[inline(always)]
     pub fn interpolate_and_gradient_2d<I: Copy>(

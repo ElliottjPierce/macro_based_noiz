@@ -1,10 +1,19 @@
 //! 4d orthogonal space utilities.
 
-use super::cube::{
-    expand3d,
-    flatten3d,
+use super::{
+    cube::{
+        expand3d,
+        flatten3d,
+    },
+    interpolating::{
+        Lerpable,
+        MixerFxn,
+    },
 };
-use crate::name_array;
+use crate::{
+    name_array,
+    spatial::cube::Corners3d,
+};
 
 name_array! {
     /// A 1 to 1 collection for the corners of a hypercube
@@ -80,104 +89,100 @@ pub const fn expand4d<const L: usize>(i: usize) -> (usize, usize, usize, usize) 
     (x, y, z, w)
 }
 
-// impl<T: Lerpable + Copy> Corners4d<T> {
-//     /// performs an interpolation within the hypercube formed by these corners  to the
-// coordinates in     /// `by` according to the `curve`
-//     #[inline(always)]
-//     pub fn interpolate_4d<I: Mixable<T> + Copy>(
-//         &self,
-//         by: Axies4d<I>,
-//         curve: &impl MixerFxn<I>,
-//     ) -> T {
-//         use Axis4d::*;
-//         use Corner4d::*;
-//         let x = Corners3d([Ldbx, Ldfx, Lubx, Lufx, Rdbx, Rdfx, Rubx, Rufx]);
-//         let y = Corners3d([Ldby, Ldfy, Luby, Lufy, Rdby, Rdfy, Ruby, Rufy]);
-//         let x = x
-//             .map(|c| self[c])
-//             .interpolate_3d([by[X], by[Y], by[Z]].into(), curve);
-//         let y = y
-//             .map(|c| self[c])
-//             .interpolate_3d([by[X], by[Y], by[Z]].into(), curve);
-//         x.mix_dirty(y, by[W], curve)
-//     }
+impl<T: Lerpable + Copy> Corners4d<T> {
+    /// performs an interpolation within the hypercube formed by these corners  to the coordinates
+    /// in `by` according to the `curve`
+    #[inline(always)]
+    pub fn interpolate_4d<I: Copy>(&self, by: Axies4d<I>, curve: &impl MixerFxn<I, T>) -> T {
+        use Axis4d::*;
+        use Corner4d::*;
+        let x = Corners3d([Ldbx, Ldfx, Lubx, Lufx, Rdbx, Rdfx, Rubx, Rufx]);
+        let y = Corners3d([Ldby, Ldfy, Luby, Lufy, Rdby, Rdfy, Ruby, Rufy]);
+        let x = x
+            .map(|c| self[c])
+            .interpolate_3d([by[X], by[Y], by[Z]].into(), curve);
+        let y = y
+            .map(|c| self[c])
+            .interpolate_3d([by[X], by[Y], by[Z]].into(), curve);
+        x.mix_dirty(y, by[W], curve)
+    }
 
-//     /// performs an interpolation gradient within the hypercube formed by these corners  to the
-//     /// coordinates in `by` according to the `curve`
-//     #[inline(always)]
-//     pub fn interpolate_gradient_4d<I: Mixable<T> + Copy>(
-//         &self,
-//         by: Axies4d<I>,
-//         curve: &impl MixerFxn<I>,
-//     ) -> Axies4d<T> {
-//         use Axis4d::*;
-//         use Corner4d::*;
-//         Axies4d([
-//             Corners3d([
-//                 self[Ldbx].lerp_gradient(self[Rdbx]),
-//                 self[Ldby].lerp_gradient(self[Rdby]),
-//                 self[Lubx].lerp_gradient(self[Rubx]),
-//                 self[Luby].lerp_gradient(self[Ruby]),
-//                 self[Ldfx].lerp_gradient(self[Rdfx]),
-//                 self[Ldfy].lerp_gradient(self[Rdfy]),
-//                 self[Lufx].lerp_gradient(self[Rufx]),
-//                 self[Lufy].lerp_gradient(self[Rufy]),
-//             ])
-//             .interpolate_3d([by[W], by[Y], by[Z]].into(), curve)
-//                 * by[X].apply_mixer_derivative(curve),
-//             Corners3d([
-//                 self[Ldbx].lerp_gradient(self[Lubx]),
-//                 self[Rdbx].lerp_gradient(self[Rubx]),
-//                 self[Ldby].lerp_gradient(self[Luby]),
-//                 self[Rdby].lerp_gradient(self[Ruby]),
-//                 self[Ldfx].lerp_gradient(self[Lufx]),
-//                 self[Rdfx].lerp_gradient(self[Rufx]),
-//                 self[Ldfy].lerp_gradient(self[Lufy]),
-//                 self[Rdfy].lerp_gradient(self[Rufy]),
-//             ])
-//             .interpolate_3d([by[X], by[W], by[Z]].into(), curve)
-//                 * by[Y].apply_mixer_derivative(curve),
-//             Corners3d([
-//                 self[Ldbx].lerp_gradient(self[Ldfx]),
-//                 self[Rdbx].lerp_gradient(self[Rdfx]),
-//                 self[Lubx].lerp_gradient(self[Lufx]),
-//                 self[Rubx].lerp_gradient(self[Rufx]),
-//                 self[Ldby].lerp_gradient(self[Ldfy]),
-//                 self[Rdby].lerp_gradient(self[Rdfy]),
-//                 self[Luby].lerp_gradient(self[Lufy]),
-//                 self[Ruby].lerp_gradient(self[Rufy]),
-//             ])
-//             .interpolate_3d([by[X], by[Y], by[W]].into(), curve)
-//                 * by[Z].apply_mixer_derivative(curve),
-//             Corners3d([
-//                 self[Ldbx].lerp_gradient(self[Ldby]),
-//                 self[Rdbx].lerp_gradient(self[Rdby]),
-//                 self[Lubx].lerp_gradient(self[Luby]),
-//                 self[Rubx].lerp_gradient(self[Ruby]),
-//                 self[Ldfx].lerp_gradient(self[Ldfy]),
-//                 self[Rdfx].lerp_gradient(self[Rdfy]),
-//                 self[Lufx].lerp_gradient(self[Lufy]),
-//                 self[Rufx].lerp_gradient(self[Rufy]),
-//             ])
-//             .interpolate_3d([by[X], by[Y], by[Z]].into(), curve)
-//                 * by[W].apply_mixer_derivative(curve),
-//         ])
-//     }
+    /// performs an interpolation gradient within the hypercube formed by these corners  to the
+    /// coordinates in `by` according to the `curve`
+    #[inline(always)]
+    pub fn interpolate_gradient_4d<I: Copy>(
+        &self,
+        by: Axies4d<I>,
+        curve: &impl MixerFxn<I, T>,
+    ) -> Axies4d<T> {
+        use Axis4d::*;
+        use Corner4d::*;
+        Axies4d([
+            Corners3d([
+                self[Ldbx].lerp_gradient(self[Rdbx]),
+                self[Ldby].lerp_gradient(self[Rdby]),
+                self[Lubx].lerp_gradient(self[Rubx]),
+                self[Luby].lerp_gradient(self[Ruby]),
+                self[Ldfx].lerp_gradient(self[Rdfx]),
+                self[Ldfy].lerp_gradient(self[Rdfy]),
+                self[Lufx].lerp_gradient(self[Rufx]),
+                self[Lufy].lerp_gradient(self[Rufy]),
+            ])
+            .interpolate_3d([by[W], by[Y], by[Z]].into(), curve)
+                * curve.derivative(by[X]),
+            Corners3d([
+                self[Ldbx].lerp_gradient(self[Lubx]),
+                self[Rdbx].lerp_gradient(self[Rubx]),
+                self[Ldby].lerp_gradient(self[Luby]),
+                self[Rdby].lerp_gradient(self[Ruby]),
+                self[Ldfx].lerp_gradient(self[Lufx]),
+                self[Rdfx].lerp_gradient(self[Rufx]),
+                self[Ldfy].lerp_gradient(self[Lufy]),
+                self[Rdfy].lerp_gradient(self[Rufy]),
+            ])
+            .interpolate_3d([by[X], by[W], by[Z]].into(), curve)
+                * curve.derivative(by[Y]),
+            Corners3d([
+                self[Ldbx].lerp_gradient(self[Ldfx]),
+                self[Rdbx].lerp_gradient(self[Rdfx]),
+                self[Lubx].lerp_gradient(self[Lufx]),
+                self[Rubx].lerp_gradient(self[Rufx]),
+                self[Ldby].lerp_gradient(self[Ldfy]),
+                self[Rdby].lerp_gradient(self[Rdfy]),
+                self[Luby].lerp_gradient(self[Lufy]),
+                self[Ruby].lerp_gradient(self[Rufy]),
+            ])
+            .interpolate_3d([by[X], by[Y], by[W]].into(), curve)
+                * curve.derivative(by[Z]),
+            Corners3d([
+                self[Ldbx].lerp_gradient(self[Ldby]),
+                self[Rdbx].lerp_gradient(self[Rdby]),
+                self[Lubx].lerp_gradient(self[Luby]),
+                self[Rubx].lerp_gradient(self[Ruby]),
+                self[Ldfx].lerp_gradient(self[Ldfy]),
+                self[Rdfx].lerp_gradient(self[Rdfy]),
+                self[Lufx].lerp_gradient(self[Lufy]),
+                self[Rufx].lerp_gradient(self[Rufy]),
+            ])
+            .interpolate_3d([by[X], by[Y], by[Z]].into(), curve)
+                * curve.derivative(by[W]),
+        ])
+    }
 
-//     /// performs an interpolation and gradient within the hypercube formed by these corners  to
-// the     /// coordinates in `by` according to the `curve`
-//     #[inline(always)]
-//     pub fn interpolate_and_gradient_4d<I: Mixable<T> + Copy>(
-//         &self,
-//         by: Axies4d<I>,
-//         curve: &impl MixerFxn<I>,
-//     ) -> (T, Axies4d<T>) {
-//         (
-//             self.interpolate_4d(by, curve),
-//             self.interpolate_gradient_4d(by, curve),
-//         )
-//     }
-// }
+    /// performs an interpolation and gradient within the hypercube formed by these corners  to the
+    /// coordinates in `by` according to the `curve`
+    #[inline(always)]
+    pub fn interpolate_and_gradient_4d<I: Copy>(
+        &self,
+        by: Axies4d<I>,
+        curve: &impl MixerFxn<I, T>,
+    ) -> (T, Axies4d<T>) {
+        (
+            self.interpolate_4d(by, curve),
+            self.interpolate_gradient_4d(by, curve),
+        )
+    }
+}
 
 #[cfg(test)]
 mod tests {
