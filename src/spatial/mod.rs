@@ -4,5 +4,6 @@
 pub mod cube;
 pub mod d1;
 pub mod hypercube;
+pub mod interpolating;
 pub mod named_array;
 pub mod square;

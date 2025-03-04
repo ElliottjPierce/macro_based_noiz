@@ -7,13 +7,13 @@ use super::{
         Associated,
         AssociationMapping,
     },
-    interpolating::{
-        Lerpable,
-        MixerFxn,
-        mix_2d,
-        mix_3d,
-        mix_4d,
-    },
+};
+use crate::spatial::interpolating::{
+    Lerpable,
+    MixerFxn,
+    mix_2d,
+    mix_3d,
+    mix_4d,
 };
 
 /// A trait that allows this type to have its context of `T` lerped.

@@ -6,7 +6,13 @@ use bevy_math::{
 };
 use flagset::FlagSet;
 
-use super::d1::AxisDirections;
+use super::{
+    d1::AxisDirections,
+    interpolating::{
+        Lerpable,
+        MixerFxn,
+    },
+};
 use crate::{
     name_array,
     spatial::named_array::NamedArrayIndices,
@@ -373,62 +379,58 @@ impl Corner2d {
     }
 }
 
-// impl<T: Lerpable + Copy> Corners2d<T> {
-//     /// performs an interpolation within the square formed by these corners  to the coordinates
-// in     /// `by` according to the `curve`
-//     #[inline(always)]
-//     pub fn interpolate_2d<I: Mixable<T> + Copy>(
-//         &self,
-//         by: Axies2d<I>,
-//         curve: &impl MixerFxn<I>,
-//     ) -> T {
-//         let lr = by[Axis2d::X].apply_mixer(curve);
-//         let du = by[Axis2d::Y].apply_mixer(curve);
-//         let left = T::lerp_dirty(self[Corner2d::Ld], self[Corner2d::Lu], du);
-//         let right = T::lerp_dirty(self[Corner2d::Rd], self[Corner2d::Ru], du);
-//         T::lerp_dirty(left, right, lr)
-//     }
+impl<T: Lerpable + Copy> Corners2d<T> {
+    /// performs an interpolation within the square formed by these corners  to the coordinates
+    /// `by` according to the `curve`
+    #[inline(always)]
+    pub fn interpolate_2d<I: Copy>(&self, by: Axies2d<I>, curve: &impl MixerFxn<I, T>) -> T {
+        let lr = curve.mix(by[Axis2d::X]);
+        let du = curve.mix(by[Axis2d::Y]);
+        let left = T::lerp_dirty(self[Corner2d::Ld], self[Corner2d::Lu], du);
+        let right = T::lerp_dirty(self[Corner2d::Rd], self[Corner2d::Ru], du);
+        T::lerp_dirty(left, right, lr)
+    }
 
-//     /// performs an interpolation gradient within the square formed by these corners  to the
-//     /// coordinates in `by` according to the `curve`
-//     #[inline(always)]
-//     pub fn interpolate_gradient_2d<I: Mixable<T> + Copy>(
-//         &self,
-//         by: Axies2d<I>,
-//         curve: &impl MixerFxn<I>,
-//     ) -> Axies2d<T> {
-//         let gradients = Side2d::IDENTITY.map(|s| {
-//             let [c1, c2] = SIDE_CORNERS_2D[s];
-//             T::lerp_gradient(self[c1], self[c2])
-//         });
-//         Axies2d([
-//             T::lerp_dirty(
-//                 gradients[Side2d::Down],
-//                 gradients[Side2d::Up],
-//                 by[Axis2d::Y].apply_mixer(curve),
-//             ) * by[Axis2d::X].apply_mixer_derivative(curve),
-//             T::lerp_dirty(
-//                 gradients[Side2d::Left],
-//                 gradients[Side2d::Right],
-//                 by[Axis2d::X].apply_mixer(curve),
-//             ) * by[Axis2d::Y].apply_mixer_derivative(curve),
-//         ])
-//     }
+    /// performs an interpolation gradient within the square formed by these corners  to the
+    /// coordinates in `by` according to the `curve`
+    #[inline(always)]
+    pub fn interpolate_gradient_2d<I: Copy>(
+        &self,
+        by: Axies2d<I>,
+        curve: &impl MixerFxn<I, T>,
+    ) -> Axies2d<T> {
+        let gradients = Side2d::IDENTITY.map(|s| {
+            let [c1, c2] = SIDE_CORNERS_2D[s];
+            T::lerp_gradient(self[c1], self[c2])
+        });
+        Axies2d([
+            T::lerp_dirty(
+                gradients[Side2d::Down],
+                gradients[Side2d::Up],
+                curve.mix(by[Axis2d::Y]),
+            ) * curve.derivative(by[Axis2d::X]),
+            T::lerp_dirty(
+                gradients[Side2d::Left],
+                gradients[Side2d::Right],
+                curve.mix(by[Axis2d::X]),
+            ) * curve.derivative(by[Axis2d::Y]),
+        ])
+    }
 
-//     /// performs an interpolation and gradient within the square formed by these corners  to the
-//     /// coordinates in `by` according to the `curve`
-//     #[inline(always)]
-//     pub fn interpolate_and_gradient_2d<I: Mixable<T> + Copy>(
-//         &self,
-//         by: Axies2d<I>,
-//         curve: &impl MixerFxn<I>,
-//     ) -> (T, Axies2d<T>) {
-//         (
-//             self.interpolate_2d(by, curve),
-//             self.interpolate_gradient_2d(by, curve),
-//         )
-//     }
-// }
+    /// performs an interpolation and gradient within the square formed by these corners  to the
+    /// coordinates in `by` according to the `curve`
+    #[inline(always)]
+    pub fn interpolate_and_gradient_2d<I: Copy>(
+        &self,
+        by: Axies2d<I>,
+        curve: &impl MixerFxn<I, T>,
+    ) -> (T, Axies2d<T>) {
+        (
+            self.interpolate_2d(by, curve),
+            self.interpolate_gradient_2d(by, curve),
+        )
+    }
+}
 
 #[cfg(test)]
 mod tests {
