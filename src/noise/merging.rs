@@ -379,8 +379,14 @@ impl<I: NoiseType + Default, M, T: WeightFactorer<I>> Merger<I, M> for Weighted<
     #[inline]
     fn merge(&self, vals: impl IntoIterator<Item = I>, _meta: &M) -> Self::Output {
         let heap = bumpalo::Bump::new();
-        let mut weights = bumpalo::collections::Vec::new_in(&heap);
-        weights.extend(vals.into_iter().map(|v| (self.0.weight_of(&v), v)));
+        let vals = vals.into_iter();
+        let mut weights = if let Some(len) = vals.size_hint().1 {
+            bumpalo::collections::Vec::with_capacity_in(len, &heap)
+        } else {
+            bumpalo::collections::Vec::new_in(&heap)
+        };
+
+        weights.extend(vals.map(|v| (self.0.weight_of(&v), v)));
         if weights.is_empty() {
             return self
                 .0
