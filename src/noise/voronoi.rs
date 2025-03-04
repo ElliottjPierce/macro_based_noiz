@@ -340,11 +340,12 @@ impl<const DIMENSIONS: u8> VoronoiSource<DIMENSIONS, false> for RelativeDistance
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ExactDistanceToEdge;
 
-/// The implementation of [`ExactDistanceToEdge`].
-#[derive(Debug, Clone, Copy, Default)]
-pub struct ExactDistanceToEdgeNoise {
-    /// The maximum expected distance between a sample and its nearest node.
-    pub max_expected: f32,
+impl<const DIMENSIONS: u8> VoronoiSource<DIMENSIONS, false> for ExactDistanceToEdge {
+    type Noise = Self;
+
+    fn build_noise(self, _max_nudge: f32) -> Self::Noise {
+        Self
+    }
 }
 
 /// easily implements worly for different inputs
@@ -420,7 +421,7 @@ macro_rules! impl_voronoi {
             }
         }
 
-        impl NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>> for ExactDistanceToEdgeNoise {
+        impl NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>> for ExactDistanceToEdge {
             type Output = f32;
 
             #[inline]
@@ -435,16 +436,6 @@ macro_rules! impl_voronoi {
                 let boarder_to_nearest = (next - nearest) * 0.5;
                 let boarder_to_sample = boarder_to_nearest + nearest;
                 boarder_to_sample.dot(boarder_to_nearest) / boarder_to_nearest.length()
-            }
-        }
-
-        impl VoronoiSource<$d, false> for ExactDistanceToEdge {
-            type Noise = ExactDistanceToEdgeNoise;
-
-            fn build_noise(self, max_nudge: f32) -> Self::Noise {
-                ExactDistanceToEdgeNoise {
-                    max_expected: max_nudge,
-                }
             }
         }
 
