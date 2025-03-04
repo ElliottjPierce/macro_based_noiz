@@ -432,11 +432,9 @@ macro_rules! impl_voronoi {
                 .merge(points.0.iter().copied(), &())
                 .map(|i| points.0[i]);
 
-                let cross_boarder = nearest - next;
-                let a_on_b = nearest.dot(cross_boarder);
-                // divide by length once to just get the length in the right direction
-                let result = a_on_b / cross_boarder.length();
-                self.max_expected - result // eliminate any accumulated error.
+                let boarder_to_nearest = (next - nearest) * 0.5;
+                let boarder_to_sample = boarder_to_nearest + nearest;
+                boarder_to_sample.dot(boarder_to_nearest) / boarder_to_nearest.length()
             }
         }
 
