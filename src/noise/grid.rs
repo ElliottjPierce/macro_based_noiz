@@ -73,7 +73,7 @@ impl GridNoise {
 
 impl From<Period> for GridNoise {
     fn from(value: Period) -> Self {
-        Self::new_period(value.0 as f32)
+        Self::new_period(value.0)
     }
 }
 
@@ -98,7 +98,7 @@ impl GridNoise64 {
 
 impl From<Period> for GridNoise64 {
     fn from(value: Period) -> Self {
-        Self::new_period(value.0)
+        Self::new_period(value.0 as f64)
     }
 }
 
