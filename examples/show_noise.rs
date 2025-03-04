@@ -44,6 +44,8 @@ use noiz::{
         },
         voronoi::{
             Cellular,
+            ExactDistanceToEdge,
+            RelativeDistanceToEdge,
             Voronoi,
             Worly,
             worly_mode,
@@ -88,7 +90,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = SimpleHeightMapNoise;
+type NoiseUsed = WorlyNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -176,10 +178,26 @@ noise_op! {
 }
 
 noise_op! {
+    pub struct DistanceToEdgeNoise for Vec2 -> UNorm = SpatialNoiseSettings
+    impl
+    fn GridNoise = args.period.into();
+    fn Voronoi<2, RelativeDistanceToEdge, false> = Voronoi::new_default(1.0.adapt(), args.rand_32());
+    as UNorm
+}
+
+noise_op! {
+    pub struct ExactDistanceToEdgeNoise for Vec2 -> UNorm = SpatialNoiseSettings
+    impl
+    fn GridNoise = args.period.into();
+    fn Voronoi<2, ExactDistanceToEdge, false> = Voronoi::new_default(1.0.adapt(), args.rand_32());
+    as UNorm
+}
+
+noise_op! {
     pub struct WorlyNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     fn GridNoise = args.period.into();
-    fn Voronoi<2, Worly<EuclideanDistance, worly_mode::Ratio>, false> = Voronoi::new(1.0, args.rand_32(), Worly::shrunk_by(0.75));
+    fn Voronoi<2, Worly<EuclideanDistance, worly_mode::Nearest>, false> = Voronoi::new(1.0, args.rand_32(), Worly::shrunk_by(1.0));
     || input.inverse();
 }
 
