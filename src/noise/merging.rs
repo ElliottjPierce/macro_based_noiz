@@ -2,7 +2,6 @@
 
 use std::ops::{
     Add,
-    AddAssign,
     Mul,
 };
 
@@ -54,7 +53,7 @@ pub trait Orderer<I> {
 /// Defines a type that is able to weigh a given type of value relative to other weights
 pub trait WeightFactorer<I> {
     /// The type that the weighing results in
-    type Output: AddAssign + NoiseType;
+    type Output: Add<Output = Self::Output> + NoiseType;
 
     /// Calculates the weight of the given value.
     fn weight_of(&self, value: &I) -> f32;
@@ -379,31 +378,26 @@ impl<I: NoiseType + Default, M, T: WeightFactorer<I>> Merger<I, M> for Weighted<
 
     #[inline]
     fn merge(&self, vals: impl IntoIterator<Item = I>, _meta: &M) -> Self::Output {
+        let heap = bumpalo::Bump::new();
+        let mut weights = bumpalo::collections::Vec::new_in(&heap);
+        weights.extend(vals.into_iter().map(|v| (self.0.weight_of(&v), v)));
+        if weights.is_empty() {
+            return self
+                .0
+                .weigh_value(I::default(), self.0.weight_of(&I::default()));
+        }
 
-        // if vals.is_empty() {
-        //     return self.0.weigh_value(I::default(), 1.0);
-        // }
-
-        // let mut total = 0f32;
-        // for value in &vals {
-        //     total += self.0.weight_of(value);
-        // }
-        // let inverse_total = if total == 0f32 { 0f32 } else { 1.0 / total };
-
-        // let mut result = None;
-        // for v in vals {
-        //     let relative_weight = self.0.weight_of(&v) * inverse_total;
-        //     let local = self.0.weigh_value(v, relative_weight);
-        //     if let Some(result) = &mut result {
-        //         *result += local;
-        //     } else {
-        //         result = Some(local)
-        //     }
-        // }
-
-        // // SAFETY: we know vals is non-empty and that therefore on the first iteration and
-        // // thereafter, result will be some.
-        // unsafe { result.unwrap_unchecked() }
+        let total: f32 = weights.iter().map(|w| w.0).sum();
+        let inv_total = 1.0 / total;
+        let mut iter_weights = weights
+            .into_iter()
+            .map(|(w, v)| self.0.weigh_value(v, w * inv_total));
+        // SAFETY: We just checked that the weights were not empty.
+        let mut result = unsafe { iter_weights.next().unwrap_unchecked() };
+        for weight in iter_weights {
+            result = result + weight;
+        }
+        result
     }
 }
 
@@ -421,7 +415,7 @@ impl<I, O: Orderer<I, OrderingOutput = UNorm>, N: NoiseOp<I>, const INVERTED: bo
     WeightFactorer<I> for OrderingWeight<O, N, INVERTED>
 where
     N::Output: Mul<f32>,
-    <N::Output as Mul<f32>>::Output: NoiseType + AddAssign,
+    <N::Output as Mul<f32>>::Output: NoiseType + Add<Output = <N::Output as Mul<f32>>::Output>,
 {
     type Output = <N::Output as Mul<f32>>::Output;
 
