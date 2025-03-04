@@ -102,11 +102,11 @@ impl Octave<UncheckedFbm> for () {
 /// Traditional fbm settings.
 pub struct StandardFbm {
     /// The period of the next octave.
-    pub next_period: f64,
+    pub next_period: f32,
     /// The weight of the next octave.
     pub next_weight: f32,
     /// The amount tby which the period is scaled between octaves by default.
-    pub octave_scaling: f64,
+    pub octave_scaling: f32,
     /// The amount tby which the weight is scaled between octaves by default.
     pub octave_fall_off: f32,
     total_weight: f32,
@@ -138,7 +138,7 @@ impl StandardFbm {
     }
 
     /// Constructs a new [`StandardFbm`].
-    pub fn new(period: Period, octave_scaling: f64, octave_fall_off: f32) -> Self {
+    pub fn new(period: Period, octave_scaling: f32, octave_fall_off: f32) -> Self {
         Self {
             next_period: period.0,
             next_weight: 1_000.0,
