@@ -30,15 +30,6 @@ pub trait Merger<I, M> {
     fn merge<const N: usize>(&self, vals: [I; N], meta: &M) -> Self::Output;
 }
 
-/// A version of [`Merger`] that operates for only a particular size
-pub trait SizedMerger<I, M, const N: usize> {
-    /// the merged output
-    type Output: NoiseType;
-
-    /// merges a specific number of the input type into an output
-    fn merge_sized(&self, vals: [I; N], meta: &M) -> Self::Output;
-}
-
 /// Marks a type as being able to be merged.
 pub trait Mergeable {
     /// the kind of metadata given.
@@ -48,43 +39,6 @@ pub trait Mergeable {
 
     /// performs merging on a with a given compatible merger.
     fn perform_merge<M: Merger<Self::Part, Self::Meta>>(self, merger: &M) -> M::Output;
-}
-
-/// Marks a type as being able to be merged.
-pub trait SizedMergeable<const N: usize> {
-    /// the kind of metadata given.
-    type Meta;
-    /// the kind of part given, the item type in an array.
-    type Part;
-
-    /// performs merging on a with a given compatible [`SizedMerger`].
-    fn perform_merge_sized<M: SizedMerger<Self::Part, Self::Meta, N>>(
-        self,
-        merger: &M,
-    ) -> M::Output;
-}
-
-impl<const N: usize, T: NoiseType> SizedMergeable<N> for [T; N] {
-    type Meta = ();
-
-    type Part = T;
-
-    #[inline]
-    fn perform_merge_sized<M: SizedMerger<Self::Part, Self::Meta, N>>(
-        self,
-        merger: &M,
-    ) -> M::Output {
-        merger.merge_sized(self, &())
-    }
-}
-
-impl<I, M, const N: usize, T: Merger<I, M>> SizedMerger<I, M, N> for T {
-    type Output = <T as Merger<I, M>>::Output;
-
-    #[inline]
-    fn merge_sized(&self, vals: [I; N], meta: &M) -> Self::Output {
-        self.merge(vals, meta)
-    }
 }
 
 /// Defines a type that is able to order a particular type by mapping it to a number.
@@ -570,21 +524,6 @@ impl<const N: usize, I: NoiseType, M: Merger<I, ()>> NoiseOp<[I; N]> for Merged<
     #[inline]
     fn get(&self, input: [I; N]) -> Self::Output {
         self.0.merge(input, &())
-    }
-}
-
-/// A noise operation that uses [`Merger`] `M` to merge any [`SizedMergeable`].
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct SizedMerged<const N: usize, M>(pub M);
-
-impl<const N: usize, I: SizedMergeable<N>, M: Merger<I::Part, I::Meta>> NoiseOp<I>
-    for SizedMerged<N, M>
-{
-    type Output = M::Output;
-
-    #[inline]
-    fn get(&self, input: I) -> Self::Output {
-        input.perform_merge_sized(&self.0)
     }
 }
 
