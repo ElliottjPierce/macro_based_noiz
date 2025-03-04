@@ -136,7 +136,7 @@ pub struct Smooth<C>(pub C);
 /// allows implementing easily Shooth for different types
 macro_rules! impl_smooth {
     ($mix:ident, $a:ty, $s:ty) => {
-        impl<T: NoiseType + Lerpable + Copy, C: MixerFxn<f32, T>> NoiseOp<LerpReady<$s, $a>>
+        impl<T: NoiseType + Lerpable<f32> + Copy, C: MixerFxn<f32, f32>> NoiseOp<LerpReady<$s, $a>>
             for Smooth<C>
         {
             type Output = T;

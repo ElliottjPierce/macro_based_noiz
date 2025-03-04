@@ -1,5 +1,7 @@
 //! 4d orthogonal space utilities.
 
+use std::ops::Mul;
+
 use bevy_math::IVec4;
 
 use super::{
@@ -412,11 +414,14 @@ pub const fn expand4d<const L: usize>(i: usize) -> (usize, usize, usize, usize) 
     (x, y, z, w)
 }
 
-impl<T: Lerpable + Copy> Corners4d<T> {
+impl<T: Copy> Corners4d<T> {
     /// performs an interpolation within the hypercube formed by these corners  to the coordinates
     /// in `by` according to the `curve`
     #[inline(always)]
-    pub fn interpolate_4d<I: Copy>(&self, by: Axies4d<I>, curve: &impl MixerFxn<I, T>) -> T {
+    pub fn interpolate_4d<I: Copy, L: Copy>(&self, by: Axies4d<I>, curve: &impl MixerFxn<I, L>) -> T
+    where
+        T: Lerpable<L>,
+    {
         use Axis4d::*;
         use Corner4d::*;
         let x = Corners3d([Ldbx, Ldfx, Lubx, Lufx, Rdbx, Rdfx, Rubx, Rufx]);
@@ -433,11 +438,14 @@ impl<T: Lerpable + Copy> Corners4d<T> {
     /// performs an interpolation gradient within the hypercube formed by these corners  to the
     /// coordinates in `by` according to the `curve`
     #[inline(always)]
-    pub fn interpolate_gradient_4d<I: Copy>(
+    pub fn interpolate_gradient_4d<I: Copy, L: Copy>(
         &self,
         by: Axies4d<I>,
-        curve: &impl MixerFxn<I, T>,
-    ) -> Axies4d<T> {
+        curve: &impl MixerFxn<I, L>,
+    ) -> Axies4d<T>
+    where
+        T: Lerpable<L> + Mul<L, Output = T>,
+    {
         use Axis4d::*;
         use Corner4d::*;
         Axies4d([
@@ -495,11 +503,14 @@ impl<T: Lerpable + Copy> Corners4d<T> {
     /// performs an interpolation and gradient within the hypercube formed by these corners  to the
     /// coordinates in `by` according to the `curve`
     #[inline(always)]
-    pub fn interpolate_and_gradient_4d<I: Copy>(
+    pub fn interpolate_and_gradient_4d<I: Copy, L: Copy>(
         &self,
         by: Axies4d<I>,
-        curve: &impl MixerFxn<I, T>,
-    ) -> (T, Axies4d<T>) {
+        curve: &impl MixerFxn<I, L>,
+    ) -> (T, Axies4d<T>)
+    where
+        T: Lerpable<L> + Mul<L, Output = T>,
+    {
         (
             self.interpolate_4d(by, curve),
             self.interpolate_gradient_4d(by, curve),

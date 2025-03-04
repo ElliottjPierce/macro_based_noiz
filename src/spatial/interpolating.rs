@@ -17,27 +17,29 @@ use bevy_math::{
 };
 
 /// Provides the methods needed to perform general interpolation
-pub trait Lerpable: Sized + Mul<Self, Output = Self> {
+pub trait Lerpable<T>: Sized {
     /// A fast but dirty linear interpolation.
     /// (lerping by 1 will not always give EXACTLY `to`)
-    fn lerp_dirty(self, to: Self, by: Self) -> Self;
+    fn lerp_dirty(self, to: Self, by: T) -> Self;
+
     /// The derivative of lerp
     fn lerp_gradient(self, to: Self) -> Self;
-    /// computes the value that could be used to lerp between `from` and `to` to land at `result`
-    fn lerp_inverse(from: Self, to: Self, result: Self) -> Self;
 
     /// Interpolates with a curve. This is dirty in a similar way to `lerp_dirty` but can also be
     /// dirtied by the curve.
     #[inline(always)]
-    fn mix_dirty<I>(self, to: Self, by: I, curve: &impl MixerFxn<I, Self>) -> Self {
+    fn mix_dirty<I>(self, to: Self, by: I, curve: &impl MixerFxn<I, T>) -> Self {
         self.lerp_dirty(to, curve.mix(by))
     }
 
     /// The derivative of `mix_dirty`
-    #[inline(always)]
-    fn mix_gradient<I>(self, to: Self, by: I, curve: &impl MixerFxn<I, Self>) -> Self {
-        self.lerp_gradient(to) * curve.derivative(by)
-    }
+    fn mix_gradient<I>(self, to: Self, by: I, curve: &impl MixerFxn<I, T>) -> Self;
+}
+
+/// Provides methods needed to perform general inverse interpolation, including remapping
+pub trait LerpableInverse: Lerpable<Self> {
+    /// computes the value that could be used to lerp between `from` and `to` to land at `result`
+    fn lerp_inverse(from: Self, to: Self, result: Self) -> Self;
 
     /// linear remap
     #[inline(always)]
@@ -76,11 +78,11 @@ pub trait MixerFxn<I, O> {
     fn derivative(&self, x: I) -> O;
 }
 
-impl<T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T> + Copy>
-    Lerpable for T
+impl<L, T: Add<T, Output = T> + Sub<T, Output = T> + Mul<L, Output = T> + Div<T, Output = T> + Copy>
+    Lerpable<L> for T
 {
     #[inline(always)]
-    fn lerp_dirty(self, to: Self, by: Self) -> Self {
+    fn lerp_dirty(self, to: Self, by: L) -> Self {
         self + (to - self) * by
     }
 
@@ -89,6 +91,13 @@ impl<T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Ou
         to - self
     }
 
+    #[inline(always)]
+    fn mix_gradient<I>(self, to: Self, by: I, curve: &impl MixerFxn<I, L>) -> Self {
+        self.lerp_gradient(to) * curve.derivative(by)
+    }
+}
+
+impl<T: Sub<T, Output = T> + Div<T, Output = T> + Copy + Lerpable<T>> LerpableInverse for T {
     #[inline(always)]
     fn lerp_inverse(from: Self, to: Self, result: Self) -> Self {
         (result - from) / (to - from)
@@ -106,11 +115,7 @@ pub struct Cubic;
 
 /// Allows implementing curves easily
 macro_rules! impl_curves {
-    ($t:path) => {
-        impl_curves!($t, 1.0);
-    };
-
-    ($t:path, $one:expr) => {
+    ($t:ty) => {
         impl MixerFxn<$t, $t> for Linear {
             #[inline]
             fn mix(&self, x: $t) -> $t {
@@ -119,7 +124,7 @@ macro_rules! impl_curves {
 
             #[inline]
             fn derivative(&self, _x: $t) -> $t {
-                $one
+                1.0
             }
         }
 
@@ -137,28 +142,30 @@ macro_rules! impl_curves {
         }
     };
 
-    ($t:path, $b:path, $s:ident) => {
-        impl MixerFxn<$b, $t> for Linear {
-            #[inline]
-            fn mix(&self, x: $b) -> $t {
-                <$t>::$s(<Self as MixerFxn<$b, $b>>::mix(self, x))
+    ($f:ty, $v:ty) => {
+        impl<T: MixerFxn<$f, $f>> MixerFxn<$f, $v> for T {
+            fn mix(&self, x: $f) -> $v {
+                <$v>::splat(<Self as MixerFxn<$f, $f>>::mix(self, x))
             }
 
-            #[inline]
-            fn derivative(&self, x: $b) -> $t {
-                <$t>::$s(<Self as MixerFxn<$b, $b>>::derivative(self, x))
+            fn derivative(&self, x: $f) -> $v {
+                <$v>::splat(<Self as MixerFxn<$f, $f>>::derivative(self, x))
             }
         }
 
-        impl MixerFxn<$b, $t> for Cubic {
-            #[inline]
-            fn mix(&self, x: $b) -> $t {
-                <$t>::$s(<Self as MixerFxn<$b, $b>>::mix(self, x))
+        impl<T: MixerFxn<$f, $f>> MixerFxn<$v, $v> for T {
+            fn mix(&self, x: $v) -> $v {
+                <$v>::from_array(
+                    x.to_array()
+                        .map(|x| <Self as MixerFxn<$f, $f>>::mix(self, x)),
+                )
             }
 
-            #[inline]
-            fn derivative(&self, x: $b) -> $t {
-                <$t>::$s(<Self as MixerFxn<$b, $b>>::derivative(self, x))
+            fn derivative(&self, x: $v) -> $v {
+                <$v>::from_array(
+                    x.to_array()
+                        .map(|x| <Self as MixerFxn<$f, $f>>::derivative(self, x)),
+                )
             }
         }
     };
@@ -166,15 +173,9 @@ macro_rules! impl_curves {
 
 impl_curves!(f32);
 impl_curves!(f64);
-impl_curves!(Vec2, Vec2::ONE);
-impl_curves!(Vec3, Vec3::ONE);
-impl_curves!(Vec4, Vec4::ONE);
-impl_curves!(DVec2, DVec2::ONE);
-impl_curves!(DVec3, DVec3::ONE);
-impl_curves!(DVec4, DVec4::ONE);
-impl_curves!(Vec2, f32, splat);
-impl_curves!(Vec3, f32, splat);
-impl_curves!(Vec4, f32, splat);
-impl_curves!(DVec2, f64, splat);
-impl_curves!(DVec3, f64, splat);
-impl_curves!(DVec4, f64, splat);
+impl_curves!(f32, Vec2);
+impl_curves!(f32, Vec3);
+impl_curves!(f32, Vec4);
+impl_curves!(f64, DVec2);
+impl_curves!(f64, DVec3);
+impl_curves!(f64, DVec4);

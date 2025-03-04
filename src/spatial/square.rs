@@ -1,5 +1,7 @@
 //! 2d orthogonal space utilities.
 
+use std::ops::Mul;
+
 use bevy_math::{
     BVec2,
     IVec2,
@@ -379,11 +381,14 @@ impl Corner2d {
     }
 }
 
-impl<T: Lerpable + Copy> Corners2d<T> {
+impl<T: Copy> Corners2d<T> {
     /// performs an interpolation within the square formed by these corners to the coordinates
     /// `by` according to the `curve`
     #[inline(always)]
-    pub fn interpolate_2d<I: Copy>(&self, by: Axies2d<I>, curve: &impl MixerFxn<I, T>) -> T {
+    pub fn interpolate_2d<I: Copy, L: Copy>(&self, by: Axies2d<I>, curve: &impl MixerFxn<I, L>) -> T
+    where
+        T: Lerpable<L>,
+    {
         let lr = curve.mix(by[Axis2d::X]);
         let du = curve.mix(by[Axis2d::Y]);
         let left = T::lerp_dirty(self[Corner2d::Ld], self[Corner2d::Lu], du);
@@ -394,11 +399,14 @@ impl<T: Lerpable + Copy> Corners2d<T> {
     /// performs an interpolation gradient within the square formed by these corners to the
     /// coordinates in `by` according to the `curve`
     #[inline(always)]
-    pub fn interpolate_gradient_2d<I: Copy>(
+    pub fn interpolate_gradient_2d<I: Copy, L: Copy>(
         &self,
         by: Axies2d<I>,
-        curve: &impl MixerFxn<I, T>,
-    ) -> Axies2d<T> {
+        curve: &impl MixerFxn<I, L>,
+    ) -> Axies2d<T>
+    where
+        T: Lerpable<L> + Mul<L, Output = T>,
+    {
         let gradients = Side2d::IDENTITY.map(|s| {
             let [c1, c2] = SIDE_CORNERS_2D[s];
             T::lerp_gradient(self[c1], self[c2])
@@ -420,11 +428,14 @@ impl<T: Lerpable + Copy> Corners2d<T> {
     /// performs an interpolation and gradient within the square formed by these corners to the
     /// coordinates in `by` according to the `curve`
     #[inline(always)]
-    pub fn interpolate_and_gradient_2d<I: Copy>(
+    pub fn interpolate_and_gradient_2d<I: Copy, L: Copy>(
         &self,
         by: Axies2d<I>,
-        curve: &impl MixerFxn<I, T>,
-    ) -> (T, Axies2d<T>) {
+        curve: &impl MixerFxn<I, L>,
+    ) -> (T, Axies2d<T>)
+    where
+        T: Lerpable<L> + Mul<L, Output = T>,
+    {
         (
             self.interpolate_2d(by, curve),
             self.interpolate_gradient_2d(by, curve),

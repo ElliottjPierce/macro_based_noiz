@@ -1,5 +1,7 @@
 //! 3d orthogonal space utilities.
 
+use std::ops::Mul;
+
 use bevy_math::{
     BVec3,
     IVec3,
@@ -669,11 +671,14 @@ impl Corner3d {
     }
 }
 
-impl<T: Lerpable + Copy> Corners3d<T> {
+impl<T: Copy> Corners3d<T> {
     /// performs an interpolation within the cube formed by these corners to the coordinates in
     /// `by` according to the `curve`
     #[inline(always)]
-    pub fn interpolate_3d<I: Copy>(&self, by: Axies3d<I>, curve: &impl MixerFxn<I, T>) -> T {
+    pub fn interpolate_3d<I: Copy, L: Copy>(&self, by: Axies3d<I>, curve: &impl MixerFxn<I, L>) -> T
+    where
+        T: Lerpable<L>,
+    {
         let bf = curve.mix(by[Axis3d::Z]);
         let back = SIDE_CORNERS_3D[Side3d::Back]
             .map(|c| self[c])
@@ -687,11 +692,14 @@ impl<T: Lerpable + Copy> Corners3d<T> {
     /// performs an interpolation gradient within the cube formed by these corners to the
     /// coordinates in `by` according to the `curve`
     #[inline(always)]
-    pub fn interpolate_gradient_3d<I: Copy>(
+    pub fn interpolate_gradient_3d<I: Copy, L: Copy>(
         &self,
         by: Axies3d<I>,
-        curve: &impl MixerFxn<I, T>,
-    ) -> Axies3d<T> {
+        curve: &impl MixerFxn<I, L>,
+    ) -> Axies3d<T>
+    where
+        T: Lerpable<L> + Mul<L, Output = T>,
+    {
         let grads = EDGE_CORNERS_3D.map(|[c1, c2]| self[c1].lerp_gradient(self[c2]));
         let axies = Axis3d::IDENTITY.map(|a| {
             SIDE_CORNERS_3D[AxisDirections::from(a)[AxisDirection::Negative]]
@@ -710,11 +718,14 @@ impl<T: Lerpable + Copy> Corners3d<T> {
     /// performs an interpolation and gradient within the cube formed by these corners to the
     /// coordinates in `by` according to the `curve`
     #[inline(always)]
-    pub fn interpolate_and_gradient_3d<I: Copy>(
+    pub fn interpolate_and_gradient_3d<I: Copy, L: Copy>(
         &self,
         by: Axies3d<I>,
-        curve: &impl MixerFxn<I, T>,
-    ) -> (T, Axies3d<T>) {
+        curve: &impl MixerFxn<I, L>,
+    ) -> (T, Axies3d<T>)
+    where
+        T: Lerpable<L> + Mul<L, Output = T>,
+    {
         (
             self.interpolate_3d(by, curve),
             self.interpolate_gradient_3d(by, curve),
