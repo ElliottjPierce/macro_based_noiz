@@ -25,6 +25,20 @@ use super::{
     seeded::SeedableNoiseType,
     smoothing::LerpLocatable,
 };
+use crate::spatial::{
+    cube::{
+        Corners3d,
+        Surroundings3d,
+    },
+    hypercube::{
+        Corners4d,
+        Surroundings4d,
+    },
+    square::{
+        Corners2d,
+        Surroundings2d,
+    },
+};
 
 /// a noise that converts a vector input to a point in a grid
 #[derive(Debug, Clone, PartialEq)]
@@ -118,7 +132,7 @@ macro_rules! make_grid_point {
         $ui2f:ident,
         $s:ty,
         $i:ty,
-        $d:literal,
+        $d:ident,
         $num_d:literal,with_extra
     ) => {
         make_grid_point!($name, $uint, $f, $fnoise, $f2i, $ui2f, $s, $i, $d, $num_d);
@@ -126,7 +140,7 @@ macro_rules! make_grid_point {
         impl LerpLocatable for $name {
             type Location = [$s; $num_d];
 
-            type Extents = [$name; $d];
+            type Extents = $d<Self>;
 
             #[inline]
             fn prepare_lerp(self) -> Associated<Self::Extents, Self::Location> {
@@ -137,6 +151,7 @@ macro_rules! make_grid_point {
             }
         }
     };
+
     (
         $name:ident,
         $uint:ty,
@@ -146,7 +161,7 @@ macro_rules! make_grid_point {
         $ui2f:ident,
         $s:ty,
         $i:ty,
-        $d:literal,
+        $d:ident,
         $num_d:literal
     ) => {
         /// represents a point in a grid
@@ -223,13 +238,13 @@ macro_rules! make_grid_point {
 }
 
 make_grid_point!(
-    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32, 4, 2, with_extra
+    GridPoint2, UVec2, Vec2, GridNoise, as_ivec2, as_vec2, f32, u32, Corners2d, 2, with_extra
 );
 make_grid_point!(
-    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32, 8, 3, with_extra
+    GridPoint3, UVec3, Vec3, GridNoise, as_ivec3, as_vec3, f32, u32, Corners3d, 3, with_extra
 );
 make_grid_point!(
-    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32, 16, 4, with_extra
+    GridPoint4, UVec4, Vec4, GridNoise, as_ivec4, as_vec4, f32, u32, Corners4d, 4, with_extra
 );
 make_grid_point!(
     GridPointD2,
@@ -240,7 +255,7 @@ make_grid_point!(
     as_dvec2,
     f64,
     u64,
-    4,
+    Corners2d,
     2
 );
 make_grid_point!(
@@ -252,7 +267,7 @@ make_grid_point!(
     as_dvec3,
     f64,
     u64,
-    8,
+    Corners3d,
     3
 );
 make_grid_point!(
@@ -264,7 +279,7 @@ make_grid_point!(
     as_dvec4,
     f64,
     u64,
-    16,
+    Corners4d,
     4
 );
 
@@ -297,18 +312,19 @@ convertible!(GridPoint4 = GridPointD4, |source| GridPointD4 {
 impl GridPoint2 {
     /// Produces an array of all positive unit offset combinations from the current value.
     #[inline]
-    pub fn corners(&self) -> [Self; 4] {
+    pub fn corners(&self) -> Corners2d<Self> {
         [
             self.pushed(UVec2::new(0, 0)),
             self.pushed(UVec2::new(0, 1)),
             self.pushed(UVec2::new(1, 0)),
             self.pushed(UVec2::new(1, 1)),
         ]
+        .into()
     }
 
     /// Produces an array of all unit offset combinations from the current value.
     #[inline]
-    pub fn surroundings(&self) -> [Self; 9] {
+    pub fn surroundings(&self) -> Surroundings2d<Self> {
         let minus_corner = {
             Self {
                 base: self.base - UVec2::ONE,
@@ -326,13 +342,14 @@ impl GridPoint2 {
             minus_corner.pushed(UVec2::new(2, 1)),
             minus_corner.pushed(UVec2::new(2, 2)),
         ]
+        .into()
     }
 }
 
 impl GridPoint3 {
     /// Produces an array of all positive unit offset combinations from the current value.
     #[inline]
-    pub fn corners(&self) -> [Self; 8] {
+    pub fn corners(&self) -> Corners3d<Self> {
         [
             self.pushed(UVec3::new(0, 0, 0)),
             self.pushed(UVec3::new(0, 0, 1)),
@@ -343,11 +360,12 @@ impl GridPoint3 {
             self.pushed(UVec3::new(1, 1, 0)),
             self.pushed(UVec3::new(1, 1, 1)),
         ]
+        .into()
     }
 
     /// Produces an array of all unit offset combinations from the current value.
     #[inline]
-    pub fn surroundings(&self) -> [Self; 27] {
+    pub fn surroundings(&self) -> Surroundings3d<Self> {
         let minus_corner = {
             Self {
                 base: self.base - UVec3::ONE,
@@ -383,13 +401,14 @@ impl GridPoint3 {
             minus_corner.pushed(UVec3::new(2, 2, 1)),
             minus_corner.pushed(UVec3::new(2, 2, 2)),
         ]
+        .into()
     }
 }
 
 impl GridPoint4 {
     /// Produces an array of all positive unit offset combinations from the current value.
     #[inline]
-    pub fn corners(&self) -> [Self; 16] {
+    pub fn corners(&self) -> Corners4d<Self> {
         [
             self.pushed(UVec4::new(0, 0, 0, 0)),
             self.pushed(UVec4::new(0, 0, 0, 1)),
@@ -408,11 +427,12 @@ impl GridPoint4 {
             self.pushed(UVec4::new(1, 1, 1, 0)),
             self.pushed(UVec4::new(1, 1, 1, 1)),
         ]
+        .into()
     }
 
     /// Produces an array of all unit offset combinations from the current value.
     #[inline]
-    pub fn surroundings(&self) -> [Self; 81] {
+    pub fn surroundings(&self) -> Surroundings4d<Self> {
         let minus_corner = {
             Self {
                 base: self.base - UVec4::ONE,
@@ -502,5 +522,6 @@ impl GridPoint4 {
             minus_corner.pushed(UVec4::new(2, 2, 2, 1)),
             minus_corner.pushed(UVec4::new(2, 2, 2, 2)),
         ]
+        .into()
     }
 }

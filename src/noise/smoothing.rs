@@ -8,12 +8,23 @@ use super::{
         AssociationMapping,
     },
 };
-use crate::spatial::interpolating::{
-    Lerpable,
-    MixerFxn,
-    mix_2d,
-    mix_3d,
-    mix_4d,
+use crate::spatial::{
+    cube::{
+        Axies3d,
+        Corners3d,
+    },
+    hypercube::{
+        Axies4d,
+        Corners4d,
+    },
+    interpolating::{
+        Lerpable,
+        MixerFxn,
+    },
+    square::{
+        Axies2d,
+        Corners2d,
+    },
 };
 
 /// A trait that allows this type to have its context of `T` lerped.
@@ -124,24 +135,24 @@ pub struct Smooth<C>(pub C);
 
 /// allows implementing easily Shooth for different types
 macro_rules! impl_smooth {
-    ($mix:ident, $d:literal, $c:literal) => {
-        impl<T: NoiseType + Lerpable + Copy, C: MixerFxn<f32, T>>
-            NoiseOp<LerpReady<[T; $c], [f32; $d]>> for Smooth<C>
+    ($mix:ident, $a:ty, $s:ty) => {
+        impl<T: NoiseType + Lerpable + Copy, C: MixerFxn<f32, T>> NoiseOp<LerpReady<$s, $a>>
+            for Smooth<C>
         {
             type Output = T;
 
             #[inline]
-            fn get(&self, input: LerpReady<[T; $c], [f32; $d]>) -> Self::Output {
+            fn get(&self, input: LerpReady<$s, $a>) -> Self::Output {
                 let Associated {
                     value: LerpValues(extents),
                     meta: LerpLocation(location),
                 } = input;
-                $mix(extents, location, &self.0)
+                extents.$mix(location, &self.0)
             }
         }
     };
 }
 
-impl_smooth!(mix_2d, 2, 4);
-impl_smooth!(mix_3d, 3, 8);
-impl_smooth!(mix_4d, 4, 16);
+impl_smooth!(interpolate_2d, Axies2d<f32>, Corners2d<T>);
+impl_smooth!(interpolate_3d, Axies3d<f32>, Corners3d<T>);
+impl_smooth!(interpolate_4d, Axies4d<f32>, Corners4d<T>);

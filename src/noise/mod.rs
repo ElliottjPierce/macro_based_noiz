@@ -61,7 +61,23 @@ use seeded::Seeding;
 use white::White32;
 
 pub use crate::__convert as convert;
-use crate::rng::NoiseRng;
+use crate::{
+    rng::NoiseRng,
+    spatial::{
+        cube::{
+            Axies3d,
+            Corners3d,
+        },
+        hypercube::{
+            Axies4d,
+            Corners4d,
+        },
+        square::{
+            Axies2d,
+            Corners2d,
+        },
+    },
+};
 
 /// This trait encapsulates what noise is. It takes in an input and outputs the nosie result.
 pub trait NoiseOp<I> {
@@ -164,6 +180,7 @@ impl SpatialNoiseSettings {
 }
 
 // built in
+impl<T: NoiseType, const N: usize> NoiseType for [T; N] {}
 impl NoiseType for f32 {}
 impl NoiseType for f64 {}
 impl NoiseType for u8 {}
@@ -211,8 +228,13 @@ impl NoiseType for U64Vec4 {}
 impl NoiseType for UVec2 {}
 impl NoiseType for UVec3 {}
 impl NoiseType for UVec4 {}
-
-impl<T: NoiseType, const N: usize> NoiseType for [T; N] {}
+// custom
+impl<T> NoiseType for Corners2d<T> {}
+impl<T> NoiseType for Corners3d<T> {}
+impl<T> NoiseType for Corners4d<T> {}
+impl<T> NoiseType for Axies2d<T> {}
+impl<T> NoiseType for Axies3d<T> {}
+impl<T> NoiseType for Axies4d<T> {}
 
 #[cfg(test)]
 mod tests {
