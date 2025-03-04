@@ -141,6 +141,64 @@ pub struct Worly<T, M> {
     pub mode: M,
 }
 
+impl<T, M: Default> Default for Worly<T, M> {
+    fn default() -> Self {
+        Self {
+            marker: PhantomData,
+            expected_length_multiplier: 1.0,
+            mode: M::default(),
+        }
+    }
+}
+
+impl<T, M> Worly<T, M> {
+    /// A version of [`shrunk_by`](Self::shrunk_by) that supplies a mode.
+    pub fn new_shrunk_by(srkinging_factor: f32, mode: M) -> Self {
+        Self {
+            marker: PhantomData,
+            expected_length_multiplier: srkinging_factor.abs().clamp(0.0, 1.0),
+            mode,
+        }
+    }
+
+    /// A version of [`expanded_by`](Self::expanded_by) that supplies a mode.
+    pub fn new_expanded_by(expansion_factor: f32, mode: M) -> Self {
+        Self {
+            marker: PhantomData,
+            expected_length_multiplier: expansion_factor.abs().max(0.0),
+            mode,
+        }
+    }
+
+    /// Sets the [`WorlyMode`] for this noise
+    pub fn with_mode(mut self, mode: M) -> Self {
+        self.mode = mode;
+        self
+    }
+}
+
+impl<T, M: Default> Worly<T, M> {
+    /// Clams the absolute value of this factor as [`WorlySource::expected_length_multiplier`].
+    pub fn shrunk_by(srkinging_factor: f32) -> Self {
+        Self {
+            marker: PhantomData,
+            expected_length_multiplier: srkinging_factor.abs().clamp(0.0, 1.0),
+            mode: M::default(),
+        }
+    }
+
+    /// Maxes the absolute value of this factor as [`WorlySource::expected_length_multiplier`].
+    ///
+    /// # Warning. This can lead to artifacts. Use this carefully.
+    pub fn expanded_by(expansion_factor: f32) -> Self {
+        Self {
+            marker: PhantomData,
+            expected_length_multiplier: expansion_factor.abs().max(0.0),
+            mode: M::default(),
+        }
+    }
+}
+
 /// Contains some common [`WorlyMode`]s.
 pub mod worly_mode {
     use super::WorlyMode;
@@ -266,74 +324,27 @@ impl<T> Default for Cellular<T> {
     }
 }
 
-impl<T, M: Default> Default for Worly<T, M> {
-    fn default() -> Self {
-        Self {
-            marker: PhantomData,
-            expected_length_multiplier: 1.0,
-            mode: M::default(),
-        }
-    }
-}
-
-impl<T, M> Worly<T, M> {
-    /// A version of [`shrunk_by`](Self::shrunk_by) that supplies a mode.
-    pub fn new_shrunk_by(srkinging_factor: f32, mode: M) -> Self {
-        Self {
-            marker: PhantomData,
-            expected_length_multiplier: srkinging_factor.abs().clamp(0.0, 1.0),
-            mode,
-        }
-    }
-
-    /// A version of [`expanded_by`](Self::expanded_by) that supplies a mode.
-    pub fn new_expanded_by(expansion_factor: f32, mode: M) -> Self {
-        Self {
-            marker: PhantomData,
-            expected_length_multiplier: expansion_factor.abs().max(0.0),
-            mode,
-        }
-    }
-}
-
-impl<T, M: Default> Worly<T, M> {
-    /// Clams the absolute value of this factor as [`WorlySource::expected_length_multiplier`].
-    pub fn shrunk_by(srkinging_factor: f32) -> Self {
-        Self {
-            marker: PhantomData,
-            expected_length_multiplier: srkinging_factor.abs().clamp(0.0, 1.0),
-            mode: M::default(),
-        }
-    }
-
-    /// Maxes the absolute value of this factor as [`WorlySource::expected_length_multiplier`].
-    ///
-    /// # Warning. This can lead to artifacts. Use this carefully.
-    pub fn expanded_by(expansion_factor: f32) -> Self {
-        Self {
-            marker: PhantomData,
-            expected_length_multiplier: expansion_factor.abs().max(0.0),
-            mode: M::default(),
-        }
-    }
-
-    /// Sets the [`WorlyMode`] for this noise
-    pub fn with_mode(mut self, mode: M) -> Self {
-        self.mode = mode;
-        self
-    }
-}
-
-/// A [`VoronoiSource`] that returns the relative distance of each point to an edge.
+/// A [`VoronoiSource`] that returns the relative distance of each point to the nearest edge.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct DistanceToEdge;
+pub struct RelativeDistanceToEdge;
 
-impl<const DIMENSIONS: u8> VoronoiSource<DIMENSIONS, false> for DistanceToEdge {
+impl<const DIMENSIONS: u8> VoronoiSource<DIMENSIONS, false> for RelativeDistanceToEdge {
     type Noise = Self;
 
     fn build_noise(self, _max_nudge: f32) -> Self::Noise {
         Self
     }
+}
+
+/// A [`VoronoiSource`] that returns the exact distance of each point to the nearest edge.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ExactDistanceToEdge;
+
+/// The implementation of [`ExactDistanceToEdge`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ExactDistanceToEdgeNoise {
+    /// The maximum expected distance between a sample and its nearest node.
+    pub max_expected: f32,
 }
 
 /// easily implements worly for different inputs
@@ -387,7 +398,7 @@ macro_rules! impl_voronoi {
 
         // distance to edge
 
-        impl NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>> for DistanceToEdge {
+        impl NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>> for RelativeDistanceToEdge {
             type Output = UNorm;
 
             #[inline]
@@ -406,6 +417,36 @@ macro_rules! impl_voronoi {
                 // relative to half the distance.
                 let result = a_on_b * 2.0 / cross_boarder.length_squared();
                 UNorm::new_clamped(1.0 - result) // eliminate any accumulated error.
+            }
+        }
+
+        impl NoiseOp<VoronoiGraph<$d_3<Seeded<$point>>>> for ExactDistanceToEdgeNoise {
+            type Output = f32;
+
+            #[inline]
+            fn get(&self, input: VoronoiGraph<$d_3<Seeded<$point>>>) -> Self::Output {
+                let points = input.value.map(|point| point.value.offset);
+                let [nearest, next] = $crate::noise::merging::MinIndices(EuclideanDistance {
+                    inv_max_expected: 1.0, // doesn't matter since we are just comparing them.
+                })
+                .merge(points.0.iter().copied(), &())
+                .map(|i| points.0[i]);
+
+                let cross_boarder = nearest - next;
+                let a_on_b = nearest.dot(cross_boarder);
+                // divide by length once to just get the length in the right direction
+                let result = a_on_b / cross_boarder.length();
+                self.max_expected - result // eliminate any accumulated error.
+            }
+        }
+
+        impl VoronoiSource<$d, false> for ExactDistanceToEdge {
+            type Noise = ExactDistanceToEdgeNoise;
+
+            fn build_noise(self, max_nudge: f32) -> Self::Noise {
+                ExactDistanceToEdgeNoise {
+                    max_expected: max_nudge,
+                }
             }
         }
 

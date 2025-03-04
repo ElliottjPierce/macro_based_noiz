@@ -44,7 +44,8 @@ use noiz::{
         },
         voronoi::{
             Cellular,
-            DistanceToEdge,
+            ExactDistanceToEdge,
+            RelativeDistanceToEdge,
             Voronoi,
             Worly,
             worly_mode,
@@ -180,7 +181,8 @@ noise_op! {
     pub struct DistanceToEdgeNoise for Vec2 -> UNorm = SpatialNoiseSettings
     impl
     fn GridNoise = args.period.into();
-    fn Voronoi<2, DistanceToEdge, false> = Voronoi::new_default(1.0.adapt(), args.rand_32())
+    fn Voronoi<2, ExactDistanceToEdge, false> = Voronoi::new_default(1.0.adapt(), args.rand_32());
+    as UNorm
 }
 
 noise_op! {
