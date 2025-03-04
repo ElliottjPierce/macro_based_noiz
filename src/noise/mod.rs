@@ -66,15 +66,15 @@ use crate::{
     spatial::{
         cube::{
             Axies3d,
-            Corners3d,
+            Corners3d, Surroundings3d,
         },
         hypercube::{
             Axies4d,
-            Corners4d,
+            Corners4d, Surroundings4d,
         },
         square::{
             Axies2d,
-            Corners2d,
+            Corners2d, Surroundings2d,
         },
     },
 };
@@ -235,6 +235,9 @@ impl<T> NoiseType for Corners4d<T> {}
 impl<T> NoiseType for Axies2d<T> {}
 impl<T> NoiseType for Axies3d<T> {}
 impl<T> NoiseType for Axies4d<T> {}
+impl<T> NoiseType for Surroundings2d<T> {}
+impl<T> NoiseType for Surroundings3d<T> {}
+impl<T> NoiseType for Surroundings4d<T> {}
 
 #[cfg(test)]
 mod tests {

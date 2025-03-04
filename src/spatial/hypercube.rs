@@ -1,5 +1,7 @@
 //! 4d orthogonal space utilities.
 
+use bevy_math::IVec4;
+
 use super::{
     cube::{
         expand3d,
@@ -68,10 +70,33 @@ name_array! {
         W,
     }
 
-   /// A 1 to 1 collection for the surroundings of a center hypercube
-   pub struct Surroundings4d,
-   /// the Surroundings of a center hypercube
-   pub enum Surrounding4d: u8, u128 {
+
+    /// A 1 to 1 collection for the sides of a cube
+    pub struct Sides4d,
+    /// the sides of a cube
+    pub enum Side4d: u8, u8 {
+        /// Left
+        Left,
+        /// Right
+        Right,
+        /// Down
+        Down,
+        /// Up
+        Up,
+        /// Back
+        Back,
+        /// Front
+        Front,
+        /// negative w
+        WNeg,
+        /// positive w
+        WPos,
+    }
+
+    /// A 1 to 1 collection for the surroundings of a center hypercube
+    pub struct Surroundings4d,
+    /// the Surroundings of a center hypercube
+    pub enum Surrounding4d: u8, u128 {
         // sides
         Nzzz,
         Pzzz,
@@ -98,7 +123,7 @@ name_array! {
         Zppn,
         Znpn,
         Zpnn,
-        ZNnp,
+        Znnp,
         Zppp,
         Znpp,
         Zpnp,
@@ -125,7 +150,7 @@ name_array! {
         Nppn,
         Nnpn,
         Npnn,
-        NNnp,
+        Nnnp,
         Nppp,
         Nnpp,
         Npnp,
@@ -152,7 +177,7 @@ name_array! {
         Pppn,
         Pnpn,
         Ppnn,
-        PNnp,
+        Pnnp,
         Pppp,
         Pnpp,
         Ppnp,
@@ -160,6 +185,131 @@ name_array! {
         Zzzz,
    }
 }
+
+/// The unit corners from 0 to 1
+pub const UNIT_CORNERS_IVEC4: Corners4d<IVec4> = Corners4d([
+    IVec4::new(0, 0, 0, 0),
+    IVec4::new(0, 0, 0, 1),
+    IVec4::new(0, 0, 1, 0),
+    IVec4::new(0, 0, 1, 1),
+    IVec4::new(0, 1, 0, 0),
+    IVec4::new(0, 1, 0, 1),
+    IVec4::new(0, 1, 1, 0),
+    IVec4::new(0, 1, 1, 1),
+    IVec4::new(1, 0, 0, 0),
+    IVec4::new(1, 0, 0, 1),
+    IVec4::new(1, 0, 1, 0),
+    IVec4::new(1, 0, 1, 1),
+    IVec4::new(1, 1, 0, 0),
+    IVec4::new(1, 1, 0, 1),
+    IVec4::new(1, 1, 1, 0),
+    IVec4::new(1, 1, 1, 1),
+]);
+
+/// The unit side directions or normalized orthogonal length
+pub const UNIT_SIDES_IVEC4: Sides4d<IVec4> = Sides4d([
+    IVec4::new(-1, 0, 0, 0),
+    IVec4::new(1, 0, 0, 0),
+    IVec4::new(0, -1, 0, 0),
+    IVec4::new(0, 1, 0, 0),
+    IVec4::new(0, 0, -1, 0),
+    IVec4::new(0, 0, 1, 0),
+    IVec4::new(0, 0, 0, -1),
+    IVec4::new(0, 0, 0, 1),
+]);
+
+/// The unit axies
+pub const UNIT_AXIES_IVEC4: Axies4d<IVec4> = Axies4d([
+    IVec4::new(1, 0, 0, 0),
+    IVec4::new(0, 1, 0, 0),
+    IVec4::new(0, 0, 1, 0),
+    IVec4::new(0, 0, 0, 1),
+]);
+
+/// The unit Surroundings from -1 to 1
+pub const UNIT_SURROUNDINGS_IVEC4: Surroundings4d<IVec4> = Surroundings4d([
+    IVec4::new(-1, 0, 0, 0),
+    IVec4::new(1, 0, 0, 0),
+    IVec4::new(0, -1, 0, 0),
+    IVec4::new(0, 1, 0, 0),
+    IVec4::new(0, 0, -1, 0),
+    IVec4::new(0, 0, 1, 0),
+    IVec4::new(0, 0, 0, -1),
+    IVec4::new(0, 0, 0, 1),
+    IVec4::new(0, 0, -1, -1),
+    IVec4::new(0, 0, 1, 1),
+    IVec4::new(0, 0, -1, 1),
+    IVec4::new(0, 0, 1, -1),
+    IVec4::new(0, -1, 0, -1),
+    IVec4::new(0, 1, 0, 1),
+    IVec4::new(0, -1, 0, 1),
+    IVec4::new(0, 1, 0, -1),
+    IVec4::new(0, -1, -1, 0),
+    IVec4::new(0, 1, 1, 0),
+    IVec4::new(0, -1, 1, 0),
+    IVec4::new(0, 1, -1, 0),
+    IVec4::new(0, -1, -1, -1),
+    IVec4::new(0, 1, 1, -1),
+    IVec4::new(0, -1, 1, -1),
+    IVec4::new(0, 1, -1, -1),
+    IVec4::new(0, -1, -1, 1),
+    IVec4::new(0, 1, 1, 1),
+    IVec4::new(0, -1, 1, 1),
+    IVec4::new(0, 1, -1, 1),
+    IVec4::new(-1, -1, 0, 0),
+    IVec4::new(-1, 1, 0, 0),
+    IVec4::new(-1, 0, -1, 0),
+    IVec4::new(-1, 0, 1, 0),
+    IVec4::new(-1, 0, 0, -1),
+    IVec4::new(-1, 0, 0, 1),
+    IVec4::new(-1, 0, -1, -1),
+    IVec4::new(-1, 0, 1, 1),
+    IVec4::new(-1, 0, -1, 1),
+    IVec4::new(-1, 0, 1, -1),
+    IVec4::new(-1, -1, 0, -1),
+    IVec4::new(-1, 1, 0, 1),
+    IVec4::new(-1, -1, 0, 1),
+    IVec4::new(-1, 1, 0, -1),
+    IVec4::new(-1, -1, -1, 0),
+    IVec4::new(-1, 1, 1, 0),
+    IVec4::new(-1, -1, 1, 0),
+    IVec4::new(-1, 1, -1, 0),
+    IVec4::new(-1, -1, -1, -1),
+    IVec4::new(-1, 1, 1, -1),
+    IVec4::new(-1, -1, 1, -1),
+    IVec4::new(-1, 1, -1, -1),
+    IVec4::new(-1, -1, -1, 1),
+    IVec4::new(-1, 1, 1, 1),
+    IVec4::new(-1, -1, 1, 1),
+    IVec4::new(-1, 1, -1, 1),
+    IVec4::new(1, -1, 0, 0),
+    IVec4::new(1, 1, 0, 0),
+    IVec4::new(1, 0, -1, 0),
+    IVec4::new(1, 0, 1, 0),
+    IVec4::new(1, 0, 0, -1),
+    IVec4::new(1, 0, 0, 1),
+    IVec4::new(1, 0, -1, -1),
+    IVec4::new(1, 0, 1, 1),
+    IVec4::new(1, 0, -1, 1),
+    IVec4::new(1, 0, 1, -1),
+    IVec4::new(1, -1, 0, -1),
+    IVec4::new(1, 1, 0, 1),
+    IVec4::new(1, -1, 0, 1),
+    IVec4::new(1, 1, 0, -1),
+    IVec4::new(1, -1, -1, 0),
+    IVec4::new(1, 1, 1, 0),
+    IVec4::new(1, -1, 1, 0),
+    IVec4::new(1, 1, -1, 0),
+    IVec4::new(1, -1, -1, -1),
+    IVec4::new(1, 1, 1, -1),
+    IVec4::new(1, -1, 1, -1),
+    IVec4::new(1, 1, -1, -1),
+    IVec4::new(1, -1, -1, 1),
+    IVec4::new(1, 1, 1, 1),
+    IVec4::new(1, -1, 1, 1),
+    IVec4::new(1, 1, -1, 1),
+    IVec4::new(0, 0, 0, 0),
+]);
 
 /// Flatens a 4d index into a single value losslessly where L is the length of this 4d space.
 /// Note that if the only goal is to fit a vector into a number, you may want to instead just merge
