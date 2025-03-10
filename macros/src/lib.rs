@@ -582,7 +582,7 @@ impl Operation {
             }
             Operation::Noise(field) => {
                 let name = &field.ident;
-                quote! {let input = #name.get(input); }
+                quote! {let mut input = #name.get(input); }
             }
             Operation::Convert(conversions) => {
                 if conversions.conversions.is_empty() {
@@ -606,14 +606,14 @@ impl Operation {
                 quote! {
                     #[allow(unused)]
                     #input
-                    let input = #block;
+                    let mut input = #block;
                 }
             }
             Operation::Hold(local) => local.to_token_stream(),
             Operation::Parallel(op) => {
                 let op_code = op.quote_noise();
                 quote! {
-                    let input = input.map(|input| {
+                    let mut input = input.map(|input| {
                         #op_code
                         input
                     });
@@ -622,7 +622,7 @@ impl Operation {
             Operation::Mapping(Mapping { operation, mapped }) => {
                 let op = operation.quote_noise();
                 quote! {
-                    let input = noiz::noise::associating::AssociationMapping::<#mapped>::map_association(input, |input| {
+                    let mut input = noiz::noise::associating::AssociationMapping::<#mapped>::map_association(input, |input| {
                         #op
                         input
                     });
@@ -646,7 +646,7 @@ impl Operation {
                 let first_storage = &first.storage_ident;
                 let first = quote! {
                     {
-                        let input = #fbm_ident;
+                        let mut input = #fbm_ident;
                         #(#first_noise)*
                         __fbm_acc = noiz::noise::fbm::PreAccumulator::<_, _, #num_octaves>::start_accumulate(__fbm_acc_start, input, #first_storage);
                     }
@@ -665,7 +665,7 @@ impl Operation {
                         let ops_noise = ops.iter().map(|op| op.quote_noise());
                         quote! {
                             {
-                                let input = #fbm_ident;
+                                let mut input = #fbm_ident;
                                 #(#ops_noise)*
                                 __fbm_acc.accumulate(input, #storage_ident);
                             }
@@ -683,7 +683,7 @@ impl Operation {
                     #first
                     #(#octaves)*
 
-                    let input = __fbm_acc.finish();
+                    let mut input = __fbm_acc.finish();
                 }
             }
             Operation::RefOp(RefOp {
@@ -696,7 +696,7 @@ impl Operation {
                 quote! {
                     #(#attrs)*
                     let #ident = {
-                        let input = #refer;
+                        let mut input = #refer;
                         #(#ops)*
                         input
                     };
