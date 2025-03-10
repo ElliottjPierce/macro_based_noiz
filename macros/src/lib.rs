@@ -646,7 +646,6 @@ impl Operation {
                 let first_storage = &first.storage_ident;
                 let first = quote! {
                     {
-                        let input = &mut prev;
                         #(#first_noise)*
                         __fbm_acc = noiz::noise::fbm::PreAccumulator::<_, _, #num_octaves>::start_accumulate(__fbm_acc_start, input, #first_storage);
                     }
@@ -665,7 +664,6 @@ impl Operation {
                         let ops_noise = ops.iter().map(|op| op.quote_noise());
                         quote! {
                             {
-                                let input = &mut prev;
                                 #(#ops_noise)*
                                 __fbm_acc.accumulate(input, #storage_ident);
                             }
