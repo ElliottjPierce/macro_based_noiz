@@ -11,7 +11,6 @@ use noiz::{
     noise::{
         Noise,
         NoiseType,
-        Period,
         SpatialNoiseSettings,
         associating::ValueOf,
         fbm::{
@@ -222,16 +221,16 @@ noise_op! {
             //     fbm.x += 1.0;
             //     input
             // };
-            ref warp_x impl { loop OctaveSum where fbm = StandardFbm::new(octave, 0.5, 0.6) enum [
+            ref warp_x impl loop OctaveSum where fbm = StandardFbm::new(octave, 0.5, 0.6) enum [
                 2 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
                     fn PerlinNoise = args.branch().with_period(octave).into();
                 },
-            ];};
-            ref warp_y impl { loop OctaveSum where fbm = StandardFbm::new(octave, 0.5, 0.6) enum [
+            ];
+            ref warp_y impl loop OctaveSum where fbm = StandardFbm::new(octave, 0.5, 0.6) enum [
                 2 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
                     fn PerlinNoise = args.branch().with_period(octave).into();
                 },
-            ];};
+            ];
             || {fbm += Vec2::new(warp_x, warp_y) * 10.0; fbm};
             fn PerlinNoise = args.branch().with_period(octave).into();
         },
