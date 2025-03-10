@@ -48,6 +48,7 @@ pub mod perlin;
 pub mod seeded;
 pub mod smoothing;
 pub mod voronoi;
+pub mod warp;
 pub mod white;
 
 pub use macros::noise_op;
@@ -182,6 +183,8 @@ impl SpatialNoiseSettings {
 
 // built in
 impl<T: NoiseType, const N: usize> NoiseType for [T; N] {}
+impl<T: NoiseType> NoiseType for &T {}
+impl<T: NoiseType> NoiseType for &mut T {}
 impl NoiseType for f32 {}
 impl NoiseType for f64 {}
 impl NoiseType for u8 {}
