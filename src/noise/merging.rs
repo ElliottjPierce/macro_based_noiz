@@ -559,6 +559,13 @@ pub struct HybridDistance {
     pub inv_max_expected: f32,
 }
 
+/// A [`Orderer`] that evenly uses Chebyshev distance, which is similar to [`ManhatanDistance`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ChebyshevDistance {
+    /// represents the inverse of the maximum expected evaluation of this distance.
+    pub inv_max_expected: f32,
+}
+
 macro_rules! impl_distances {
     ($t:path) => {
         impl Orderer<$t> for EuclideanDistance {
@@ -596,6 +603,20 @@ macro_rules! impl_distances {
             #[inline]
             fn ordering_of(&self, value: &$t) -> f32 {
                 value.length_squared() + value.abs().element_sum()
+            }
+
+            #[inline]
+            fn relative_ordering(&self, ordering: f32) -> Self::OrderingOutput {
+                UNorm::new_clamped(ordering * self.inv_max_expected)
+            }
+        }
+
+        impl Orderer<$t> for ChebyshevDistance {
+            type OrderingOutput = UNorm;
+
+            #[inline]
+            fn ordering_of(&self, value: &$t) -> f32 {
+                value.abs().max_element()
             }
 
             #[inline]

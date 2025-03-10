@@ -18,6 +18,7 @@ use super::{
         GridPoint4,
     },
     merging::{
+        ChebyshevDistance,
         EuclideanDistance,
         HybridDistance,
         ManhatanDistance,
@@ -516,6 +517,28 @@ macro_rules! impl_voronoi {
                 };
                 WorlyNoise(
                     HybridDistance {
+                        inv_max_expected: 1.0 / max_dist,
+                    },
+                    self.mode,
+                )
+            }
+        }
+
+        impl<const APPROX: bool, M> VoronoiSource<$d, APPROX> for Worly<ChebyshevDistance, M> {
+            type Noise = WorlyNoise<ChebyshevDistance, M>;
+
+            fn build_noise(self, max_nudge: f32) -> Self::Noise {
+                let max_displacement = max_nudge * self.expected_length_multiplier;
+                let max_dist = if APPROX {
+                    // One can have a nudge of zero, effectively doubling the distance
+                    max_displacement * 2.0
+                } else {
+                    // A nudge of zero puts it closer to the one on the left, so 0.5 is the furthest
+                    // the center can get from the suroundings.
+                    max_displacement * 1.5
+                };
+                WorlyNoise(
+                    ChebyshevDistance {
                         inv_max_expected: 1.0 / max_dist,
                     },
                     self.mode,
