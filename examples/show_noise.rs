@@ -218,6 +218,10 @@ noise_op! {
     impl
     loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
         8 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+            || {
+                fbm.x += 1.0;
+                input
+            };
             // let mut warped = input;
             // || *warped;
             // ref warp_x impl {loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
