@@ -31,6 +31,31 @@ pub struct Warp<T, M = Single> {
     pub mode: M,
 }
 
+impl<T, M> Warp<T, M> {
+    /// Creates a new [`Warp`].
+    pub fn new_with_mode(noise: T, mode: M) -> Self {
+        Self {
+            noise,
+            strength: 1.0,
+            mode,
+        }
+    }
+
+    /// Scales [`strength`](Self::strength).
+    pub fn scaled(mut self, scale: f32) -> Self {
+        self.strength *= scale;
+        self
+    }
+
+    /// Constructs a new [`Warp`] with this noise.
+    pub fn new(noise: T) -> Self
+    where
+        M: Default,
+    {
+        Self::new_with_mode(noise, M::default())
+    }
+}
+
 impl<T: Default, M: Default> Default for Warp<T, M> {
     fn default() -> Self {
         Self {
