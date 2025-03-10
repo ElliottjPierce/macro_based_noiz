@@ -91,7 +91,7 @@ fn main() -> AppExit {
         .run()
 }
 
-type NoiseUsed = WorlyNoise;
+type NoiseUsed = WarpedPerlinFbmNoise;
 
 fn make_noise(image: &mut Image) {
     let width = image.width();
@@ -218,25 +218,21 @@ noise_op! {
     impl
     loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
         8 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
-            || {
-                fbm.x += 1.0;
-                input
-            };
-            // let mut warped = input;
-            // || *warped;
-            // ref warp_x impl {loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
-            //     2 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
-            //         || *input;
-            //         fn PerlinNoise = args.branch().with_period(octave).into();
-            //     },
-            // ];};
-            // ref warp_y impl { loop OctaveSum where fbm = StandardFbm::new(args.period, 0.5, 0.6) enum [
-            //     2 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
-            //         || *input;
-            //         fn PerlinNoise = args.branch().with_period(octave).into();
-            //     },
-            // ];};
-            // || {*warped += Vec2::new(warp_x, warp_y) * 20.0; *warped};
+            // || {
+            //     fbm.x += 1.0;
+            //     input
+            // };
+            ref warp_x impl { loop OctaveSum where fbm = StandardFbm::new(octave, 0.5, 0.6) enum [
+                2 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+                    fn PerlinNoise = args.branch().with_period(octave).into();
+                },
+            ];};
+            ref warp_y impl { loop OctaveSum where fbm = StandardFbm::new(octave, 0.5, 0.6) enum [
+                2 where octave: WeightedOctave as fbm.gen_octave::<StandardOctave>() impl {
+                    fn PerlinNoise = args.branch().with_period(octave).into();
+                },
+            ];};
+            || {fbm += Vec2::new(warp_x, warp_y) * 10.0; fbm};
             fn PerlinNoise = args.branch().with_period(octave).into();
         },
     ];
